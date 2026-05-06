@@ -86,6 +86,20 @@ function useOpportunityFeed() {
   return { feed, source };
 }
 
+function DataStatusBadge({ source, count }: { source: 'seed' | 'live'; count: number }) {
+  const isLive = source === 'live';
+
+  return (
+    <div className={`data-status-badge ${isLive ? 'is-live' : 'is-seed'}`}>
+      <div>
+        <span className="mono">{isLive ? 'LIVE DATA CONNECTED' : 'SEED MODE'}</span>
+        <p>{isLive ? 'Supabase model feed active' : 'Backup local feed active until refresh returns rows'}</p>
+      </div>
+      <strong className="mono">{count}</strong>
+    </div>
+  );
+}
+
 export function Home() {
   const { feed, source } = useOpportunityFeed();
   const addLeg = useSlipStore((state) => state.addLeg);
@@ -114,12 +128,10 @@ export function Home() {
       <section className="hero">
         <p className="eyebrow">SlipIQ · First Set Lab</p>
         <h1>Today's Best Opportunities</h1>
-        <p className="muted">
-          Tennis first-set probability, fair odds, market comparison, and slip fit in one terminal-style feed.
-          {source === 'live' ? ' Live model data is connected.' : ' Seed feed shown until live data is connected.'}
-        </p>
+        <p className="muted">Tennis first-set probability, fair odds, market comparison, and slip fit in one terminal-style feed.</p>
       </section>
 
+      <DataStatusBadge source={source} count={feed.length} />
       <LiveAlertBanner />
       <IQRebuildCard compact />
 
