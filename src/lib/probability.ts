@@ -1,0 +1,12 @@
+import { SlipLeg, SlipSummary, Tier } from '../types';
+const clamp=(v:number,min=0,max=1)=>Math.min(max,Math.max(min,v));
+export const calcHoldProb=(fs1:number,w1s:number,w2s:number,bpSave:number,surface:string)=>{const surf=surface==='clay'?-0.015:surface==='grass'?0.02:0;return clamp((fs1*w1s+(1-fs1)*w2s)*0.78+bpSave*0.2+surf,0.45,0.95)};
+export const probWinGame=(p:number)=>{const q=1-p;const pre=p**4*(1+4*q+10*q*q);const deuce=20*p**3*q**3;const deuceWin=(p*p)/(1-2*p*q);return clamp(pre+deuce*deuceWin)};
+export const calcSetScoreDist=(h1:number,h2:number)=>{const scores=['6-0','6-1','6-2','6-3','6-4','7-5','7-6','0-6','1-6','2-6','3-6','4-6','5-7','6-7']; const out:Record<string,number>={}; const strength=clamp((h1-h2)*1.2+0.5); let sum=0; for(const s of scores){const [a,b]=s.split('-').map(Number); const diff=a-b; const base=Math.max(0.01,0.12-Math.abs(diff)*0.01-(a===7||b===7?0.04:0)); const w=(diff>=0?strength:1-strength)*base; out[s]=w; sum+=w;} Object.keys(out).forEach(k=>out[k]/=sum); return out;};
+export const classifyScore=(p:number)=>p>0.15?'GREEN / ANCHOR':p>0.08?'YELLOW / MID':p>0.03?'ORANGE / PUSH':'RED / LOTTO';
+export const fairOddsFromProbability=(p:number)=>1/clamp(p,0.001,1);
+export const impliedProbabilityFromOdds=(o:number)=>1/Math.max(o,1.01);
+export const calculateEdge=(modelProbability:number,bookmakerOdds:number)=>modelProbability-impliedProbabilityFromOdds(bookmakerOdds);
+export const calculateExpectedValue=(modelProbability:number,bookmakerOdds:number)=>modelProbability*bookmakerOdds-1;
+const tier=(o:number):Tier=>o>=3000?'S':o>=500?'A':o>=100?'B':'C';
+export const calcSlip=(legs:SlipLeg[],stake=10):SlipSummary=>{const combinedOdds=legs.reduce((a,l)=>a*l.odds,1); const hitRate=legs.reduce((a,l)=>a*l.modelProbability,1); return {combinedOdds,hitRate,expectedValue:hitRate*combinedOdds-1,payout:stake*combinedOdds,tier:tier(combinedOdds)}};
