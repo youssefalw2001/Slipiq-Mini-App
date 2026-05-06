@@ -1,0 +1,211 @@
+.iq-rebuild-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 13px;
+  border: 1px solid rgba(255, 215, 0, 0.24);
+  border-radius: 18px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 107, 53, 0.1), transparent 28%),
+    linear-gradient(145deg, rgba(15, 15, 34, 0.96), rgba(4, 4, 11, 0.98));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.iq-rebuild-card::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(78, 205, 196, 0.1), transparent);
+  transform: translateX(-100%);
+  animation: rebuildSweep 3.5s ease-in-out infinite;
+}
+
+.rebuild-header,
+.odds-transform,
+.rebuild-stats,
+.rebuild-note {
+  position: relative;
+  z-index: 1;
+}
+
+.rebuild-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.rebuild-header h2 {
+  margin-top: 4px;
+  max-width: 260px;
+  font-size: 18px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.rebuild-risk {
+  border: 1px solid rgba(255, 215, 0, 0.28);
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.08);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.odds-transform {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.odds-side {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.odds-side span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.odds-side strong {
+  display: block;
+  font-size: 25px;
+  letter-spacing: -0.06em;
+}
+
+.odds-base strong {
+  color: rgba(232, 228, 216, 0.46);
+}
+
+.odds-base strong::after {
+  position: absolute;
+  right: 10px;
+  left: 10px;
+  top: 50%;
+  height: 2px;
+  border-radius: 999px;
+  content: '';
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-orange));
+  transform: rotate(-9deg) scaleX(0);
+  transform-origin: left;
+  animation: slashBase 2.4s ease-in-out infinite;
+}
+
+.odds-iq {
+  border-color: rgba(255, 215, 0, 0.26);
+  background: rgba(255, 215, 0, 0.055);
+}
+
+.odds-iq strong {
+  color: var(--accent-gold);
+  text-shadow: 0 0 24px rgba(255, 215, 0, 0.14);
+  animation: oddsLock 2.4s ease-in-out infinite;
+}
+
+.rebuild-arrow {
+  position: relative;
+  width: 24px;
+  height: 30px;
+}
+
+.rebuild-arrow::before,
+.rebuild-arrow::after {
+  position: absolute;
+  left: 10px;
+  width: 2px;
+  height: 14px;
+  border-radius: 999px;
+  content: '';
+  background: var(--accent-teal);
+}
+
+.rebuild-arrow::before {
+  top: 2px;
+  transform: rotate(-35deg);
+}
+
+.rebuild-arrow::after {
+  bottom: 2px;
+  transform: rotate(35deg);
+}
+
+.rebuild-arrow span {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 24px;
+  height: 1px;
+  background: var(--accent-teal);
+  box-shadow: 0 0 14px rgba(78, 205, 196, 0.38);
+}
+
+.rebuild-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rebuild-stats div {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 9px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.rebuild-stats span {
+  display: block;
+  min-height: 24px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.rebuild-stats strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.positive-text {
+  color: var(--accent-green) !important;
+}
+
+.rebuild-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.iq-rebuild-card.is-compact .rebuild-header h2 {
+  font-size: 16px;
+}
+
+.iq-rebuild-card.is-compact .odds-side strong {
+  font-size: 22px;
+}
+
+@keyframes rebuildSweep {
+  0%, 35% { transform: translateX(-100%); }
+  70%, 100% { transform: translateX(100%); }
+}
+
+@keyframes slashBase {
+  0%, 25% { transform: rotate(-9deg) scaleX(0); opacity: 0; }
+  40%, 100% { transform: rotate(-9deg) scaleX(1); opacity: 1; }
+}
+
+@keyframes oddsLock {
+  0%, 35% { opacity: 0.45; transform: translateY(1px); }
+  48%, 100% { opacity: 1; transform: translateY(0); }
+}
