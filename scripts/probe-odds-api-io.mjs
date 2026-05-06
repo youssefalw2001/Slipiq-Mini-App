@@ -1,5 +1,6 @@
 const apiKey = process.env.ODDS_API_IO_KEY;
 const baseUrl = 'https://api.odds-api.io/v3';
+const defaultBookmakers = process.env.ODDS_API_IO_BOOKMAKERS || 'Bet365,Unibet,Betfair,Pinnacle,1xBet';
 
 if (!apiKey) {
   console.error('Missing ODDS_API_IO_KEY environment variable.');
@@ -33,6 +34,7 @@ const normalizeArray = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.events)) return payload.events;
+  if (Array.isArray(payload?.odds)) return payload.odds;
   return [];
 };
 
@@ -57,7 +59,8 @@ const collectMarketSignals = (value, path = [], out = new Map()) => {
       lowerKey.includes('handicap') ||
       lowerKey.includes('winner') ||
       lowerKey.includes('moneyline') ||
-      lowerKey.includes('odds')
+      lowerKey.includes('odds') ||
+      lowerKey.includes('bookmaker')
     ) {
       const sample = childIsPrimitive ? String(child).slice(0, 80) : Array.isArray(child) ? `[array:${child.length}]` : '[object]';
       out.set(pathText, sample);
@@ -71,7 +74,8 @@ const collectMarketSignals = (value, path = [], out = new Map()) => {
         lowerChild.includes('correct score') ||
         lowerChild.includes('score') ||
         lowerChild.includes('total games') ||
-        lowerChild.includes('set betting')
+        lowerChild.includes('set betting') ||
+        lowerChild.includes('winner')
       ) {
         out.set(pathText, child.slice(0, 120));
       }
@@ -89,8 +93,8 @@ const summarizeEvent = (event) => ({
   away: event.away,
   date: event.date,
   status: event.status,
-  sport: event.sport?.slug ?? event.sport?.name,
-  league: event.league?.slug ?? event.league?.name,
+  sport: event.sport?.slug ?? event.sport?.name ?? event.sport,
+  league: event.league?.slug ?? event.league?.name ?? event.league,
 });
 
 const run = async () => {
@@ -116,14 +120,19 @@ const run = async () => {
   }
 
   const eventIds = events.slice(0, 10).map((event) => event.id).filter(Boolean).join(',');
-  console.log(`Fetching odds for ${eventIds.split(',').length} events...`);
+  const eventCount = eventIds ? eventIds.split(',').length : 0;
+  console.log(`Fetching odds for ${eventCount} events...`);
+  console.log(`Using bookmakers: ${defaultBookmakers}`);
 
-  const oddsPayload = await fetchJson('/odds/multi', { eventIds });
+  const oddsPayload = await fetchJson('/odds/multi', {
+    eventIds,
+    bookmakers: defaultBookmakers,
+  });
   const oddsEvents = normalizeArray(oddsPayload);
   console.log(`Received odds for ${oddsEvents.length} events.`);
 
   const signals = collectMarketSignals(oddsPayload);
-  const signalEntries = [...signals.entries()].slice(0, 200);
+  const signalEntries = [...signals.entries()].slice(0, 250);
 
   console.log('Potential market/period/odds signals:');
   if (signalEntries.length === 0) {
@@ -140,6 +149,7 @@ const run = async () => {
     hasFirstSetSignal: /first.set|set.1/.test(signalText),
     hasSetBettingSignal: /set.betting|set/.test(signalText),
     hasTotalGamesSignal: /total.games|total/.test(signalText),
+    hasWinnerSignal: /winner|moneyline/.test(signalText),
   };
 
   console.log('Probe verdict signals:');
@@ -149,6 +159,8 @@ const run = async () => {
     console.log('POSSIBLE MATCH: first-set correct-score style market may exist. Inspect odds response manually before integrating.');
   } else if (verdict.hasFirstSetSignal || verdict.hasSetBettingSignal || verdict.hasTotalGamesSignal) {
     console.log('FALLBACK LIKELY: first-set/set/total markets may exist, but first-set correct-score is not clearly confirmed.');
+  } else if (verdict.hasWinnerSignal) {
+    console.log('BASIC TENNIS ODDS ONLY: winner/moneyline-style markets may exist, but no first-set market was clearly detected.');
   } else {
     console.log('NO CLEAR MATCH: this account/response did not clearly expose first-set markets in sampled events.');
   }
