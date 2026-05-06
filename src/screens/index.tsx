@@ -1,5 +1,4 @@
 import { Link, useParams } from 'react-router-dom';
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import LiveAlertBanner from '../components/LiveAlertBanner';
 import OpportunityCard from '../components/OpportunityCard';
 import ProbabilityBar from '../components/ProbabilityBar';
@@ -41,6 +40,20 @@ function formatNullablePercent(value: number | null) {
 
 function formatNullableOdds(value: number | null) {
   return value === null ? 'N/A' : `×${value.toFixed(2)}`;
+}
+
+function MiniTrendChart() {
+  const max = Math.max(...historyData.map((item) => item.value));
+  return (
+    <div className="mini-chart" aria-label="7-day learning curve chart">
+      {historyData.map((item) => (
+        <div key={item.day} className="mini-chart__bar-wrap">
+          <div className="mini-chart__bar" style={{ height: `${Math.max(10, (item.value / max) * 100)}%` }} />
+          <span>{item.day}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function Home() {
@@ -307,16 +320,7 @@ export function MySlips() {
           <h2>7-day learning curve</h2>
           <span className="muted">Mock P&L preview</span>
         </div>
-        <div className="chart-wrap">
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={historyData} margin={{ top: 12, right: 8, bottom: 0, left: -28 }}>
-              <XAxis dataKey="day" stroke="#7d7d9e" fontSize={10} />
-              <YAxis stroke="#7d7d9e" fontSize={10} />
-              <Tooltip contentStyle={{ background: '#09091a', border: '1px solid rgba(255,255,255,0.07)', color: '#e8e4d8' }} />
-              <Line type="monotone" dataKey="value" stroke="#4ECDC4" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <MiniTrendChart />
       </section>
 
       <ResponsibleNotice />
