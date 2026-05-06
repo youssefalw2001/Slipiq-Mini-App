@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: slipiq-mini-app
+    runtime: static
+    repo: https://github.com/youssefalw2001/Slipiq-Mini-App
+    branch: main
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
