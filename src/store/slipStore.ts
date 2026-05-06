@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { calcSlip } from '../lib/probability';
 import type { SlipLeg } from '../types';
@@ -20,4 +21,9 @@ export const useSlipStore = create<State>((set) => ({
   setStake: (stake) => set({ stake: Number.isFinite(stake) && stake >= 0 ? stake : 0 }),
 }));
 
-export const useSlipSummary = () => useSlipStore((state) => calcSlip(state.legs, state.stake));
+export function useSlipSummary() {
+  const legs = useSlipStore((state) => state.legs);
+  const stake = useSlipStore((state) => state.stake);
+
+  return useMemo(() => calcSlip(legs, stake), [legs, stake]);
+}
