@@ -10,6 +10,7 @@ import TierBadge from '../components/TierBadge';
 import nba from '../data/nbaGames.json';
 import { fetchLiveOpportunities } from '../lib/liveData';
 import { legFromOutcome, opportunities as seedOpportunities } from '../lib/opportunities';
+import { fetchSavedSlips, saveSlipToSupabase, type SavedSlip } from '../lib/slipsData';
 import { triggerHaptic } from '../lib/telegram';
 import { useSlipStore, useSlipSummary } from '../store/slipStore';
 import type { FirstSetOpportunity } from '../types';
@@ -44,6 +45,10 @@ function formatNullablePercent(value: number | null) {
 
 function formatNullableOdds(value: number | null) {
   return value === null ? 'N/A' : `×${value.toFixed(2)}`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 }
 
 function MiniTrendChart() {
@@ -97,6 +102,39 @@ function DataStatusBadge({ source, count }: { source: 'seed' | 'live'; count: nu
       </div>
       <strong className="mono">{count}</strong>
     </div>
+  );
+}
+
+function SavedSlipCard({ slip }: { slip: SavedSlip }) {
+  return (
+    <article className="card saved-slip-card">
+      <div className="section-title">
+        <div>
+          <p className="eyebrow">Saved · {formatDateTime(slip.created_at)}</p>
+          <h2>{slip.legs.length} legs · ${Number(slip.stake).toFixed(2)} stake</h2>
+        </div>
+        <TierBadge tier={slip.tier} />
+      </div>
+      <div className="stats-bar compact">
+        <div>
+          <span>Odds</span>
+          <strong className="mono">×{Number(slip.combined_odds).toFixed(2)}</strong>
+        </div>
+        <div>
+          <span>Hit Rate</span>
+          <strong className="mono">{(Number(slip.hit_rate) * 100).toFixed(2)}%</strong>
+        </div>
+        <div>
+          <span>EV/$1</span>
+          <strong className="mono">{Number(slip.expected_value).toFixed(3)}</strong>
+        </div>
+      </div>
+      <div className="leg-stack">
+        {slip.legs.map((leg) => (
+          <SlipLegChip key={`${slip.id}-${leg.id}`} leg={leg} />
+        ))}
+      </div>
+    </article>
   );
 }
 
@@ -235,10 +273,28 @@ export function FirstSetLab() {
 export function SlipBuilder() {
   const { legs, stake, setStake, removeLeg, addLeg, clear } = useSlipStore();
   const summary = useSlipSummary();
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveMessage, setSaveMessage] = useState('');
 
   const updateStake = (raw: string) => {
     const parsed = Number(raw);
     setStake(raw.trim() === '' || !Number.isFinite(parsed) ? 0 : parsed);
+  };
+
+  const saveSlip = async () => {
+    if (legs.length === 0 || saveState === 'saving') return;
+    setSaveState('saving');
+    setSaveMessage('');
+
+    try {
+      await saveSlipToSupabase({ legs, stake, summary });
+      setSaveState('saved');
+      setSaveMessage('Saved to My Slips.');
+      triggerHaptic('medium');
+    } catch (error) {
+      setSaveState('error');
+      setSaveMessage(error instanceof Error ? error.message : 'Could not save slip.');
+    }
   };
 
   return (
@@ -297,6 +353,10 @@ export function SlipBuilder() {
             <SlipLegChip key={leg.id} leg={leg} onRemove={removeLeg} />
           ))}
         </div>
+        <button className="button button-gold" type="button" disabled={legs.length === 0 || saveState === 'saving'} onClick={saveSlip}>
+          {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : 'Save Slip'}
+        </button>
+        {saveMessage ? <p className={saveState === 'error' ? 'error-text' : 'success-text'}>{saveMessage}</p> : null}
       </section>
 
       <section className="card suggestion-card">
@@ -334,14 +394,40 @@ export function SlipBuilder() {
 export function MySlips() {
   const { legs, stake } = useSlipStore();
   const summary = useSlipSummary();
-  const activeCount = legs.length > 0 ? 1 : 0;
+  const [savedSlips, setSavedSlips] = useState<SavedSlip[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const activeCount = savedSlips.length + (legs.length > 0 ? 1 : 0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    fetchSavedSlips()
+      .then((slips) => {
+        if (!cancelled) {
+          setSavedSlips(slips);
+          setLoadError('');
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Could not load saved slips.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <main className="screen">
       <section className="detail-header">
         <p className="eyebrow">Tracker & History</p>
         <h1>My Slips</h1>
-        <p className="muted">Track active slip logic, history snapshots, and learning metrics. Live result sync comes later with backend data.</p>
+        <p className="muted">Track saved slips from Supabase. Live result sync comes later with match resolution data.</p>
       </section>
 
       <section className="stats-bar">
@@ -365,15 +451,28 @@ export function MySlips() {
 
       <section className="card">
         <div className="section-title">
-          <h2>Active Slip</h2>
-          <span className="muted">Local MVP state</span>
+          <h2>Current Builder Slip</h2>
+          <span className="muted">Unsaved working slip</span>
         </div>
-        {legs.length === 0 ? <p className="muted">No saved slip yet. Build one from First Set Lab and return here.</p> : null}
+        {legs.length === 0 ? <p className="muted">No active builder slip. Build one from the Home feed, save it, then return here.</p> : null}
         <div className="leg-stack">
           {legs.map((leg) => (
             <SlipLegChip key={leg.id} leg={leg} />
           ))}
         </div>
+      </section>
+
+      <section className="section-stack">
+        <div className="section-title">
+          <h2>Saved Slips</h2>
+          <span className="muted">Supabase history</span>
+        </div>
+        {loading ? <p className="muted">Loading saved slips...</p> : null}
+        {loadError ? <p className="error-text">{loadError}</p> : null}
+        {!loading && !loadError && savedSlips.length === 0 ? <p className="muted">No saved slips yet. Save one from Builder.</p> : null}
+        {savedSlips.map((slip) => (
+          <SavedSlipCard key={slip.id} slip={slip} />
+        ))}
       </section>
 
       <section className="card chart-card">
