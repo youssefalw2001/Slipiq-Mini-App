@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import LiveAlertBanner from '../components/LiveAlertBanner';
 import OpportunityCard from '../components/OpportunityCard';
 import ProbabilityBar from '../components/ProbabilityBar';
@@ -9,6 +10,30 @@ import nba from '../data/nbaGames.json';
 import { legFromOutcome, opportunities } from '../lib/opportunities';
 import { triggerHaptic } from '../lib/telegram';
 import { useSlipStore, useSlipSummary } from '../store/slipStore';
+
+const historyData = [
+  { day: 'Mon', value: 18 },
+  { day: 'Tue', value: 42 },
+  { day: 'Wed', value: 31 },
+  { day: 'Thu', value: 77 },
+  { day: 'Fri', value: 58 },
+  { day: 'Sat', value: 96 },
+  { day: 'Sun', value: 124 },
+];
+
+const alertCards = [
+  { icon: '🔔', title: 'A-TIER WINDOW OPEN', body: 'A combination crossed the configured opportunity threshold.', enabled: true },
+  { icon: '⚡', title: 'VALUE LEG DETECTED', body: 'Market price is meaningfully different from model probability.', enabled: true },
+  { icon: '📊', title: 'NEW MATCH DATA', body: 'Serve and hold inputs were refreshed for an upcoming match.', enabled: false },
+  { icon: '🎯', title: 'YOUR SLIP ALERT', body: 'One of your saved legs changed status.', enabled: true },
+  { icon: '💎', title: 'S-TIER ALERT', body: 'Rare high-upside windows. Limited to a small number per week.', enabled: false },
+];
+
+const onboardingSlides = [
+  { title: 'Your slips. Supercharged.', body: 'Turn first-set tennis probability into a clearer view of risk, payout, and parlay fit.' },
+  { title: 'Real math. Not guesses.', body: 'First Set Lab models hold strength, set-score outcomes, fair odds, market odds, and edge.' },
+  { title: 'Never miss a window.', body: 'Alerts and saved slips will help you monitor the opportunities you care about most.' },
+];
 
 function formatNullablePercent(value: number | null) {
   return value === null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
@@ -227,6 +252,170 @@ export function SlipBuilder() {
         </div>
       </section>
 
+      <ResponsibleNotice />
+    </main>
+  );
+}
+
+export function MySlips() {
+  const { legs, stake } = useSlipStore();
+  const summary = useSlipSummary();
+  const activeCount = legs.length > 0 ? 1 : 0;
+
+  return (
+    <main className="screen">
+      <section className="detail-header">
+        <p className="eyebrow">Tracker & History</p>
+        <h1>My Slips</h1>
+        <p className="muted">Track active slip logic, history snapshots, and learning metrics. Live result sync comes later with backend data.</p>
+      </section>
+
+      <section className="stats-bar">
+        <div>
+          <span>Active</span>
+          <strong className="mono">{activeCount}</strong>
+        </div>
+        <div>
+          <span>Current Stake</span>
+          <strong className="mono">${stake.toFixed(2)}</strong>
+        </div>
+        <div>
+          <span>Projected Return</span>
+          <strong className="mono">${summary.payout.toFixed(2)}</strong>
+        </div>
+        <div>
+          <span>Tier</span>
+          <TierBadge tier={summary.tier} />
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="section-title">
+          <h2>Active Slip</h2>
+          <span className="muted">Local MVP state</span>
+        </div>
+        {legs.length === 0 ? <p className="muted">No saved slip yet. Build one from First Set Lab and return here.</p> : null}
+        <div className="leg-stack">
+          {legs.map((leg) => (
+            <SlipLegChip key={leg.id} leg={leg} />
+          ))}
+        </div>
+      </section>
+
+      <section className="card chart-card">
+        <div className="section-title">
+          <h2>7-day learning curve</h2>
+          <span className="muted">Mock P&L preview</span>
+        </div>
+        <div className="chart-wrap">
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={historyData} margin={{ top: 12, right: 8, bottom: 0, left: -28 }}>
+              <XAxis dataKey="day" stroke="#7d7d9e" fontSize={10} />
+              <YAxis stroke="#7d7d9e" fontSize={10} />
+              <Tooltip contentStyle={{ background: '#09091a', border: '1px solid rgba(255,255,255,0.07)', color: '#e8e4d8' }} />
+              <Line type="monotone" dataKey="value" stroke="#4ECDC4" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      <ResponsibleNotice />
+    </main>
+  );
+}
+
+export function Alerts() {
+  return (
+    <main className="screen">
+      <section className="detail-header">
+        <p className="eyebrow">Don't Miss A Window</p>
+        <h1>Alerts</h1>
+        <p className="muted">Configure which model events should become Telegram notifications once backend automation is connected.</p>
+      </section>
+
+      <div className="section-stack">
+        {alertCards.map((alert) => (
+          <article key={alert.title} className="alert-card card">
+            <div>
+              <p className="eyebrow">{alert.icon} {alert.title}</p>
+              <p className="muted">{alert.body}</p>
+            </div>
+            <span className={`toggle-pill ${alert.enabled ? 'is-on' : ''}`}>{alert.enabled ? 'ON' : 'OFF'}</span>
+          </article>
+        ))}
+      </div>
+
+      <section className="card suggestion-card">
+        <h2>Automation plan</h2>
+        <p>Next backend pass will run combinations on a schedule, store alert state, and send Telegram Bot notifications to eligible users.</p>
+      </section>
+
+      <ResponsibleNotice />
+    </main>
+  );
+}
+
+export function Profile() {
+  return (
+    <main className="screen">
+      <section className="detail-header">
+        <p className="eyebrow">Profile + Premium</p>
+        <h1>Upgrade your lab</h1>
+        <p className="muted">Feature gates are staged here now. Telegram identity, Stars invoices, and Supabase subscriptions come next.</p>
+      </section>
+
+      <section className="pricing-grid">
+        <article className="pricing-card card">
+          <p className="eyebrow">Free</p>
+          <h2>Starter</h2>
+          <strong className="mono">3 analyses/day</strong>
+          <p className="muted">1 saved slip, B-tier suggestions, and watermarked sharing.</p>
+        </article>
+        <article className="pricing-card card is-featured">
+          <p className="eyebrow">Premium</p>
+          <h2>$9.99/mo</h2>
+          <strong className="mono">≈ 500 Stars</strong>
+          <p className="muted">Unlimited analyses, alerts, 30-day history, exports, and EDGE indicators.</p>
+        </article>
+        <article className="pricing-card card">
+          <p className="eyebrow">VIP</p>
+          <h2>$29.99/mo</h2>
+          <strong className="mono">≈ 1,500 Stars</strong>
+          <p className="muted">Early alerts, weekly report, channel access, and monthly simulations.</p>
+        </article>
+      </section>
+
+      <section className="card referral-card">
+        <h2>Referral engine</h2>
+        <p className="muted">Invite 3 friends who install SlipIQ to unlock 1 month Premium. Tracking will use Telegram IDs after backend setup.</p>
+      </section>
+
+      <ResponsibleNotice />
+    </main>
+  );
+}
+
+export function Onboarding() {
+  return (
+    <main className="screen onboarding-screen">
+      <section className="detail-header">
+        <p className="eyebrow">Welcome to SlipIQ</p>
+        <h1>Don't guess. Calculate.</h1>
+      </section>
+
+      <div className="section-stack">
+        {onboardingSlides.map((slide, index) => (
+          <article key={slide.title} className="onboarding-card card">
+            <span className="slide-number mono">0{index + 1}</span>
+            <h2>{slide.title}</h2>
+            <p className="muted">{slide.body}</p>
+          </article>
+        ))}
+      </div>
+
+      <Link className="button button-gold" to="/">
+        Get Started Free
+      </Link>
       <ResponsibleNotice />
     </main>
   );
