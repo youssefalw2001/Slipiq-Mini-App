@@ -23,7 +23,10 @@ const fetchJson = async (path, params) => {
   const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(`${path} failed with HTTP ${response.status}: ${text.slice(0, 500)}`);
+    const error = new Error(`${path} failed with HTTP ${response.status}: ${text.slice(0, 500)}`);
+    error.status = response.status;
+    error.body = text;
+    throw error;
   }
 
   try {
@@ -47,23 +50,46 @@ const bookmakerName = (bookmaker) => {
   return bookmaker.name ?? bookmaker.title ?? bookmaker.slug ?? bookmaker.key ?? bookmaker.id ?? null;
 };
 
-const pickValidBookmakers = async () => {
+const pickCandidateBookmakers = async () => {
   const payload = await fetchJson('/bookmakers');
-  const available = normalizeArray(payload).map(bookmakerName).filter(Boolean);
+  const available = normalizeArray(payload).map(bookmakerName).filter(Boolean).map(String);
 
   console.log(`Fetched ${available.length} valid bookmakers from Odds-API.io.`);
-  console.log(`Available bookmaker sample: ${available.slice(0, 12).join(', ')}`);
+  console.log(`Available bookmaker sample: ${available.slice(0, 20).join(', ')}`);
 
   if (available.length === 0) {
     throw new Error('No bookmakers returned from /bookmakers. Cannot call /odds/multi safely.');
   }
 
-  const lowerToName = new Map(available.map((name) => [String(name).toLowerCase(), String(name)]));
-  const selected = preferredBookmakers
+  const lowerToName = new Map(available.map((name) => [name.toLowerCase(), name]));
+  const preferred = preferredBookmakers
     .map((name) => lowerToName.get(name.toLowerCase()))
     .filter(Boolean);
 
-  return selected.length > 0 ? selected.slice(0, 5) : available.slice(0, 5);
+  const fallback = available.filter((name) => !preferred.includes(name));
+  return [...preferred, ...fallback].slice(0, 12);
+};
+
+const fetchOddsWithRetry = async ({ eventIds, candidates }) => {
+  const errors = [];
+
+  for (const bookmaker of candidates) {
+    try {
+      console.log(`Trying bookmaker: ${bookmaker}`);
+      const payload = await fetchJson('/odds/multi', {
+        eventIds,
+        bookmakers: bookmaker,
+      });
+      return { payload, bookmakers: bookmaker };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`${bookmaker}: ${message}`);
+      console.log(`Bookmaker failed, trying next: ${bookmaker}`);
+      console.log(message.slice(0, 240));
+    }
+  }
+
+  throw new Error(`All bookmaker probes failed. Errors:\n${errors.join('\n')}`);
 };
 
 const collectMarketSignals = (value, path = [], out = new Map()) => {
@@ -147,18 +173,15 @@ const run = async () => {
     console.log(JSON.stringify(summarizeEvent(event), null, 2));
   }
 
-  const selectedBookmakers = await pickValidBookmakers();
-  const bookmakers = selectedBookmakers.join(',');
+  const candidateBookmakers = await pickCandidateBookmakers();
   const eventIds = events.slice(0, 10).map((event) => event.id).filter(Boolean).join(',');
   const eventCount = eventIds ? eventIds.split(',').length : 0;
   console.log(`Fetching odds for ${eventCount} events...`);
-  console.log(`Using valid bookmakers: ${bookmakers}`);
+  console.log(`Candidate bookmakers: ${candidateBookmakers.join(', ')}`);
 
-  const oddsPayload = await fetchJson('/odds/multi', {
-    eventIds,
-    bookmakers,
-  });
+  const { payload: oddsPayload, bookmakers } = await fetchOddsWithRetry({ eventIds, candidates: candidateBookmakers });
   const oddsEvents = normalizeArray(oddsPayload);
+  console.log(`Successful bookmaker probe: ${bookmakers}`);
   console.log(`Received odds for ${oddsEvents.length} events.`);
 
   const signals = collectMarketSignals(oddsPayload);
