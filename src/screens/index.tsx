@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import IQRebuildCard from '../components/IQRebuildCard';
 import LiveAlertBanner from '../components/LiveAlertBanner';
@@ -7,9 +8,11 @@ import ResponsibleNotice from '../components/ResponsibleNotice';
 import SlipLegChip from '../components/SlipLegChip';
 import TierBadge from '../components/TierBadge';
 import nba from '../data/nbaGames.json';
-import { legFromOutcome, opportunities } from '../lib/opportunities';
+import { fetchLiveOpportunities } from '../lib/liveData';
+import { legFromOutcome, opportunities as seedOpportunities } from '../lib/opportunities';
 import { triggerHaptic } from '../lib/telegram';
 import { useSlipStore, useSlipSummary } from '../store/slipStore';
+import type { FirstSetOpportunity } from '../types';
 
 const historyData = [
   { day: 'Mon', value: 18 },
@@ -57,11 +60,50 @@ function MiniTrendChart() {
   );
 }
 
+function useOpportunityFeed() {
+  const [feed, setFeed] = useState<FirstSetOpportunity[]>(seedOpportunities);
+  const [source, setSource] = useState<'seed' | 'live'>('seed');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchLiveOpportunities()
+      .then((liveFeed) => {
+        if (!cancelled && liveFeed?.length) {
+          setFeed(liveFeed);
+          setSource('live');
+        }
+      })
+      .catch((error) => {
+        console.warn('SlipIQ live data unavailable, using seed feed.', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { feed, source };
+}
+
 export function Home() {
+  const { feed, source } = useOpportunityFeed();
   const addLeg = useSlipStore((state) => state.addLeg);
 
   const addTopLeg = (matchId: string, score: string) => {
-    const leg = legFromOutcome(matchId, score);
+    const liveMatch = feed.find((opportunity) => opportunity.id === matchId);
+    const liveOutcome = liveMatch?.outcomes.find((outcome) => outcome.score === score && outcome.bookmakerOdds);
+    const leg = liveOutcome?.bookmakerOdds
+      ? {
+          id: `${matchId}-${score}`,
+          label: `${liveMatch?.player1} vs ${liveMatch?.player2} ${score}`,
+          sport: 'tennis' as const,
+          odds: liveOutcome.bookmakerOdds,
+          modelProbability: liveOutcome.modelProbability,
+          eventId: matchId,
+        }
+      : legFromOutcome(matchId, score);
+
     if (!leg) return;
     addLeg(leg);
     triggerHaptic('medium');
@@ -72,14 +114,17 @@ export function Home() {
       <section className="hero">
         <p className="eyebrow">SlipIQ · First Set Lab</p>
         <h1>Today's Best Opportunities</h1>
-        <p className="muted">Tennis first-set probability, fair odds, market comparison, and slip fit in one terminal-style feed.</p>
+        <p className="muted">
+          Tennis first-set probability, fair odds, market comparison, and slip fit in one terminal-style feed.
+          {source === 'live' ? ' Live model data is connected.' : ' Seed feed shown until live data is connected.'}
+        </p>
       </section>
 
       <LiveAlertBanner />
       <IQRebuildCard compact />
 
       <section className="section-stack" id="opportunities">
-        {opportunities.map((opportunity) => (
+        {feed.map((opportunity) => (
           <OpportunityCard key={opportunity.id} opportunity={opportunity} onAddTopLeg={addTopLeg} />
         ))}
       </section>
@@ -91,7 +136,7 @@ export function Home() {
 
 export function FirstSetLab() {
   const { id } = useParams();
-  const match = opportunities.find((item) => item.id === id);
+  const match = seedOpportunities.find((item) => item.id === id);
   const addLeg = useSlipStore((state) => state.addLeg);
 
   if (!match) {
