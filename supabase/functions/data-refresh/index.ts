@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 type Surface = 'clay' | 'grass' | 'hard' | 'indoor';
-type DataProvider = 'manual_seed' | 'external_normalized';
+type DataProvider = 'manual_seed' | 'external_normalized' | 'api_tennis';
 
 type PlayerStats = {
   name: string;
@@ -58,6 +58,18 @@ const seedMatches: TennisModelMatch[] = [
 
 function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
+}
+
+function isoDate(offsetDays = 0) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeArray(value: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) return value as Array<Record<string, unknown>>;
+  if (!value || typeof value !== 'object') return [];
+  return Object.values(value as Record<string, unknown>).filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'));
 }
 
 function normalizeSurface(surface: string): Surface {
@@ -146,6 +158,92 @@ function classifyTier(probability: number, bookmakerOdds: number | null) {
   return 'C';
 }
 
+function parseDecimalOdds(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 1) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(',', '.'));
+    return Number.isFinite(parsed) && parsed > 1 ? parsed : null;
+  }
+  return null;
+}
+
+function bestDecimalOdds(value: unknown): number | null {
+  const direct = parseDecimalOdds(value);
+  if (direct) return direct;
+
+  if (Array.isArray(value)) {
+    const odds = value.map(bestDecimalOdds).filter((item): item is number => typeof item === 'number');
+    return odds.length ? Math.max(...odds) : null;
+  }
+
+  if (value && typeof value === 'object') {
+    const odds = Object.values(value).map(bestDecimalOdds).filter((item): item is number => typeof item === 'number');
+    return odds.length ? Math.max(...odds) : null;
+  }
+
+  return null;
+}
+
+function normalizeScore(score: string) {
+  return score.trim().replace(':', '-');
+}
+
+function getText(value: unknown, fallback = '') {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function apiTennisTimestamp(fixture: Record<string, unknown>) {
+  const date = getText(fixture.event_date, isoDate(0));
+  const time = getText(fixture.event_time, '12:00');
+  return `${date}T${time.length === 5 ? `${time}:00` : time}Z`;
+}
+
+function estimatedPlayerStats(name: string, side: 'p1' | 'p2', firstSetEdge = 0): PlayerStats {
+  const sign = side === 'p1' ? 1 : -1;
+  const adjustment = clamp(firstSetEdge * sign, -0.06, 0.06);
+  return {
+    name,
+    fs1: clamp(0.63 + adjustment * 0.35, 0.52, 0.76),
+    w1s: clamp(0.72 + adjustment, 0.58, 0.86),
+    w2s: clamp(0.52 + adjustment * 0.75, 0.42, 0.68),
+    bp_save: clamp(0.60 + adjustment * 0.75, 0.45, 0.76),
+  };
+}
+
+function impliedFirstSetEdge(matchOdds: Record<string, unknown>) {
+  const market = matchOdds['Home/Away (1st Set)'];
+  if (!market || typeof market !== 'object') return 0;
+  const entries = Object.entries(market as Record<string, unknown>);
+  if (entries.length < 2) return 0;
+
+  const homeEntry = entries.find(([label]) => /home|1|first/i.test(label)) ?? entries[0];
+  const awayEntry = entries.find(([label]) => /away|2|second/i.test(label)) ?? entries[1];
+  const homeOdds = bestDecimalOdds(homeEntry[1]);
+  const awayOdds = bestDecimalOdds(awayEntry[1]);
+  if (!homeOdds || !awayOdds) return 0;
+
+  const homeImplied = 1 / homeOdds;
+  const awayImplied = 1 / awayOdds;
+  const total = homeImplied + awayImplied;
+  if (total <= 0) return 0;
+  return homeImplied / total - 0.5;
+}
+
+function extractCorrectScoreOdds(matchOdds: Record<string, unknown>) {
+  const market = matchOdds['Correct Score 1st Half'];
+  if (!market || typeof market !== 'object') return {};
+
+  const odds: Record<string, number> = {};
+  for (const [score, rawValue] of Object.entries(market as Record<string, unknown>)) {
+    const normalizedScore = normalizeScore(score);
+    if (!/^\d+-\d+$/.test(normalizedScore)) continue;
+    const decimalOdds = bestDecimalOdds(rawValue);
+    if (decimalOdds) odds[normalizedScore] = decimalOdds;
+  }
+
+  return odds;
+}
+
 async function fetchExternalNormalizedMatches(): Promise<TennisModelMatch[]> {
   const providerUrl = Deno.env.get('SLIPIQ_EXTERNAL_PROVIDER_URL');
   const providerKey = Deno.env.get('SLIPIQ_EXTERNAL_PROVIDER_KEY');
@@ -171,8 +269,73 @@ async function fetchExternalNormalizedMatches(): Promise<TennisModelMatch[]> {
   return matches;
 }
 
+async function fetchApiTennis(method: string, params: Record<string, string>) {
+  const apiKey = Deno.env.get('API_TENNIS_KEY');
+  if (!apiKey) throw new Error('API_TENNIS_KEY is required for api_tennis provider');
+
+  const url = new URL('https://api.api-tennis.com/tennis/');
+  url.searchParams.set('method', method);
+  url.searchParams.set('APIkey', apiKey);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+
+  const response = await fetch(url);
+  const text = await response.text();
+  if (!response.ok) throw new Error(`API-Tennis ${method} failed with HTTP ${response.status}: ${text.slice(0, 300)}`);
+
+  const payload = JSON.parse(text);
+  if (String(payload.success) !== '1') throw new Error(`API-Tennis ${method} returned unsuccessful payload: ${JSON.stringify(payload).slice(0, 500)}`);
+  return payload.result;
+}
+
+async function fetchApiTennisMatches(): Promise<TennisModelMatch[]> {
+  const dateStart = Deno.env.get('API_TENNIS_DATE_START') ?? isoDate(0);
+  const dateStop = Deno.env.get('API_TENNIS_DATE_STOP') ?? isoDate(2);
+  const fixtures = normalizeArray(await fetchApiTennis('get_fixtures', { date_start: dateStart, date_stop: dateStop }));
+  const oddsResult = await fetchApiTennis('get_odds', { date_start: dateStart, date_stop: dateStop });
+  const fixtureByKey = new Map(fixtures.map((fixture) => [String(fixture.event_key), fixture]));
+  const matches: TennisModelMatch[] = [];
+
+  for (const [eventKey, rawMatchOdds] of Object.entries(oddsResult as Record<string, unknown>)) {
+    if (!rawMatchOdds || typeof rawMatchOdds !== 'object') continue;
+    const matchOdds = rawMatchOdds as Record<string, unknown>;
+    const bookmakerOdds = extractCorrectScoreOdds(matchOdds);
+    if (Object.keys(bookmakerOdds).length === 0) continue;
+
+    const fixture = fixtureByKey.get(String(eventKey)) ?? {};
+    const p1Name = getText(fixture.event_first_player, getText((matchOdds as Record<string, unknown>).event_first_player, 'Player 1'));
+    const p2Name = getText(fixture.event_second_player, getText((matchOdds as Record<string, unknown>).event_second_player, 'Player 2'));
+    if (p1Name === 'Player 1' || p2Name === 'Player 2') continue;
+
+    const firstSetEdge = impliedFirstSetEdge(matchOdds);
+    const match: TennisModelMatch = {
+      id: `api-tennis-${eventKey}`,
+      tournament: getText(fixture.tournament_name, 'Tennis'),
+      surface: 'hard',
+      starts_at: apiTennisTimestamp(fixture),
+      p1: estimatedPlayerStats(p1Name, 'p1', firstSetEdge),
+      p2: estimatedPlayerStats(p2Name, 'p2', firstSetEdge),
+      bookmaker_odds: bookmakerOdds,
+      bookmaker: 'API-Tennis',
+      raw_payload: {
+        provider: 'api_tennis',
+        event_key: eventKey,
+        fixture,
+        markets: matchOdds,
+        date_start: dateStart,
+        date_stop: dateStop,
+        stat_source: 'estimated_from_market_defaults_v1',
+      },
+    };
+    validateMatch(match);
+    matches.push(match);
+  }
+
+  return matches.slice(0, 20);
+}
+
 async function getProviderMatches(provider: DataProvider) {
   if (provider === 'external_normalized') return fetchExternalNormalizedMatches();
+  if (provider === 'api_tennis') return fetchApiTennisMatches();
   return seedMatches;
 }
 
@@ -272,8 +435,10 @@ async function runRefresh(supabase: ReturnType<typeof createClient>, provider: D
           expected_value: expectedValue,
           risk_label: probability >= 0.15 ? 'anchor' : probability >= 0.08 ? 'mid' : probability >= 0.03 ? 'push' : 'lotto',
           tier: classifyTier(probability, bookmakerOdds),
-          explanation: 'First Set Lab model from serve strength, hold probability, surface context, and market price comparison.',
-          raw_payload: { score, hold1, hold2, p1PointStrength, p2PointStrength, provider },
+          explanation: provider === 'api_tennis'
+            ? 'First Set Lab model from estimated serve strength, market-implied first-set edge, and API-Tennis first-set correct-score odds.'
+            : 'First Set Lab model from serve strength, hold probability, surface context, and market price comparison.',
+          raw_payload: { score, hold1, hold2, p1PointStrength, p2PointStrength, provider, sourceMatch: match.raw_payload ?? null },
         });
         opportunityCount += 1;
       }
@@ -307,7 +472,7 @@ async function getLatestOpportunities(supabase: ReturnType<typeof createClient>)
 
 function getDataProvider(): DataProvider {
   const provider = Deno.env.get('SLIPIQ_DATA_PROVIDER') ?? 'manual_seed';
-  if (provider === 'external_normalized') return provider;
+  if (provider === 'external_normalized' || provider === 'api_tennis') return provider;
   return 'manual_seed';
 }
 
