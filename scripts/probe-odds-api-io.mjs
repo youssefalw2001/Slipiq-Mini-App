@@ -1,6 +1,9 @@
 const apiKey = process.env.ODDS_API_IO_KEY;
 const baseUrl = 'https://api.odds-api.io/v3';
-const defaultBookmakers = process.env.ODDS_API_IO_BOOKMAKERS || 'Bet365,Unibet,Betfair,Pinnacle,1xBet';
+const preferredBookmakers = (process.env.ODDS_API_IO_BOOKMAKERS || 'Bet365,Unibet,Pinnacle,1xBet')
+  .split(',')
+  .map((bookmaker) => bookmaker.trim())
+  .filter(Boolean);
 
 if (!apiKey) {
   console.error('Missing ODDS_API_IO_KEY environment variable.');
@@ -33,9 +36,34 @@ const fetchJson = async (path, params) => {
 const normalizeArray = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.bookmakers)) return payload.bookmakers;
   if (Array.isArray(payload?.events)) return payload.events;
   if (Array.isArray(payload?.odds)) return payload.odds;
   return [];
+};
+
+const bookmakerName = (bookmaker) => {
+  if (typeof bookmaker === 'string') return bookmaker;
+  return bookmaker.name ?? bookmaker.title ?? bookmaker.slug ?? bookmaker.key ?? bookmaker.id ?? null;
+};
+
+const pickValidBookmakers = async () => {
+  const payload = await fetchJson('/bookmakers');
+  const available = normalizeArray(payload).map(bookmakerName).filter(Boolean);
+
+  console.log(`Fetched ${available.length} valid bookmakers from Odds-API.io.`);
+  console.log(`Available bookmaker sample: ${available.slice(0, 12).join(', ')}`);
+
+  if (available.length === 0) {
+    throw new Error('No bookmakers returned from /bookmakers. Cannot call /odds/multi safely.');
+  }
+
+  const lowerToName = new Map(available.map((name) => [String(name).toLowerCase(), String(name)]));
+  const selected = preferredBookmakers
+    .map((name) => lowerToName.get(name.toLowerCase()))
+    .filter(Boolean);
+
+  return selected.length > 0 ? selected.slice(0, 5) : available.slice(0, 5);
 };
 
 const collectMarketSignals = (value, path = [], out = new Map()) => {
@@ -119,14 +147,16 @@ const run = async () => {
     console.log(JSON.stringify(summarizeEvent(event), null, 2));
   }
 
+  const selectedBookmakers = await pickValidBookmakers();
+  const bookmakers = selectedBookmakers.join(',');
   const eventIds = events.slice(0, 10).map((event) => event.id).filter(Boolean).join(',');
   const eventCount = eventIds ? eventIds.split(',').length : 0;
   console.log(`Fetching odds for ${eventCount} events...`);
-  console.log(`Using bookmakers: ${defaultBookmakers}`);
+  console.log(`Using valid bookmakers: ${bookmakers}`);
 
   const oddsPayload = await fetchJson('/odds/multi', {
     eventIds,
-    bookmakers: defaultBookmakers,
+    bookmakers,
   });
   const oddsEvents = normalizeArray(oddsPayload);
   console.log(`Received odds for ${oddsEvents.length} events.`);
