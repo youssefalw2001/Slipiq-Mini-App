@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import IQRebuildCard from '../components/IQRebuildCard';
 import LiveAlertBanner from '../components/LiveAlertBanner';
 import OpportunityCard from '../components/OpportunityCard';
 import ProbabilityBar from '../components/ProbabilityBar';
@@ -75,8 +76,9 @@ export function Home() {
       </section>
 
       <LiveAlertBanner />
+      <IQRebuildCard compact />
 
-      <section className="section-stack">
+      <section className="section-stack" id="opportunities">
         {opportunities.map((opportunity) => (
           <OpportunityCard key={opportunity.id} opportunity={opportunity} onAddTopLeg={addTopLeg} />
         ))}
@@ -190,6 +192,8 @@ export function SlipBuilder() {
         <p className="muted">Add First Set Lab legs and supporting NBA legs, then watch probability, payout, EV, and tier update live.</p>
       </section>
 
+      <IQRebuildCard />
+
       <section className="card">
         <label className="field-label" htmlFor="stake">
           Stake
@@ -239,7 +243,7 @@ export function SlipBuilder() {
       </section>
 
       <section className="card suggestion-card">
-        <h2>SlipIQ Notes</h2>
+        <h2>SetFox Notes</h2>
         <p>✅ EV is calculated from model probability × actual book odds, not from internally generated fair odds.</p>
         {legs.filter((leg) => leg.sport === 'tennis').length > 2 ? <p>⚠️ Several tennis legs are active. Watch same-match/correlation risk before saving.</p> : null}
         <p className="muted">Estimated days to hit: {summary.daysToHit ?? 'N/A'} · EV per $1: {summary.expectedValue.toFixed(3)}</p>
