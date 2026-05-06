@@ -67,12 +67,13 @@ export function calcSetScoreDist(hold1: number, hold2: number): Record<string, n
 
   const dist = walk(0, 0, 0);
   const total = Object.values(dist).reduce((sum, probability) => sum + probability, 0);
+  const normalized: Record<string, number> = {};
 
-  return Object.fromEntries(
-    Object.entries(dist)
-      .map(([score, probability]) => [score, probability / total])
-      .sort((a, b) => Number(b[1]) - Number(a[1])),
-  );
+  for (const [score, probability] of Object.entries(dist).sort((a, b) => b[1] - a[1])) {
+    normalized[score] = probability / total;
+  }
+
+  return normalized;
 }
 
 export function classifyScore(probability: number): ScoreClass {
