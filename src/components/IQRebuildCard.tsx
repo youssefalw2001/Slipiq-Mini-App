@@ -8,7 +8,7 @@ export default function IQRebuildCard({ compact = false }: IQRebuildCardProps) {
       <div className="rebuild-header">
         <div>
           <p className="eyebrow">SETFOX REBUILD</p>
-          <h2>Turn a regular slip into calculated upside.</h2>
+          <h2>Turn a regular slip into a smarter build.</h2>
         </div>
         <span className="rebuild-risk mono">RISK SHOWN</span>
       </div>
@@ -23,28 +23,28 @@ export default function IQRebuildCard({ compact = false }: IQRebuildCardProps) {
         </div>
         <div className="odds-side odds-iq">
           <span className="mono">IQ REBUILD</span>
-          <strong className="mono">+1268</strong>
+          <strong className="mono">+356</strong>
         </div>
       </div>
 
       <div className="rebuild-stats">
         <div>
           <span>Model hit rate</span>
-          <strong className="mono">8.7%</strong>
+          <strong className="mono">18.4%</strong>
         </div>
         <div>
           <span>Build type</span>
-          <strong className="mono">UPSIDE</strong>
+          <strong className="mono">BALANCED</strong>
         </div>
         <div>
           <span>Added edge</span>
-          <strong className="mono positive-text">+3.8%</strong>
+          <strong className="mono positive-text">+2.1%</strong>
         </div>
       </div>
 
       {!compact ? (
         <p className="rebuild-note">
-          Higher payout is not magic. SetFox shows the tradeoff: odds, hit rate, risk, and whether the rebuild still makes sense.
+          SlipIQ doesn&apos;t promise magic. It shows the tradeoff between payout, hit rate, and pricing edge — so you can rebuild a slip with more logic.
         </p>
       ) : null}
     </section>

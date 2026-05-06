@@ -18,33 +18,33 @@ export default function LiveAlertBanner() {
 
       <div className="brief-content">
         <p className="eyebrow">FIRST SET LAB · TENNIS EDGE ENGINE</p>
-        <h2>Most bettors overlook the first set. SlipIQ shows the math.</h2>
+        <h2>Most bettors ignore one of tennis&apos; sharpest markets: first-set correct scores.</h2>
         <p className="brief-copy">
-          Instead of guessing a tennis leg, SlipIQ calculates how the first set is likely to unfold. We turn serve stats into score probabilities, fair odds, and smarter slip options.
+          SlipIQ turns serve data, hold probability, and surface context into first-set score probabilities. We compare those model prices to market odds and show how the right tennis angle can improve your slip.
         </p>
 
         <div className="scan-console" aria-label="First Set Lab scan status">
           <span />
-          <p className="mono">Loading serve data...</p>
-          <p className="mono">Modeling hold rates...</p>
-          <p className="mono">Pricing first-set scores...</p>
+          <p className="mono">Scanning serve strength...</p>
+          <p className="mono">Modeling first-set scores...</p>
+          <p className="mono">Comparing model price vs market...</p>
         </div>
 
         <div className="brief-metrics" aria-label="SlipIQ model pillars">
           <div>
             <span>01</span>
             <strong>Serve Strength</strong>
-            <p>We estimate how often each player should hold serve.</p>
+            <p>We estimate how often each player should hold serve based on serve quality and pressure resistance.</p>
           </div>
           <div>
             <span>02</span>
             <strong>First-Set Scores</strong>
-            <p>We calculate likely 6-3, 6-4, 7-5, and 7-6 outcomes.</p>
+            <p>We model likely first-set outcomes like 6-3, 6-4, 7-5, and 7-6.</p>
           </div>
           <div>
             <span>03</span>
             <strong>Slip Fit</strong>
-            <p>We show if a leg improves your slip or adds too much risk.</p>
+            <p>We compare model odds to market odds, then show which angles can strengthen a slip.</p>
           </div>
         </div>
 
@@ -52,7 +52,7 @@ export default function LiveAlertBanner() {
           <div className="setfox-avatar" aria-hidden="true">◆</div>
           <div>
             <span className="mono">SETFOX SCAN</span>
-            <p>Most bettors ask, “Who wins?” SlipIQ asks, “What is the real probability — and is the price worth it?”</p>
+            <p>Most bettors ask, “Who wins?” SlipIQ asks, “What is the most mispriced first-set outcome — and does it improve the slip?”</p>
           </div>
         </div>
 
