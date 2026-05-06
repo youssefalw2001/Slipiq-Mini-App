@@ -1,1 +1,62 @@
-[{"id":"rome-hurkacz-hanfmann","tournament":"Rome 2026","surface":"clay","player1":"Hubert Hurkacz","player2":"Yannick Hanfmann","player1Stats":{"fs1":0.63,"w1s":0.76,"w2s":0.53,"bpSave":0.64},"player2Stats":{"fs1":0.6,"w1s":0.7,"w2s":0.5,"bpSave":0.58},"bookmakerOdds":{"6-4":8.5,"7-5":9.2,"6-3":7.8}},{"id":"m2","tournament":"Rome 2026","surface":"clay","player1":"Jannik Sinner","player2":"Tallon Griekspoor","player1Stats":{"fs1":0.64,"w1s":0.79,"w2s":0.56,"bpSave":0.66},"player2Stats":{"fs1":0.61,"w1s":0.72,"w2s":0.51,"bpSave":0.6},"bookmakerOdds":{"6-3":7.1,"6-4":7.6,"7-5":9.4}},{"id":"m3","tournament":"Rome 2026","surface":"clay","player1":"Casper Ruud","player2":"Ben Shelton","player1Stats":{"fs1":0.62,"w1s":0.74,"w2s":0.54,"bpSave":0.63},"player2Stats":{"fs1":0.65,"w1s":0.75,"w2s":0.49,"bpSave":0.61},"bookmakerOdds":{"6-4":8.1,"7-6":10.2,"4-6":9.1}},{"id":"m4","tournament":"Rome 2026","surface":"clay","player1":"Alexander Zverev","player2":"Lorenzo Musetti","player1Stats":{"fs1":0.64,"w1s":0.77,"w2s":0.55,"bpSave":0.65},"player2Stats":{"fs1":0.59,"w1s":0.69,"w2s":0.52,"bpSave":0.57},"bookmakerOdds":{"6-4":8.4,"6-3":7.7,"7-5":9.1}},{"id":"m5","tournament":"Rome 2026","surface":"clay","player1":"Stefanos Tsitsipas","player2":"Sebastian Baez","player1Stats":{"fs1":0.62,"w1s":0.75,"w2s":0.53,"bpSave":0.62},"player2Stats":{"fs1":0.6,"w1s":0.68,"w2s":0.5,"bpSave":0.59},"bookmakerOdds":{"6-4":8.0,"6-3":7.6,"7-5":9.8}},{"id":"m6","tournament":"Rome 2026","surface":"clay","player1":"Taylor Fritz","player2":"Nicolas Jarry","player1Stats":{"fs1":0.61,"w1s":0.76,"w2s":0.52,"bpSave":0.63},"player2Stats":{"fs1":0.62,"w1s":0.74,"w2s":0.5,"bpSave":0.6},"bookmakerOdds":{"7-6":10.1,"6-4":8.3,"4-6":8.9}}]
+[
+  {
+    "id": "rome-hurkacz-hanfmann",
+    "tournament": "Rome 2026",
+    "surface": "clay",
+    "player1": "Hubert Hurkacz",
+    "player2": "Yannick Hanfmann",
+    "player1Stats": { "fs1": 0.63, "w1s": 0.76, "w2s": 0.53, "bpSave": 0.64 },
+    "player2Stats": { "fs1": 0.6, "w1s": 0.7, "w2s": 0.5, "bpSave": 0.58 },
+    "bookmakerOdds": { "6-0": 35, "6-1": 21, "6-2": 12, "6-3": 7.8, "6-4": 8.5, "7-5": 9.2, "7-6": 11, "0-6": 60, "1-6": 40, "2-6": 25, "3-6": 16, "4-6": 13, "5-7": 14, "6-7": 15 }
+  },
+  {
+    "id": "m2",
+    "tournament": "Rome 2026",
+    "surface": "clay",
+    "player1": "Jannik Sinner",
+    "player2": "Tallon Griekspoor",
+    "player1Stats": { "fs1": 0.64, "w1s": 0.79, "w2s": 0.56, "bpSave": 0.66 },
+    "player2Stats": { "fs1": 0.61, "w1s": 0.72, "w2s": 0.51, "bpSave": 0.6 },
+    "bookmakerOdds": { "6-0": 28, "6-1": 18, "6-2": 11, "6-3": 7.1, "6-4": 7.6, "7-5": 9.4, "7-6": 10.5, "0-6": 80, "1-6": 48, "2-6": 30, "3-6": 20, "4-6": 14, "5-7": 15, "6-7": 15.5 }
+  },
+  {
+    "id": "m3",
+    "tournament": "Rome 2026",
+    "surface": "clay",
+    "player1": "Casper Ruud",
+    "player2": "Ben Shelton",
+    "player1Stats": { "fs1": 0.62, "w1s": 0.74, "w2s": 0.54, "bpSave": 0.63 },
+    "player2Stats": { "fs1": 0.65, "w1s": 0.75, "w2s": 0.49, "bpSave": 0.61 },
+    "bookmakerOdds": { "6-0": 40, "6-1": 24, "6-2": 14, "6-3": 9.2, "6-4": 8.1, "7-5": 9.8, "7-6": 10.2, "0-6": 45, "1-6": 28, "2-6": 18, "3-6": 12, "4-6": 9.1, "5-7": 10.4, "6-7": 11.2 }
+  },
+  {
+    "id": "m4",
+    "tournament": "Rome 2026",
+    "surface": "clay",
+    "player1": "Alexander Zverev",
+    "player2": "Lorenzo Musetti",
+    "player1Stats": { "fs1": 0.64, "w1s": 0.77, "w2s": 0.55, "bpSave": 0.65 },
+    "player2Stats": { "fs1": 0.59, "w1s": 0.69, "w2s": 0.52, "bpSave": 0.57 },
+    "bookmakerOdds": { "6-0": 34, "6-1": 22, "6-2": 13, "6-3": 7.7, "6-4": 8.4, "7-5": 9.1, "7-6": 10.7, "0-6": 60, "1-6": 38, "2-6": 25, "3-6": 15, "4-6": 12.5, "5-7": 13.5, "6-7": 14 }
+  },
+  {
+    "id": "m5",
+    "tournament": "Rome 2026",
+    "surface": "clay",
+    "player1": "Stefanos Tsitsipas",
+    "player2": "Sebastian Baez",
+    "player1Stats": { "fs1": 0.62, "w1s": 0.75, "w2s": 0.53, "bpSave": 0.62 },
+    "player2Stats": { "fs1": 0.6, "w1s": 0.68, "w2s": 0.5, "bpSave": 0.59 },
+    "bookmakerOdds": { "6-0": 37, "6-1": 23, "6-2": 13, "6-3": 7.6, "6-4": 8, "7-5": 9.8, "7-6": 11.2, "0-6": 55, "1-6": 34, "2-6": 21, "3-6": 14, "4-6": 11.5, "5-7": 12.8, "6-7": 13.2 }
+  },
+  {
+    "id": "m6",
+    "tournament": "Rome 2026",
+    "surface": "clay",
+    "player1": "Taylor Fritz",
+    "player2": "Nicolas Jarry",
+    "player1Stats": { "fs1": 0.61, "w1s": 0.76, "w2s": 0.52, "bpSave": 0.63 },
+    "player2Stats": { "fs1": 0.62, "w1s": 0.74, "w2s": 0.5, "bpSave": 0.6 },
+    "bookmakerOdds": { "6-0": 45, "6-1": 27, "6-2": 16, "6-3": 10.5, "6-4": 8.3, "7-5": 9.7, "7-6": 10.1, "0-6": 48, "1-6": 30, "2-6": 19, "3-6": 12.5, "4-6": 8.9, "5-7": 10.1, "6-7": 10.9 }
+  }
+]
