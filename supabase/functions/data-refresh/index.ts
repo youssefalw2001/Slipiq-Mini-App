@@ -22,7 +22,7 @@ type TennisSeedMatch = {
 
 const corsHeaders = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type, x-slipiq-refresh-secret',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
 };
 
@@ -234,7 +234,7 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
 async function getLatestOpportunities(supabase: ReturnType<typeof createClient>) {
   const { data, error } = await supabase
     .from('opportunities')
-    .select('*')
+    .select('*, matches(*)')
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -261,6 +261,11 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
+      const refreshSecret = Deno.env.get('SLIPIQ_REFRESH_SECRET');
+      if (refreshSecret && req.headers.get('x-slipiq-refresh-secret') !== refreshSecret) {
+        return Response.json({ error: 'Unauthorized refresh request' }, { status: 401, headers: corsHeaders });
+      }
+
       const result = await runSeedRefresh(supabase);
       return Response.json({ ok: true, ...result }, { headers: corsHeaders });
     }
