@@ -1,0 +1,481 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #04040b;
+  --bg-card: #09091a;
+  --bg-elevated: #0f0f22;
+  --border: rgba(255, 255, 255, 0.07);
+  --text-primary: #e8e4d8;
+  --text-muted: #7d7d9e;
+  --accent-gold: #ffd700;
+  --accent-orange: #ff6b35;
+  --accent-teal: #4ecdc4;
+  --accent-red: #ff4757;
+  --accent-green: #2ed573;
+  --positive: #2ed573;
+  --negative: #ff4757;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(255, 215, 0, 0.07), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(78, 205, 196, 0.05), transparent 25%),
+    var(--bg-primary);
+  color: var(--text-primary);
+  font-family: Sora, system-ui, sans-serif;
+}
+
+button,
+a,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.app-shell {
+  width: min(100%, 430px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 14px 14px 86px;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hero,
+.detail-header {
+  padding: 10px 2px 4px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+.mono {
+  font-family: 'DM Mono', monospace;
+}
+
+.eyebrow {
+  color: var(--accent-teal);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.card,
+.opportunity-card,
+.live-alert,
+.stats-bar {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(15, 15, 34, 0.95), rgba(9, 9, 26, 0.98));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.card,
+.opportunity-card {
+  padding: 14px;
+}
+
+.section-stack,
+.probability-stack,
+.outcome-list,
+.leg-stack,
+.support-leg-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-header,
+.section-title,
+.outcome-head,
+.card-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.match-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tier-s,
+.tier-gold,
+.tier-yellow {
+  color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.tier-a,
+.tier-orange {
+  color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.tier-b,
+.tier-teal,
+.tier-green {
+  color: var(--accent-teal);
+  background: rgba(78, 205, 196, 0.1);
+}
+
+.tier-c,
+.tier-red {
+  color: var(--accent-red);
+  background: rgba(255, 71, 87, 0.08);
+}
+
+.tier-left-s {
+  border-left: 3px solid var(--accent-gold);
+}
+
+.tier-left-a {
+  border-left: 3px solid var(--accent-orange);
+}
+
+.tier-left-b {
+  border-left: 3px solid var(--accent-teal);
+}
+
+.tier-left-c {
+  border-left: 3px solid var(--text-muted);
+}
+
+.key-stat {
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.probability-row {
+  display: grid;
+  gap: 6px;
+}
+
+.probability-row__head,
+.metric-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.probability-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.probability-fill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  animation: fillBar 650ms ease-out both;
+}
+
+.score-green {
+  background: var(--accent-green);
+}
+
+.score-yellow {
+  background: var(--accent-gold);
+}
+
+.score-orange {
+  background: var(--accent-orange);
+}
+
+.score-red {
+  background: var(--accent-red);
+}
+
+.probability-meta {
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+}
+
+.button,
+.text-button,
+.support-leg,
+.quick-stakes button {
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 12px;
+  color: #04040b;
+  background: var(--accent-teal);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button-gold {
+  background: var(--accent-gold);
+}
+
+.text-button {
+  color: var(--accent-teal);
+  background: transparent;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 9px 10px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.live-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border-color: rgba(255, 215, 0, 0.45);
+  animation: pulseBorder 2s ease-in-out infinite;
+}
+
+.responsible-notice {
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.outcome-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 10px 0;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stake-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.quick-stakes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.quick-stakes button,
+.support-leg {
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.quick-stakes button {
+  padding: 9px 0;
+}
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+
+.stats-bar div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stats-bar span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.slip-leg-chip {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+
+.slip-leg-chip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--text-primary);
+  background: rgba(255, 71, 87, 0.16);
+}
+
+.suggestion-card p + p {
+  margin-top: 8px;
+}
+
+.support-leg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+}
+
+.bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px max(10px, calc((100vw - 430px) / 2 + 10px));
+  border-top: 1px solid var(--border);
+  background: rgba(4, 4, 11, 0.94);
+  backdrop-filter: blur(18px);
+}
+
+.bottom-nav__item {
+  flex: 1;
+  max-width: 82px;
+  border-radius: 999px;
+  padding: 9px 7px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.bottom-nav__item.is-active {
+  color: var(--bg-primary);
+  background: var(--accent-teal);
+  font-weight: 700;
+}
+
+@keyframes fillBar {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@keyframes pulseBorder {
+  0%,
+  100% {
+    border-color: rgba(255, 215, 0, 0.35);
+  }
+  50% {
+    border-color: rgba(255, 215, 0, 0.85);
+  }
+}
