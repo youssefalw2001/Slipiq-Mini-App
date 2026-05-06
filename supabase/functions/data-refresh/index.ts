@@ -120,6 +120,13 @@ function classifyTier(probability: number, bookmakerOdds: number | null) {
   return 'C';
 }
 
+async function clearCurrentBoard(supabase: ReturnType<typeof createClient>, matchIds: string[]) {
+  if (matchIds.length === 0) return;
+
+  await supabase.from('opportunities').delete().in('match_id', matchIds);
+  await supabase.from('odds_snapshots').delete().in('match_id', matchIds).eq('provider', 'manual_seed');
+}
+
 async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
   const { data: modelRun, error: runError } = await supabase
     .from('model_runs')
@@ -133,6 +140,8 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
   let opportunityCount = 0;
 
   try {
+    await clearCurrentBoard(supabase, seedMatches.map((match) => match.id));
+
     for (const match of seedMatches) {
       await supabase.from('matches').upsert({
         id: match.id,
