@@ -1,12 +1,131 @@
-import { SlipLeg, SlipSummary, Tier } from '../types';
-const clamp=(v:number,min=0,max=1)=>Math.min(max,Math.max(min,v));
-export const calcHoldProb=(fs1:number,w1s:number,w2s:number,bpSave:number,surface:string)=>{const surf=surface==='clay'?-0.015:surface==='grass'?0.02:0;return clamp((fs1*w1s+(1-fs1)*w2s)*0.78+bpSave*0.2+surf,0.45,0.95)};
-export const probWinGame=(p:number)=>{const q=1-p;const pre=p**4*(1+4*q+10*q*q);const deuce=20*p**3*q**3;const deuceWin=(p*p)/(1-2*p*q);return clamp(pre+deuce*deuceWin)};
-export const calcSetScoreDist=(h1:number,h2:number)=>{const scores=['6-0','6-1','6-2','6-3','6-4','7-5','7-6','0-6','1-6','2-6','3-6','4-6','5-7','6-7']; const out:Record<string,number>={}; const strength=clamp((h1-h2)*1.2+0.5); let sum=0; for(const s of scores){const [a,b]=s.split('-').map(Number); const diff=a-b; const base=Math.max(0.01,0.12-Math.abs(diff)*0.01-(a===7||b===7?0.04:0)); const w=(diff>=0?strength:1-strength)*base; out[s]=w; sum+=w;} Object.keys(out).forEach(k=>out[k]/=sum); return out;};
-export const classifyScore=(p:number)=>p>0.15?'GREEN / ANCHOR':p>0.08?'YELLOW / MID':p>0.03?'ORANGE / PUSH':'RED / LOTTO';
-export const fairOddsFromProbability=(p:number)=>1/clamp(p,0.001,1);
-export const impliedProbabilityFromOdds=(o:number)=>1/Math.max(o,1.01);
-export const calculateEdge=(modelProbability:number,bookmakerOdds:number)=>modelProbability-impliedProbabilityFromOdds(bookmakerOdds);
-export const calculateExpectedValue=(modelProbability:number,bookmakerOdds:number)=>modelProbability*bookmakerOdds-1;
-const tier=(o:number):Tier=>o>=3000?'S':o>=500?'A':o>=100?'B':'C';
-export const calcSlip=(legs:SlipLeg[],stake=10):SlipSummary=>{const combinedOdds=legs.reduce((a,l)=>a*l.odds,1); const hitRate=legs.reduce((a,l)=>a*l.modelProbability,1); return {combinedOdds,hitRate,expectedValue:hitRate*combinedOdds-1,payout:stake*combinedOdds,tier:tier(combinedOdds)}};
+import type { ScoreClass, SlipLeg, SlipSummary, Surface, Tier } from '../types';
+
+const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+
+export function calcHoldProb(fs1: number, w1s: number, w2s: number, bpSave: number, surface: Surface | string): number {
+  const surfaceAdj: Record<string, number> = { clay: -0.03, grass: 0.05, hard: 0, indoor: 0.03 };
+  const rawPointWin = fs1 * w1s + (1 - fs1) * w2s;
+  const adjusted = rawPointWin * 0.85 + bpSave * 0.15;
+  return clamp(adjusted + (surfaceAdj[surface] ?? 0), 0.45, 0.95);
+}
+
+export function probWinGame(pointWinProbability: number): number {
+  const p = clamp(pointWinProbability, 0.001, 0.999);
+  const q = 1 - p;
+  const deuceWin = (p * p) / (p * p + q * q);
+
+  const winBeforeDeuce = p ** 4 + 4 * p ** 4 * q + 10 * p ** 4 * q ** 2;
+  const reachDeuceAndWin = 20 * p ** 3 * q ** 3 * deuceWin;
+
+  return clamp(winBeforeDeuce + reachDeuceAndWin, 0.001, 0.999);
+}
+
+function tiebreakWinProbability(hold1: number, hold2: number): number {
+  return clamp(0.5 + (hold1 - hold2) * 0.65, 0.05, 0.95);
+}
+
+export function calcSetScoreDist(hold1: number, hold2: number): Record<string, number> {
+  const p1Hold = clamp(hold1, 0.001, 0.999);
+  const p2Hold = clamp(hold2, 0.001, 0.999);
+  const memo = new Map<string, Record<string, number>>();
+
+  const terminal = (g1: number, g2: number): string | null => {
+    if (g1 === 6 && g2 === 6) return null;
+    if ((g1 >= 6 || g2 >= 6) && Math.abs(g1 - g2) >= 2) return `${g1}-${g2}`;
+    return null;
+  };
+
+  const merge = (target: Record<string, number>, source: Record<string, number>, weight: number) => {
+    for (const [score, probability] of Object.entries(source)) {
+      target[score] = (target[score] ?? 0) + probability * weight;
+    }
+  };
+
+  const walk = (g1: number, g2: number, server: 0 | 1): Record<string, number> => {
+    const finished = terminal(g1, g2);
+    if (finished) return { [finished]: 1 };
+
+    if (g1 === 6 && g2 === 6) {
+      const tbP1 = tiebreakWinProbability(p1Hold, p2Hold);
+      return { '7-6': tbP1, '6-7': 1 - tbP1 };
+    }
+
+    const key = `${g1}:${g2}:${server}`;
+    const cached = memo.get(key);
+    if (cached) return cached;
+
+    const p1WinsGame = server === 0 ? p1Hold : 1 - p2Hold;
+    const nextServer = server === 0 ? 1 : 0;
+    const out: Record<string, number> = {};
+
+    merge(out, walk(g1 + 1, g2, nextServer), p1WinsGame);
+    merge(out, walk(g1, g2 + 1, nextServer), 1 - p1WinsGame);
+
+    memo.set(key, out);
+    return out;
+  };
+
+  const dist = walk(0, 0, 0);
+  const total = Object.values(dist).reduce((sum, probability) => sum + probability, 0);
+
+  return Object.fromEntries(
+    Object.entries(dist)
+      .map(([score, probability]) => [score, probability / total])
+      .sort((a, b) => Number(b[1]) - Number(a[1])),
+  );
+}
+
+export function classifyScore(probability: number): ScoreClass {
+  if (probability > 0.15) return { tier: 'GREEN', label: 'ANCHOR' };
+  if (probability > 0.08) return { tier: 'YELLOW', label: 'MID' };
+  if (probability > 0.03) return { tier: 'ORANGE', label: 'PUSH' };
+  return { tier: 'RED', label: 'LOTTO' };
+}
+
+export function fairOddsFromProbability(probability: number): number {
+  return 1 / clamp(probability, 0.001, 1);
+}
+
+export function impliedProbabilityFromOdds(decimalOdds: number): number {
+  if (!Number.isFinite(decimalOdds) || decimalOdds <= 1) return 0;
+  return 1 / decimalOdds;
+}
+
+export function calculateEdge(modelProbability: number, bookmakerOdds: number): number {
+  if (!Number.isFinite(bookmakerOdds) || bookmakerOdds <= 1) return 0;
+  return modelProbability - impliedProbabilityFromOdds(bookmakerOdds);
+}
+
+export function calculateExpectedValue(modelProbability: number, bookmakerOdds: number): number {
+  if (!Number.isFinite(bookmakerOdds) || bookmakerOdds <= 1) return 0;
+  return modelProbability * bookmakerOdds - 1;
+}
+
+function classifySlipTier(combinedOdds: number): Tier {
+  if (combinedOdds >= 3000) return 'S';
+  if (combinedOdds >= 500) return 'A';
+  if (combinedOdds >= 100) return 'B';
+  return 'C';
+}
+
+export function calcSlip(legs: SlipLeg[], stake = 10): SlipSummary {
+  const safeStake = Number.isFinite(stake) && stake > 0 ? stake : 0;
+
+  if (legs.length === 0) {
+    return { combinedOdds: 1, hitRate: 0, expectedValue: 0, payout: 0, tier: 'C', daysToHit: null };
+  }
+
+  const combinedOdds = legs.reduce((total, leg) => total * leg.odds, 1);
+  const hitRate = legs.reduce((total, leg) => total * leg.modelProbability, 1);
+  const expectedValue = hitRate * combinedOdds - 1;
+  const daysToHit = hitRate > 0 ? Math.round(1 / hitRate) : null;
+
+  return {
+    combinedOdds,
+    hitRate,
+    expectedValue,
+    payout: safeStake * combinedOdds,
+    tier: classifySlipTier(combinedOdds),
+    daysToHit,
+  };
+}
