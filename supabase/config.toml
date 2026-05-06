@@ -1,0 +1,4 @@
+project_id = "slipiq"
+
+[functions.data-refresh]
+verify_jwt = false
