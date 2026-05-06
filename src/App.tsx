@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
-import { FirstSetLab, Home, Placeholder, SlipBuilder } from './screens';
+import { Alerts, FirstSetLab, Home, MySlips, Onboarding, Profile, SlipBuilder } from './screens';
 
 export default function App() {
   return (
@@ -9,10 +9,10 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/lab/:id" element={<FirstSetLab />} />
         <Route path="/slip" element={<SlipBuilder />} />
-        <Route path="/myslips" element={<Placeholder title="My Slips" />} />
-        <Route path="/alerts" element={<Placeholder title="Alerts" />} />
-        <Route path="/profile" element={<Placeholder title="Profile + Premium" />} />
-        <Route path="/onboarding" element={<Placeholder title="Onboarding" />} />
+        <Route path="/myslips" element={<MySlips />} />
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/onboarding" element={<Onboarding />} />
       </Routes>
       <BottomNav />
     </div>
