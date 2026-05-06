@@ -440,6 +440,35 @@ h2 {
   margin-top: 12px;
 }
 
+.mini-chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  align-items: end;
+  gap: 8px;
+  min-height: 150px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.mini-chart__bar-wrap {
+  display: flex;
+  min-height: 140px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+}
+
+.mini-chart__bar {
+  width: 100%;
+  min-height: 10px;
+  border-radius: 999px 999px 4px 4px;
+  background: linear-gradient(180deg, var(--accent-teal), rgba(78, 205, 196, 0.22));
+}
+
 .alert-card {
   align-items: center;
 }
