@@ -1,0 +1,1 @@
+export default function SlipLegChip({ leg, onRemove }: { leg: any; onRemove: () => void }) { return <div className='chip'><span>{leg.label}</span><span className='mono'>@{leg.odds.toFixed(2)}</span><button onClick={onRemove}>Remove</button></div>; }
