@@ -9,6 +9,7 @@ This pass adds the production data foundation for SlipIQ.
 - `src/lib/liveData.ts` lets the frontend read the live data API.
 - Home Feed now prefers live data and safely falls back to local seed data.
 - `.github/workflows/refresh-slipiq-data.yml` can refresh the board every 2 hours.
+- `docs/provider-adapter-format.md` documents the normalized provider format for real odds/stat APIs.
 
 ## Tables
 
@@ -37,8 +38,9 @@ Behavior:
 - `GET` returns latest opportunities for the app feed.
 - `POST` runs a data/model refresh.
 - `POST` can be protected with `SLIPIQ_REFRESH_SECRET`.
-- Refresh replaces the current board for the configured provider/matches so scheduled runs do not duplicate rows.
-- The first implementation uses `manual_seed` provider data so the pipeline can be tested before paying for odds APIs.
+- Refresh replaces the current tennis board so scheduled runs do not duplicate rows.
+- Provider selection is controlled by `SLIPIQ_DATA_PROVIDER`.
+- Default provider is `manual_seed`.
 
 ## Supabase environment variables
 
@@ -48,9 +50,22 @@ Set these in Supabase Edge Function secrets:
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 SLIPIQ_REFRESH_SECRET=make_a_long_random_secret
+SLIPIQ_DATA_PROVIDER=manual_seed
 ```
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` in frontend code or Render public environment variables.
+
+## Optional external provider variables
+
+When a real provider/adapter endpoint is ready, switch to:
+
+```txt
+SLIPIQ_DATA_PROVIDER=external_normalized
+SLIPIQ_EXTERNAL_PROVIDER_URL=https://your-provider-or-adapter-url.example.com/slipiq/tennis-board
+SLIPIQ_EXTERNAL_PROVIDER_KEY=optional_bearer_token
+```
+
+See `docs/provider-adapter-format.md` for the exact JSON shape the provider endpoint must return.
 
 ## Render environment variable
 

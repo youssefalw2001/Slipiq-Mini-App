@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 type Surface = 'clay' | 'grass' | 'hard' | 'indoor';
+type DataProvider = 'manual_seed' | 'external_normalized';
 
 type PlayerStats = {
   name: string;
@@ -10,7 +11,7 @@ type PlayerStats = {
   bp_save: number;
 };
 
-type TennisSeedMatch = {
+type TennisModelMatch = {
   id: string;
   tournament: string;
   surface: Surface;
@@ -18,6 +19,12 @@ type TennisSeedMatch = {
   p1: PlayerStats;
   p2: PlayerStats;
   bookmaker_odds: Record<string, number>;
+  bookmaker?: string;
+  raw_payload?: Record<string, unknown>;
+};
+
+type NormalizedProviderPayload = {
+  matches: TennisModelMatch[];
 };
 
 const corsHeaders = {
@@ -26,7 +33,7 @@ const corsHeaders = {
   'access-control-allow-methods': 'GET, POST, OPTIONS',
 };
 
-const seedMatches: TennisSeedMatch[] = [
+const seedMatches: TennisModelMatch[] = [
   {
     id: 'rome-2026-hurkacz-hanfmann',
     tournament: 'Rome Masters 2026',
@@ -35,6 +42,7 @@ const seedMatches: TennisSeedMatch[] = [
     p1: { name: 'Hubert Hurkacz', fs1: 0.65, w1s: 0.82, w2s: 0.66, bp_save: 0.68 },
     p2: { name: 'Yannick Hanfmann', fs1: 0.62, w1s: 0.7, w2s: 0.54, bp_save: 0.61 },
     bookmaker_odds: { '6-4': 5.1, '6-3': 6.8, '7-5': 8.2, '7-6': 7.4, '4-6': 8.8 },
+    bookmaker: 'SeedBook',
   },
   {
     id: 'rome-2026-munar-kopriva',
@@ -44,11 +52,29 @@ const seedMatches: TennisSeedMatch[] = [
     p1: { name: 'Jaume Munar', fs1: 0.69, w1s: 0.72, w2s: 0.55, bp_save: 0.62 },
     p2: { name: 'Vit Kopriva', fs1: 0.63, w1s: 0.69, w2s: 0.52, bp_save: 0.58 },
     bookmaker_odds: { '6-4': 5.6, '6-3': 7.1, '7-5': 8.4, '7-6': 7.8, '4-6': 7.6 },
+    bookmaker: 'SeedBook',
   },
 ];
 
 function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeSurface(surface: string): Surface {
+  const normalized = surface.toLowerCase();
+  if (normalized === 'clay' || normalized === 'grass' || normalized === 'hard' || normalized === 'indoor') return normalized;
+  return 'hard';
+}
+
+function isFiniteProbability(value: number) {
+  return Number.isFinite(value) && value > 0 && value < 1;
+}
+
+function validateMatch(match: TennisModelMatch) {
+  const statValues = [match.p1.fs1, match.p1.w1s, match.p1.w2s, match.p1.bp_save, match.p2.fs1, match.p2.w1s, match.p2.w2s, match.p2.bp_save];
+  if (!match.id || !match.p1?.name || !match.p2?.name) throw new Error('Provider match missing id or player names');
+  if (!statValues.every(isFiniteProbability)) throw new Error(`Provider match ${match.id} has invalid player stats`);
+  if (!match.bookmaker_odds || Object.keys(match.bookmaker_odds).length === 0) throw new Error(`Provider match ${match.id} has no first-set score odds`);
 }
 
 function calcHoldProb(fs1: number, w1s: number, w2s: number, bpSave: number, surface: Surface) {
@@ -120,17 +146,45 @@ function classifyTier(probability: number, bookmakerOdds: number | null) {
   return 'C';
 }
 
-async function clearCurrentBoard(supabase: ReturnType<typeof createClient>, matchIds: string[]) {
-  if (matchIds.length === 0) return;
+async function fetchExternalNormalizedMatches(): Promise<TennisModelMatch[]> {
+  const providerUrl = Deno.env.get('SLIPIQ_EXTERNAL_PROVIDER_URL');
+  const providerKey = Deno.env.get('SLIPIQ_EXTERNAL_PROVIDER_KEY');
 
-  await supabase.from('opportunities').delete().in('match_id', matchIds);
-  await supabase.from('odds_snapshots').delete().in('match_id', matchIds).eq('provider', 'manual_seed');
+  if (!providerUrl) throw new Error('SLIPIQ_EXTERNAL_PROVIDER_URL is required for external_normalized provider');
+
+  const response = await fetch(providerUrl, {
+    headers: {
+      accept: 'application/json',
+      ...(providerKey ? { authorization: `Bearer ${providerKey}` } : {}),
+    },
+  });
+
+  if (!response.ok) throw new Error(`External provider failed with HTTP ${response.status}`);
+
+  const payload = (await response.json()) as NormalizedProviderPayload;
+  const matches = (payload.matches ?? []).map((match) => ({
+    ...match,
+    surface: normalizeSurface(match.surface),
+  }));
+
+  matches.forEach(validateMatch);
+  return matches;
 }
 
-async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
+async function getProviderMatches(provider: DataProvider) {
+  if (provider === 'external_normalized') return fetchExternalNormalizedMatches();
+  return seedMatches;
+}
+
+async function clearCurrentTennisBoard(supabase: ReturnType<typeof createClient>) {
+  await supabase.from('opportunities').delete().eq('sport', 'tennis');
+}
+
+async function runRefresh(supabase: ReturnType<typeof createClient>, provider: DataProvider) {
+  const matches = await getProviderMatches(provider);
   const { data: modelRun, error: runError } = await supabase
     .from('model_runs')
-    .insert({ provider: 'manual_seed', status: 'started', metadata: { source: 'edge-function-seed' } })
+    .insert({ provider, status: 'started', metadata: { source: provider, matchCount: matches.length } })
     .select('id')
     .single();
 
@@ -140,9 +194,9 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
   let opportunityCount = 0;
 
   try {
-    await clearCurrentBoard(supabase, seedMatches.map((match) => match.id));
+    await clearCurrentTennisBoard(supabase);
 
-    for (const match of seedMatches) {
+    for (const match of matches) {
       await supabase.from('matches').upsert({
         id: match.id,
         sport: 'tennis',
@@ -152,13 +206,13 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
         status: 'scheduled',
         player_one: match.p1.name,
         player_two: match.p2.name,
-        raw_payload: match,
+        raw_payload: { ...match, provider },
       });
 
       await supabase.from('player_stat_snapshots').insert([
         {
           match_id: match.id,
-          provider: 'manual_seed',
+          provider,
           player_name: match.p1.name,
           surface: match.surface,
           fs1: match.p1.fs1,
@@ -169,7 +223,7 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
         },
         {
           match_id: match.id,
-          provider: 'manual_seed',
+          provider,
           player_name: match.p2.name,
           surface: match.surface,
           fs1: match.p2.fs1,
@@ -196,12 +250,12 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
         if (bookmakerOdds) {
           await supabase.from('odds_snapshots').insert({
             match_id: match.id,
-            provider: 'manual_seed',
-            bookmaker: 'SeedBook',
+            provider,
+            bookmaker: match.bookmaker ?? 'UnknownBook',
             market_key: 'first_set_correct_score',
             outcome_label: score,
             decimal_odds: bookmakerOdds,
-            raw_payload: { score, bookmakerOdds },
+            raw_payload: { score, bookmakerOdds, provider },
           });
         }
 
@@ -219,7 +273,7 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
           risk_label: probability >= 0.15 ? 'anchor' : probability >= 0.08 ? 'mid' : probability >= 0.03 ? 'push' : 'lotto',
           tier: classifyTier(probability, bookmakerOdds),
           explanation: 'First Set Lab model from serve strength, hold probability, surface context, and market price comparison.',
-          raw_payload: { score, hold1, hold2, p1PointStrength, p2PointStrength },
+          raw_payload: { score, hold1, hold2, p1PointStrength, p2PointStrength, provider },
         });
         opportunityCount += 1;
       }
@@ -227,10 +281,10 @@ async function runSeedRefresh(supabase: ReturnType<typeof createClient>) {
 
     await supabase
       .from('model_runs')
-      .update({ status: 'completed', completed_at: new Date().toISOString(), metadata: { opportunityCount } })
+      .update({ status: 'completed', completed_at: new Date().toISOString(), metadata: { opportunityCount, provider, matchCount: matches.length } })
       .eq('id', modelRunId);
 
-    return { modelRunId, opportunityCount };
+    return { modelRunId, opportunityCount, provider, matchCount: matches.length };
   } catch (error) {
     await supabase
       .from('model_runs')
@@ -249,6 +303,12 @@ async function getLatestOpportunities(supabase: ReturnType<typeof createClient>)
 
   if (error) throw error;
   return data ?? [];
+}
+
+function getDataProvider(): DataProvider {
+  const provider = Deno.env.get('SLIPIQ_DATA_PROVIDER') ?? 'manual_seed';
+  if (provider === 'external_normalized') return provider;
+  return 'manual_seed';
 }
 
 Deno.serve(async (req) => {
@@ -275,7 +335,7 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Unauthorized refresh request' }, { status: 401, headers: corsHeaders });
       }
 
-      const result = await runSeedRefresh(supabase);
+      const result = await runRefresh(supabase, getDataProvider());
       return Response.json({ ok: true, ...result }, { headers: corsHeaders });
     }
 
