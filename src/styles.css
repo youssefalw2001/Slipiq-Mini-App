@@ -100,6 +100,20 @@ h2 {
   font-size: 13px;
 }
 
+.success-text,
+.error-text {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.success-text {
+  color: var(--accent-green);
+}
+
+.error-text {
+  color: var(--accent-red);
+}
+
 .card,
 .opportunity-card,
 .live-alert,
@@ -114,6 +128,22 @@ h2 {
 .card,
 .opportunity-card {
   padding: 14px;
+}
+
+.saved-slip-card {
+  border-color: rgba(78, 205, 196, 0.16);
+}
+
+.saved-slip-card .leg-stack {
+  margin-top: 12px;
+}
+
+.stats-bar.compact {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
 }
 
 .data-status-badge {
