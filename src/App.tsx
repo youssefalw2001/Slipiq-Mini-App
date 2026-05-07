@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
 import { Alerts, FirstSetLab, Home, MySlips, Onboarding, Profile, SlipBuilder } from './screens';
+import OpsControlCenter from './screens/OpsControlCenter';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/myslips" element={<MySlips />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/ops" element={<OpsControlCenter />} />
         <Route path="/onboarding" element={<Onboarding />} />
       </Routes>
       <BottomNav />
