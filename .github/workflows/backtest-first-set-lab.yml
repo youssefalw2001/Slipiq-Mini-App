@@ -1,0 +1,53 @@
+name: Backtest First Set Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Backtest start date, YYYY-MM-DD
+        required: true
+        default: "2026-04-01"
+      date_stop:
+        description: Backtest stop date, YYYY-MM-DD
+        required: true
+        default: "2026-05-06"
+      min_probability:
+        description: Minimum model probability to qualify a paper bet
+        required: true
+        default: "0.03"
+      min_ev:
+        description: Minimum expected value to qualify a paper bet
+        required: true
+        default: "0"
+      min_edge:
+        description: Minimum probability edge to qualify a paper bet
+        required: true
+        default: "0"
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run First Set Lab backtest
+        run: node scripts/backtest-first-set-lab.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.date_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.date_stop }}
+          BACKTEST_MIN_PROBABILITY: ${{ inputs.min_probability }}
+          BACKTEST_MIN_EV: ${{ inputs.min_ev }}
+          BACKTEST_MIN_EDGE: ${{ inputs.min_edge }}
+
+      - name: Upload backtest artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-backtest
+          path: artifacts/backtests
