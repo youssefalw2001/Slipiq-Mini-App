@@ -1,0 +1,36 @@
+name: Deploy Supabase Function
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: Supabase Edge Function name
+        required: true
+        default: data-refresh
+      project_ref:
+        description: Supabase project ref
+        required: true
+        default: qjvpkkcbscsypymxyker
+
+jobs:
+  deploy-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Edge Function
+        run: supabase functions deploy "${{ inputs.function_name }}" --project-ref "${{ inputs.project_ref }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deployment summary
+        run: |
+          echo "Deployed function: ${{ inputs.function_name }}"
+          echo "Project ref: ${{ inputs.project_ref }}"
+          echo "Function URL: https://${{ inputs.project_ref }}.supabase.co/functions/v1/${{ inputs.function_name }}"
