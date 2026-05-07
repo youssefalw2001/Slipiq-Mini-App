@@ -1,0 +1,110 @@
+.ops-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.compact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ops-metric {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.ops-metric span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.ops-metric strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ops-metric-good {
+  border-color: rgba(46, 213, 115, 0.3);
+  background: rgba(46, 213, 115, 0.07);
+}
+
+.ops-metric-warn {
+  border-color: rgba(255, 215, 0, 0.28);
+  background: rgba(255, 215, 0, 0.07);
+}
+
+.ops-metric-bad {
+  border-color: rgba(255, 71, 87, 0.32);
+  background: rgba(255, 71, 87, 0.08);
+}
+
+.ops-status {
+  border-width: 1px;
+}
+
+.ops-status h2,
+.ops-zero-pass h2,
+.research-candidate-card h2 {
+  margin-top: 4px;
+}
+
+.ops-status p:last-child,
+.ops-zero-pass p:last-child,
+.research-candidate-card p:last-child {
+  margin-top: 8px;
+}
+
+.ops-status-good {
+  border-color: rgba(46, 213, 115, 0.28);
+}
+
+.ops-status-warn,
+.ops-zero-pass,
+.research-candidate-card {
+  border-color: rgba(255, 215, 0, 0.24);
+}
+
+.ops-status-bad {
+  border-color: rgba(255, 71, 87, 0.32);
+}
+
+.ops-reason-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ops-reason-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.ops-reason-row strong {
+  color: var(--text-primary);
+}
+
+.warning-copy {
+  color: var(--accent-orange);
+}
+
+.ops-checklist {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
