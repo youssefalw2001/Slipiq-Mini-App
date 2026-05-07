@@ -1,0 +1,37 @@
+name: Inspect API-Tennis Result Fields
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Inspect start date, YYYY-MM-DD
+        required: true
+        default: "2026-05-01"
+      date_stop:
+        description: Inspect stop date, YYYY-MM-DD
+        required: true
+        default: "2026-05-06"
+      max_samples:
+        description: Number of sample fixtures to print
+        required: true
+        default: "12"
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Inspect API-Tennis fixture result fields
+        run: node scripts/inspect-api-tennis-results.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          INSPECT_DATE_START: ${{ inputs.date_start }}
+          INSPECT_DATE_STOP: ${{ inputs.date_stop }}
+          INSPECT_MAX_SAMPLES: ${{ inputs.max_samples }}
