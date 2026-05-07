@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { FirstSetOpportunity } from '../types';
+import { pickPreferredOutcome } from '../lib/setfoxPreferOutcome';
 import ProbabilityBar from './ProbabilityBar';
 import TierBadge from './TierBadge';
 
@@ -18,8 +19,10 @@ function cardTier(opportunity: FirstSetOpportunity) {
 }
 
 export default function OpportunityCard({ opportunity, onAddTopLeg }: OpportunityCardProps) {
-  const topMarket = opportunity.top.find((outcome) => outcome.bookmakerOdds);
+  const preferred = pickPreferredOutcome(opportunity);
   const tier = cardTier(opportunity);
+  const buttonLabel = preferred?.isSetfox ? '+ Add SetFox leg' : '+ Add to Slip';
+  const buttonClass = preferred?.isSetfox ? 'button button-gold' : 'button';
 
   return (
     <article className={`opportunity-card tier-left-${tier.toLowerCase()}`}>
@@ -56,7 +59,11 @@ export default function OpportunityCard({ opportunity, onAddTopLeg }: Opportunit
       </div>
 
       <div className="card-actions">
-        <div className="chip mono">{topMarket ? `×${topMarket.bookmakerOdds?.toFixed(2)}` : 'No market odds'}</div>
+        <div className="chip mono">
+          {preferred
+            ? `${preferred.outcome.score} · ×${preferred.outcome.bookmakerOdds?.toFixed(2)}`
+            : 'No market odds'}
+        </div>
         {opportunity.setfoxPassedCount > 0 ? (
           <span className="chip mono setfox-pass" title="At least one outcome passes SetFox Strict Mode (research-grade)">
             SetFox · {opportunity.setfoxPassedCount}
@@ -67,14 +74,15 @@ export default function OpportunityCard({ opportunity, onAddTopLeg }: Opportunit
           </span>
         )}
         <button
-          className="button"
+          className={buttonClass}
           type="button"
-          disabled={!topMarket}
-          onClick={() => topMarket && onAddTopLeg(opportunity.id, topMarket.score)}
+          disabled={!preferred}
+          onClick={() => preferred && onAddTopLeg(opportunity.id, preferred.outcome.score)}
         >
-          + Add to Slip
+          {buttonLabel}
         </button>
       </div>
     </article>
   );
 }
+
