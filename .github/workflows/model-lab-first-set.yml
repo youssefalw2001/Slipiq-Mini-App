@@ -1,0 +1,60 @@
+name: Model Lab First Set Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Backtest start date, YYYY-MM-DD
+        required: true
+        default: "2026-04-01"
+      date_stop:
+        description: Backtest stop date, YYYY-MM-DD
+        required: true
+        default: "2026-05-06"
+      chunk_days:
+        description: Number of days per API request chunk
+        required: true
+        default: "3"
+      min_bets:
+        description: Minimum bets required for a strategy rule to be ranked
+        required: true
+        default: "75"
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run backtest data pull
+        run: node scripts/backtest-first-set-lab.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.date_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.date_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
+          BACKTEST_MIN_PROBABILITY: "0.03"
+          BACKTEST_MIN_EV: "0"
+          BACKTEST_MIN_EDGE: "0"
+
+      - name: Run Model Lab optimizer
+        run: |
+          CSV_FILE=$(ls artifacts/backtests/first-set-lab-rows-*.csv | head -n 1)
+          echo "Optimizing from $CSV_FILE"
+          MODEL_LAB_INPUT_CSV="$CSV_FILE" node scripts/model-lab-optimize.mjs
+        env:
+          MODEL_LAB_MIN_BETS: ${{ inputs.min_bets }}
+
+      - name: Upload Model Lab artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-model-lab
+          path: |
+            artifacts/backtests
+            artifacts/model-lab
