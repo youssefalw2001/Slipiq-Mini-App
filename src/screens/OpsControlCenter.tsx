@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import ResponsibleNotice from '../components/ResponsibleNotice';
 import { fetchLiveOpportunities, type LiveFeedResult } from '../lib/liveData';
 import type { FirstSetOpportunity, ScannerStats } from '../types';
+import './OpsControlCenter.css';
 
 const STALE_AFTER_MINUTES = 90;
 
