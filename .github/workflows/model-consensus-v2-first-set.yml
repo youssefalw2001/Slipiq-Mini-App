@@ -1,0 +1,106 @@
+name: Model Consensus V2 First Set
+
+on:
+  workflow_dispatch:
+    inputs:
+      window_1_start:
+        description: Window 1 start date, YYYY-MM-DD
+        required: true
+        default: "2026-03-01"
+      window_1_stop:
+        description: Window 1 stop date, YYYY-MM-DD
+        required: true
+        default: "2026-03-18"
+      window_2_start:
+        description: Window 2 start date, YYYY-MM-DD
+        required: true
+        default: "2026-03-19"
+      window_2_stop:
+        description: Window 2 stop date, YYYY-MM-DD
+        required: true
+        default: "2026-03-31"
+      window_3_start:
+        description: Window 3 start date, YYYY-MM-DD
+        required: true
+        default: "2026-04-01"
+      window_3_stop:
+        description: Window 3 stop date, YYYY-MM-DD
+        required: true
+        default: "2026-04-18"
+      chunk_days:
+        description: Number of days per API request chunk
+        required: true
+        default: "3"
+      min_bets_per_window:
+        description: Minimum bets required per window
+        required: true
+        default: "35"
+      min_positive_windows:
+        description: Minimum positive windows for consensus
+        required: true
+        default: "2"
+
+jobs:
+  consensus-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run V2 backtest window 1
+        run: node scripts/backtest-first-set-lab-v2.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.window_1_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.window_1_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
+          BACKTEST_MIN_PROBABILITY: "0.03"
+          BACKTEST_MIN_EV: "0"
+          BACKTEST_MIN_EDGE: "0"
+          BACKTEST_OUTPUT_DIR: artifacts/model-consensus-v2/window-1
+
+      - name: Run V2 backtest window 2
+        run: node scripts/backtest-first-set-lab-v2.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.window_2_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.window_2_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
+          BACKTEST_MIN_PROBABILITY: "0.03"
+          BACKTEST_MIN_EV: "0"
+          BACKTEST_MIN_EDGE: "0"
+          BACKTEST_OUTPUT_DIR: artifacts/model-consensus-v2/window-2
+
+      - name: Run V2 backtest window 3
+        run: node scripts/backtest-first-set-lab-v2.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.window_3_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.window_3_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
+          BACKTEST_MIN_PROBABILITY: "0.03"
+          BACKTEST_MIN_EV: "0"
+          BACKTEST_MIN_EDGE: "0"
+          BACKTEST_OUTPUT_DIR: artifacts/model-consensus-v2/window-3
+
+      - name: Run Model Consensus V2
+        run: |
+          CSV_1=$(ls artifacts/model-consensus-v2/window-1/first-set-lab-v2-rows-*.csv | head -n 1)
+          CSV_2=$(ls artifacts/model-consensus-v2/window-2/first-set-lab-v2-rows-*.csv | head -n 1)
+          CSV_3=$(ls artifacts/model-consensus-v2/window-3/first-set-lab-v2-rows-*.csv | head -n 1)
+          echo "Window CSVs: $CSV_1,$CSV_2,$CSV_3"
+          MODEL_CONSENSUS_CSVS="$CSV_1,$CSV_2,$CSV_3" node scripts/model-consensus-v2.mjs
+        env:
+          MODEL_CONSENSUS_MIN_BETS_PER_WINDOW: ${{ inputs.min_bets_per_window }}
+          MODEL_CONSENSUS_MIN_POSITIVE_WINDOWS: ${{ inputs.min_positive_windows }}
+
+      - name: Upload Model Consensus V2 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-model-consensus-v2
+          path: artifacts/model-consensus-v2
