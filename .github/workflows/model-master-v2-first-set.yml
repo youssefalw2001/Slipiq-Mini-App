@@ -1,0 +1,86 @@
+name: Model Master V2 First Set Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      train_date_start:
+        description: Training start date, YYYY-MM-DD
+        required: true
+        default: "2026-04-01"
+      train_date_stop:
+        description: Training stop date, YYYY-MM-DD
+        required: true
+        default: "2026-04-18"
+      validation_date_start:
+        description: Validation start date, YYYY-MM-DD
+        required: true
+        default: "2026-04-19"
+      validation_date_stop:
+        description: Validation stop date, YYYY-MM-DD
+        required: true
+        default: "2026-05-06"
+      chunk_days:
+        description: Number of days per API request chunk
+        required: true
+        default: "3"
+      min_train_bets:
+        description: Minimum training bets required for a candidate rule
+        required: true
+        default: "75"
+      min_validation_bets:
+        description: Minimum validation bets required for a rule to survive
+        required: true
+        default: "40"
+
+jobs:
+  validate-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run V2 training backtest
+        run: node scripts/backtest-first-set-lab-v2.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.train_date_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.train_date_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
+          BACKTEST_MIN_PROBABILITY: "0.03"
+          BACKTEST_MIN_EV: "0"
+          BACKTEST_MIN_EDGE: "0"
+          BACKTEST_OUTPUT_DIR: artifacts/model-master-v2/train
+
+      - name: Run V2 validation backtest
+        run: node scripts/backtest-first-set-lab-v2.mjs
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          BACKTEST_DATE_START: ${{ inputs.validation_date_start }}
+          BACKTEST_DATE_STOP: ${{ inputs.validation_date_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
+          BACKTEST_MIN_PROBABILITY: "0.03"
+          BACKTEST_MIN_EV: "0"
+          BACKTEST_MIN_EDGE: "0"
+          BACKTEST_OUTPUT_DIR: artifacts/model-master-v2/validation
+
+      - name: Run Model Master V2 validation
+        run: |
+          TRAIN_CSV=$(ls artifacts/model-master-v2/train/first-set-lab-v2-rows-*.csv | head -n 1)
+          VALIDATION_CSV=$(ls artifacts/model-master-v2/validation/first-set-lab-v2-rows-*.csv | head -n 1)
+          echo "Training CSV: $TRAIN_CSV"
+          echo "Validation CSV: $VALIDATION_CSV"
+          MODEL_MASTER_TRAIN_CSV="$TRAIN_CSV" MODEL_MASTER_VALIDATION_CSV="$VALIDATION_CSV" node scripts/model-master-v2-validate.mjs
+        env:
+          MODEL_MASTER_MIN_TRAIN_BETS: ${{ inputs.min_train_bets }}
+          MODEL_MASTER_MIN_VALIDATION_BETS: ${{ inputs.min_validation_bets }}
+
+      - name: Upload Model Master V2 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-model-master-v2
+          path: artifacts/model-master-v2
