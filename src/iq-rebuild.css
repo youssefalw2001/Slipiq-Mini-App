@@ -25,7 +25,10 @@
 .rebuild-header,
 .odds-transform,
 .rebuild-stats,
-.rebuild-note {
+.rebuild-note,
+.iq-rebuild-grid,
+.rebuild-section,
+.rebuild-share-preview {
   position: relative;
   z-index: 1;
 }
@@ -116,6 +119,13 @@
   animation: oddsLock 2.4s ease-in-out infinite;
 }
 
+.rebuild-mini-copy {
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+}
+
 .rebuild-arrow {
   position: relative;
   display: grid;
@@ -201,6 +211,105 @@
 
 .iq-rebuild-card.is-compact .odds-side strong {
   font-size: 22px;
+}
+
+.iq-rebuild-v1 {
+  border-color: rgba(78, 205, 196, 0.2);
+}
+
+.iq-rebuild-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.rebuild-panel,
+.rebuild-replacement-card,
+.rebuild-share-preview {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 11px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.rebuild-panel h3 {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.rebuild-panel p,
+.rebuild-replacement-card p,
+.rebuild-share-preview span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.rebuild-section {
+  display: grid;
+  gap: 8px;
+}
+
+.rebuild-list {
+  display: grid;
+  gap: 7px;
+}
+
+.rebuild-list-row {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rebuild-list-row span {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.rebuild-list-row strong {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.rebuild-replacement-card {
+  display: grid;
+  gap: 8px;
+  border-color: rgba(255, 215, 0, 0.24);
+}
+
+.rebuild-replacement-card span {
+  color: var(--accent-gold);
+  font-size: 10px;
+}
+
+.rebuild-replacement-card strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.rebuild-warning-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--accent-orange);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.rebuild-share-preview {
+  display: grid;
+  gap: 5px;
+  border-color: rgba(78, 205, 196, 0.2);
+}
+
+.rebuild-share-preview strong {
+  color: var(--accent-teal);
+  font-size: 13px;
 }
 
 @keyframes rebuildSweep {
