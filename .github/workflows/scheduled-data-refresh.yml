@@ -1,0 +1,92 @@
+name: Scheduled Data Refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: Supabase project ref
+        required: true
+        default: qjvpkkcbscsypymxyker
+      function_name:
+        description: Supabase Edge Function name
+        required: true
+        default: data-refresh
+  schedule:
+    # Hourly refresh keeps data fresh without burning API quota too fast.
+    - cron: "7 * * * *"
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_PROJECT_REF: qjvpkkcbscsypymxyker
+      DEFAULT_FUNCTION_NAME: data-refresh
+      SLIPIQ_REFRESH_SECRET: ${{ secrets.SLIPIQ_REFRESH_SECRET }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+    steps:
+      - name: Resolve refresh target
+        id: target
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "project_ref=${{ inputs.project_ref }}" >> "$GITHUB_OUTPUT"
+            echo "function_name=${{ inputs.function_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "project_ref=${DEFAULT_PROJECT_REF}" >> "$GITHUB_OUTPUT"
+            echo "function_name=${DEFAULT_FUNCTION_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check required refresh secret
+        shell: bash
+        run: |
+          if [ -z "$SLIPIQ_REFRESH_SECRET" ]; then
+            echo "Missing required GitHub Actions secret: SLIPIQ_REFRESH_SECRET"
+            echo "Add it in GitHub -> Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Call Supabase data-refresh
+        id: refresh
+        shell: bash
+        run: |
+          url="https://${{ steps.target.outputs.project_ref }}.supabase.co/functions/v1/${{ steps.target.outputs.function_name }}"
+          echo "Calling $url"
+
+          tmp_body="$(mktemp)"
+          http_code=$(curl -sS -o "$tmp_body" -w "%{http_code}" \
+            -X POST "$url" \
+            -H "x-slipiq-refresh-secret: ${SLIPIQ_REFRESH_SECRET}" \
+            -H "content-type: application/json" \
+            --data '{}')
+
+          echo "http_code=$http_code" >> "$GITHUB_OUTPUT"
+          echo "Response body:"
+          cat "$tmp_body"
+          echo
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Refresh failed with HTTP $http_code"
+            exit 1
+          fi
+
+          if ! grep -q '"ok"[[:space:]]*:[[:space:]]*true' "$tmp_body"; then
+            echo "Refresh response did not include ok: true"
+            exit 1
+          fi
+
+          echo "Refresh succeeded."
+
+      - name: Alert admin on refresh failure
+        if: failure()
+        shell: bash
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_ADMIN_CHAT_ID" ]; then
+            echo "Telegram alert skipped. Optional secrets TELEGRAM_BOT_TOKEN or TELEGRAM_ADMIN_CHAT_ID are not set."
+            exit 0
+          fi
+
+          message="SlipIQ Alert: scheduled data-refresh failed in GitHub Actions. Check run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            --data-urlencode "text=${message}"
