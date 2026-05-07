@@ -10,6 +10,7 @@ const config = {
   minProbability: Number(process.env.BACKTEST_MIN_PROBABILITY ?? 0.03),
   minEv: Number(process.env.BACKTEST_MIN_EV ?? 0),
   minEdge: Number(process.env.BACKTEST_MIN_EDGE ?? 0),
+  chunkDays: Number(process.env.BACKTEST_CHUNK_DAYS ?? 3),
   outputDir: process.env.BACKTEST_OUTPUT_DIR ?? 'artifacts/backtests',
 };
 
@@ -19,6 +20,7 @@ if (!apiKey) {
 }
 
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isoDate = (offsetDays = 0) => {
   const date = new Date();
@@ -26,8 +28,31 @@ const isoDate = (offsetDays = 0) => {
   return date.toISOString().slice(0, 10);
 };
 
+const addDays = (dateString, days) => {
+  const date = new Date(`${dateString}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+const minDate = (a, b) => (new Date(`${a}T00:00:00Z`) <= new Date(`${b}T00:00:00Z`) ? a : b);
+const isAfter = (a, b) => new Date(`${a}T00:00:00Z`) > new Date(`${b}T00:00:00Z`);
+
 config.dateStart ??= isoDate(-30);
 config.dateStop ??= isoDate(-1);
+config.chunkDays = Number.isFinite(config.chunkDays) && config.chunkDays > 0 ? Math.floor(config.chunkDays) : 3;
+
+function buildDateChunks(start, stop, sizeDays) {
+  const chunks = [];
+  let cursor = start;
+
+  while (!isAfter(cursor, stop)) {
+    const chunkStop = minDate(addDays(cursor, sizeDays - 1), stop);
+    chunks.push({ date_start: cursor, date_stop: chunkStop });
+    cursor = addDays(chunkStop, 1);
+  }
+
+  return chunks;
+}
 
 function calcHoldProb(fs1, w1s, w2s, bpSave, surface = 'hard') {
   const surfaceAdj = { clay: -0.03, grass: 0.05, hard: 0, indoor: 0.03 };
@@ -191,7 +216,7 @@ function parseFirstSetScore(fixture) {
   return null;
 }
 
-async function fetchApiTennis(method, params = {}) {
+async function fetchApiTennis(method, params = {}, attempt = 1) {
   const url = new URL(baseUrl);
   url.searchParams.set('method', method);
   url.searchParams.set('APIkey', apiKey);
@@ -201,11 +226,22 @@ async function fetchApiTennis(method, params = {}) {
 
   const response = await fetch(url);
   const text = await response.text();
-  if (!response.ok) throw new Error(`${method} failed with HTTP ${response.status}: ${text.slice(0, 500)}`);
+
+  if (!response.ok) {
+    if (attempt < 3 && response.status >= 500) {
+      console.warn(`${method} ${params.date_start ?? ''}-${params.date_stop ?? ''} HTTP ${response.status}; retrying attempt ${attempt + 1}/3`);
+      await sleep(700 * attempt);
+      return fetchApiTennis(method, params, attempt + 1);
+    }
+    throw new Error(`${method} failed with HTTP ${response.status}: ${text.slice(0, 500)}`);
+  }
 
   const payload = JSON.parse(text);
   if (String(payload.success) !== '1') {
-    throw new Error(`${method} returned unsuccessful payload: ${JSON.stringify(payload).slice(0, 1000)}`);
+    const body = JSON.stringify(payload).slice(0, 1000);
+    const noData = /no\s*(event|match|odd|data)|not\s*found|empty/i.test(body);
+    if (noData) return method === 'get_odds' ? {} : [];
+    throw new Error(`${method} returned unsuccessful payload: ${body}`);
   }
 
   return payload.result;
@@ -215,6 +251,43 @@ function normalizeArray(value) {
   if (Array.isArray(value)) return value;
   if (!value || typeof value !== 'object') return [];
   return Object.values(value).filter((item) => item && typeof item === 'object');
+}
+
+async function fetchHistoricalData() {
+  const chunks = buildDateChunks(config.dateStart, config.dateStop, config.chunkDays);
+  const fixtures = [];
+  const oddsResult = {};
+  const chunkErrors = [];
+
+  console.log(`Fetching ${chunks.length} chunks of ${config.chunkDays} day(s).`);
+
+  for (const chunk of chunks) {
+    const label = `${chunk.date_start} to ${chunk.date_stop}`;
+    try {
+      console.log(`Fetching fixtures: ${label}`);
+      const chunkFixtures = normalizeArray(await fetchApiTennis('get_fixtures', chunk));
+      fixtures.push(...chunkFixtures);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      chunkErrors.push({ method: 'get_fixtures', ...chunk, error: message });
+      console.warn(`Skipping fixture chunk ${label}: ${message}`);
+      continue;
+    }
+
+    try {
+      console.log(`Fetching odds: ${label}`);
+      const chunkOdds = await fetchApiTennis('get_odds', chunk);
+      if (chunkOdds && typeof chunkOdds === 'object') Object.assign(oddsResult, chunkOdds);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      chunkErrors.push({ method: 'get_odds', ...chunk, error: message });
+      console.warn(`Skipping odds chunk ${label}: ${message}`);
+    }
+
+    await sleep(250);
+  }
+
+  return { fixtures, oddsResult, chunkErrors };
 }
 
 function fixtureName(fixture) {
@@ -302,6 +375,7 @@ function summarize(rows) {
       min_probability: config.minProbability,
       min_ev: config.minEv,
       min_edge: config.minEdge,
+      chunk_days: config.chunkDays,
     },
     matches_tested: matches.size,
     market_rows_tested: rows.length,
@@ -361,8 +435,7 @@ async function main() {
   console.log(`Range: ${config.dateStart} to ${config.dateStop}`);
   console.log(`Filters: probability >= ${config.minProbability}, EV >= ${config.minEv}, edge >= ${config.minEdge}`);
 
-  const fixtures = normalizeArray(await fetchApiTennis('get_fixtures', { date_start: config.dateStart, date_stop: config.dateStop }));
-  const oddsResult = await fetchApiTennis('get_odds', { date_start: config.dateStart, date_stop: config.dateStop });
+  const { fixtures, oddsResult, chunkErrors } = await fetchHistoricalData();
   const fixtureByKey = new Map(fixtures.map((fixture) => [String(fixture.event_key), fixture]));
   const rows = [];
   let matchesWithOdds = 0;
@@ -380,8 +453,9 @@ async function main() {
   summary.fixtures_returned = fixtures.length;
   summary.matches_with_correct_score_odds = matchesWithOdds;
   summary.matches_with_parseable_first_set_result = matchesWithResults;
+  summary.chunk_errors = chunkErrors;
   summary.warning = rows.length === 0
-    ? 'No rows were testable. API-Tennis may not provide historical odds/results for this range, or result parsing needs provider-specific fields.'
+    ? 'No rows were testable. API-Tennis may not provide historical odds/results for this range, or result parsing needs provider-specific fields. Try chunk_days=1 and a shorter recent range.'
     : rows.some((row) => row.first_set_edge !== 0)
       ? null
       : 'Model v1 uses estimated serve inputs and may be underpowered until real rolling serve stats are added.';
