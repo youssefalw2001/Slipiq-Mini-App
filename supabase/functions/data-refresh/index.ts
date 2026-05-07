@@ -3,6 +3,38 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 type Surface = 'clay' | 'grass' | 'hard' | 'indoor';
 type DataProvider = 'manual_seed' | 'external_normalized' | 'api_tennis';
 
+type TournamentLevel = 'slam' | 'tour_premium' | 'tour_other' | 'challenger' | 'itf';
+type ScoreFamily = 'tiebreak' | 'blowout' | 'clear' | 'normal' | 'close';
+type OddsBucket = 'odds_1_5' | 'odds_5_8' | 'odds_8_12' | 'odds_12_18' | 'odds_18_30' | 'odds_30_plus';
+type MatchType = 'singles' | 'doubles';
+type SetFoxRejection =
+  | 'no_market_odds'
+  | 'tiebreak_blocked'
+  | 'doubles_blocked'
+  | 'score_family_blocked'
+  | 'tournament_level_blocked'
+  | 'odds_bucket_blocked'
+  | 'odds_above_cap'
+  | 'probability_below_min'
+  | 'ev_below_min'
+  | 'edge_below_min';
+
+// Mirrors src/lib/setfoxStrategy.ts. Keep in sync. Both production paths use
+// this rule so the live badge always matches the row written to
+// live_setfox_signals.
+const SETFOX_RULE = {
+  version: 'setfox.v3.research.itf-normal-12to18',
+  blockTiebreak: true,
+  blockDoubles: true,
+  allowedScoreFamilies: new Set<ScoreFamily>(['normal']),
+  allowedTournamentLevels: new Set<TournamentLevel>(['itf']),
+  allowedOddsBuckets: new Set<OddsBucket>(['odds_12_18']),
+  minProbability: 0.03,
+  minEv: 0,
+  minEdge: 0,
+  maxOdds: 18,
+};
+
 type PlayerStats = {
   name: string;
   fs1: number;
@@ -20,6 +52,8 @@ type TennisModelMatch = {
   p2: PlayerStats;
   bookmaker_odds: Record<string, number>;
   bookmaker?: string;
+  tournament_level?: TournamentLevel;
+  match_type?: MatchType;
   raw_payload?: Record<string, unknown>;
 };
 
@@ -156,6 +190,66 @@ function classifyTier(probability: number, bookmakerOdds: number | null) {
   if (ev > 0.1 && bookmakerOdds && bookmakerOdds >= 7) return 'A';
   if (ev > 0.02) return 'B';
   return 'C';
+}
+
+function classifyScoreFamily(score: string): ScoreFamily {
+  if (score === '7-6' || score === '6-7') return 'tiebreak';
+  const [a, b] = score.split('-').map(Number);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'close';
+  const diff = Math.abs(a - b);
+  if (diff >= 4) return 'blowout';
+  if (diff === 3) return 'clear';
+  if (diff === 2) return 'normal';
+  return 'close';
+}
+
+function classifyOddsBucket(odds: number): OddsBucket {
+  if (odds < 5) return 'odds_1_5';
+  if (odds < 8) return 'odds_5_8';
+  if (odds < 12) return 'odds_8_12';
+  if (odds < 18) return 'odds_12_18';
+  if (odds < 30) return 'odds_18_30';
+  return 'odds_30_plus';
+}
+
+function classifyTournamentLevel(name: string): TournamentLevel {
+  const text = name.toLowerCase();
+  if (/wimbledon|roland garros|french open|us open|australian open/.test(text)) return 'slam';
+  if (/madrid|rome|monte carlo|indian wells|miami|cincinnati|shanghai|paris masters|canada|toronto|montreal|doha|dubai/.test(text)) return 'tour_premium';
+  if (/challenger|w100|w75|w50|m100|m75|m50/.test(text)) return 'challenger';
+  if (/m15|m25|w15|w25|itf/.test(text)) return 'itf';
+  return 'tour_other';
+}
+
+function classifyMatchType(p1Name: string, p2Name: string): MatchType {
+  return p1Name.includes('/') || p2Name.includes('/') ? 'doubles' : 'singles';
+}
+
+interface SetFoxEvalInput {
+  score: string;
+  modelProbability: number;
+  bookmakerOdds: number | null;
+  edge: number | null;
+  expectedValue: number | null;
+  scoreFamily: ScoreFamily;
+  oddsBucket: OddsBucket;
+  tournamentLevel: TournamentLevel;
+  matchType: MatchType;
+}
+
+function evaluateSetFox(input: SetFoxEvalInput) {
+  const rejections: SetFoxRejection[] = [];
+  if (input.bookmakerOdds === null || !Number.isFinite(input.bookmakerOdds) || input.bookmakerOdds <= 1) rejections.push('no_market_odds');
+  if (SETFOX_RULE.blockTiebreak && input.scoreFamily === 'tiebreak') rejections.push('tiebreak_blocked');
+  if (SETFOX_RULE.blockDoubles && input.matchType === 'doubles') rejections.push('doubles_blocked');
+  if (!SETFOX_RULE.allowedScoreFamilies.has(input.scoreFamily)) rejections.push('score_family_blocked');
+  if (!SETFOX_RULE.allowedTournamentLevels.has(input.tournamentLevel)) rejections.push('tournament_level_blocked');
+  if (!SETFOX_RULE.allowedOddsBuckets.has(input.oddsBucket)) rejections.push('odds_bucket_blocked');
+  if (input.bookmakerOdds !== null && input.bookmakerOdds > SETFOX_RULE.maxOdds) rejections.push('odds_above_cap');
+  if (input.modelProbability < SETFOX_RULE.minProbability) rejections.push('probability_below_min');
+  if ((input.expectedValue ?? -Infinity) < SETFOX_RULE.minEv) rejections.push('ev_below_min');
+  if ((input.edge ?? -Infinity) < SETFOX_RULE.minEdge) rejections.push('edge_below_min');
+  return { passed: rejections.length === 0, rejections, ruleVersion: SETFOX_RULE.version };
 }
 
 function parseDecimalOdds(value: unknown): number | null {
@@ -307,20 +401,27 @@ async function fetchApiTennisMatches(): Promise<TennisModelMatch[]> {
     if (p1Name === 'Player 1' || p2Name === 'Player 2') continue;
 
     const firstSetEdge = impliedFirstSetEdge(matchOdds);
+    const tournamentName = getText(fixture.tournament_name, 'Tennis');
+    const tournamentLevel = classifyTournamentLevel(tournamentName);
+    const matchType = classifyMatchType(p1Name, p2Name);
     const match: TennisModelMatch = {
       id: `api-tennis-${eventKey}`,
-      tournament: getText(fixture.tournament_name, 'Tennis'),
+      tournament: tournamentName,
       surface: 'hard',
       starts_at: apiTennisTimestamp(fixture),
       p1: estimatedPlayerStats(p1Name, 'p1', firstSetEdge),
       p2: estimatedPlayerStats(p2Name, 'p2', firstSetEdge),
       bookmaker_odds: bookmakerOdds,
       bookmaker: 'API-Tennis',
+      tournament_level: tournamentLevel,
+      match_type: matchType,
       raw_payload: {
         provider: 'api_tennis',
         event_key: eventKey,
         fixture,
         markets: matchOdds,
+        tournament_level: tournamentLevel,
+        match_type: matchType,
         date_start: dateStart,
         date_stop: dateStop,
         stat_source: 'estimated_from_market_defaults_v1',
@@ -355,6 +456,25 @@ async function runRefresh(supabase: ReturnType<typeof createClient>, provider: D
 
   const modelRunId = modelRun.id as string;
   let opportunityCount = 0;
+  let setfoxPassedCount = 0;
+  const scannerStats = {
+    total_scanned: 0,
+    passed: 0,
+    rejected: 0,
+    tiebreak_blocked: 0,
+    rejections_by_reason: {
+      no_market_odds: 0,
+      tiebreak_blocked: 0,
+      doubles_blocked: 0,
+      score_family_blocked: 0,
+      tournament_level_blocked: 0,
+      odds_bucket_blocked: 0,
+      odds_above_cap: 0,
+      probability_below_min: 0,
+      ev_below_min: 0,
+      edge_below_min: 0,
+    } as Record<SetFoxRejection, number>,
+  };
 
   try {
     await clearCurrentTennisBoard(supabase);
@@ -404,11 +524,38 @@ async function runRefresh(supabase: ReturnType<typeof createClient>, provider: D
       const distribution = calcSetScoreDist(hold1, hold2);
       const topOutcomes = Object.entries(distribution).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
+      const tournamentLevel: TournamentLevel = match.tournament_level ?? classifyTournamentLevel(match.tournament);
+      const matchType: MatchType = match.match_type ?? classifyMatchType(match.p1.name, match.p2.name);
+
       for (const [score, probability] of topOutcomes) {
         const bookmakerOdds = match.bookmaker_odds[score] ?? null;
         const fairOdds = 1 / probability;
         const edge = bookmakerOdds ? probability - 1 / bookmakerOdds : null;
         const expectedValue = bookmakerOdds ? probability * bookmakerOdds - 1 : null;
+        const scoreFamily = classifyScoreFamily(score);
+        const oddsBucket = bookmakerOdds ? classifyOddsBucket(bookmakerOdds) : 'odds_30_plus';
+        const setfox = evaluateSetFox({
+          score,
+          modelProbability: probability,
+          bookmakerOdds,
+          edge,
+          expectedValue,
+          scoreFamily,
+          oddsBucket,
+          tournamentLevel,
+          matchType,
+        });
+
+        scannerStats.total_scanned += 1;
+        if (setfox.passed) {
+          scannerStats.passed += 1;
+        } else {
+          scannerStats.rejected += 1;
+          for (const reason of setfox.rejections) {
+            scannerStats.rejections_by_reason[reason] += 1;
+            if (reason === 'tiebreak_blocked') scannerStats.tiebreak_blocked += 1;
+          }
+        }
 
         if (bookmakerOdds) {
           await supabase.from('odds_snapshots').insert({
@@ -422,7 +569,7 @@ async function runRefresh(supabase: ReturnType<typeof createClient>, provider: D
           });
         }
 
-        await supabase.from('opportunities').insert({
+        const { data: opportunity, error: opportunityError } = await supabase.from('opportunities').insert({
           model_run_id: modelRunId,
           match_id: match.id,
           sport: 'tennis',
@@ -438,18 +585,86 @@ async function runRefresh(supabase: ReturnType<typeof createClient>, provider: D
           explanation: provider === 'api_tennis'
             ? 'First Set Lab model from estimated serve strength, market-implied first-set edge, and API-Tennis first-set correct-score odds.'
             : 'First Set Lab model from serve strength, hold probability, surface context, and market price comparison.',
-          raw_payload: { score, hold1, hold2, p1PointStrength, p2PointStrength, provider, sourceMatch: match.raw_payload ?? null },
-        });
+          raw_payload: {
+            score,
+            hold1,
+            hold2,
+            p1PointStrength,
+            p2PointStrength,
+            provider,
+            score_family: scoreFamily,
+            odds_bucket: oddsBucket,
+            tournament_level: tournamentLevel,
+            match_type: matchType,
+            setfox: { passed: setfox.passed, rejections: setfox.rejections, rule_version: setfox.ruleVersion },
+            sourceMatch: match.raw_payload ?? null,
+          },
+        }).select('id').single();
+        if (opportunityError) throw opportunityError;
         opportunityCount += 1;
+
+        if (setfox.passed) {
+          setfoxPassedCount += 1;
+          await supabase.from('live_setfox_signals').insert({
+            model_run_id: modelRunId,
+            match_id: match.id,
+            opportunity_id: opportunity?.id ?? null,
+            rule_version: setfox.ruleVersion,
+            passed: true,
+            rejections: [],
+            score,
+            score_family: scoreFamily,
+            odds_bucket: oddsBucket,
+            tournament_level: tournamentLevel,
+            match_type: matchType,
+            surface: match.surface,
+            model_probability: probability,
+            fair_odds: fairOdds,
+            signal_odds: bookmakerOdds,
+            opening_odds: bookmakerOdds,
+            edge,
+            expected_value: expectedValue,
+            raw_payload: {
+              hold1,
+              hold2,
+              p1PointStrength,
+              p2PointStrength,
+              tournament: match.tournament,
+              p1: match.p1.name,
+              p2: match.p2.name,
+            },
+          });
+        }
       }
     }
 
+    await supabase.from('setfox_scanner_runs').insert({
+      model_run_id: modelRunId,
+      rule_version: SETFOX_RULE.version,
+      total_scanned: scannerStats.total_scanned,
+      passed: scannerStats.passed,
+      rejected: scannerStats.rejected,
+      tiebreak_blocked: scannerStats.tiebreak_blocked,
+      rejections_by_reason: scannerStats.rejections_by_reason,
+    });
+
     await supabase
       .from('model_runs')
-      .update({ status: 'completed', completed_at: new Date().toISOString(), metadata: { opportunityCount, provider, matchCount: matches.length } })
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        metadata: {
+          opportunityCount,
+          provider,
+          matchCount: matches.length,
+          setfox_rule_version: SETFOX_RULE.version,
+          setfox_passed: setfoxPassedCount,
+          setfox_total_scanned: scannerStats.total_scanned,
+        },
+      })
       .eq('id', modelRunId);
 
-    return { modelRunId, opportunityCount, provider, matchCount: matches.length };
+    return { modelRunId, opportunityCount, setfoxPassedCount, scannerStats, provider, matchCount: matches.length };
   } catch (error) {
     await supabase
       .from('model_runs')
@@ -468,6 +683,17 @@ async function getLatestOpportunities(supabase: ReturnType<typeof createClient>)
 
   if (error) throw error;
   return data ?? [];
+}
+
+async function getLatestScannerRun(supabase: ReturnType<typeof createClient>) {
+  const { data, error } = await supabase
+    .from('setfox_scanner_runs')
+    .select('*')
+    .order('captured_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data;
 }
 
 function getDataProvider(): DataProvider {
@@ -490,8 +716,11 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === 'GET') {
-      const opportunities = await getLatestOpportunities(supabase);
-      return Response.json({ opportunities }, { headers: corsHeaders });
+      const [opportunities, scannerRun] = await Promise.all([
+        getLatestOpportunities(supabase),
+        getLatestScannerRun(supabase),
+      ]);
+      return Response.json({ opportunities, scanner: scannerRun }, { headers: corsHeaders });
     }
 
     if (req.method === 'POST') {

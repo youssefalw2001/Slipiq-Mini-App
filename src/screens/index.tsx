@@ -10,10 +10,12 @@ import TierBadge from '../components/TierBadge';
 import nba from '../data/nbaGames.json';
 import { fetchLiveOpportunities } from '../lib/liveData';
 import { legFromOutcome, opportunities as seedOpportunities } from '../lib/opportunities';
+import { setfoxConfidenceBadge, setfoxManifest, explainSetFox } from '../lib/setfoxExplain';
+import { classifyOddsBucket, classifyScoreFamily } from '../lib/setfoxStrategy';
 import { fetchSavedSlips, saveSlipToSupabase, type SavedSlip } from '../lib/slipsData';
 import { triggerHaptic } from '../lib/telegram';
 import { useSlipStore, useSlipSummary } from '../store/slipStore';
-import type { FirstSetOpportunity } from '../types';
+import type { FirstSetOpportunity, ScannerStats } from '../types';
 
 const historyData = [
   { day: 'Mon', value: 18 },
@@ -68,15 +70,17 @@ function MiniTrendChart() {
 function useOpportunityFeed() {
   const [feed, setFeed] = useState<FirstSetOpportunity[]>(seedOpportunities);
   const [source, setSource] = useState<'seed' | 'live'>('seed');
+  const [scanner, setScanner] = useState<ScannerStats | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     fetchLiveOpportunities()
-      .then((liveFeed) => {
-        if (!cancelled && liveFeed?.length) {
-          setFeed(liveFeed);
+      .then((live) => {
+        if (!cancelled && live) {
+          setFeed(live.opportunities);
           setSource('live');
+          setScanner(live.scanner);
         }
       })
       .catch((error) => {
@@ -88,7 +92,72 @@ function useOpportunityFeed() {
     };
   }, []);
 
-  return { feed, source };
+  return { feed, source, scanner };
+}
+
+function deriveScannerStats(feed: FirstSetOpportunity[]): ScannerStats {
+  let totalScanned = 0;
+  let passed = 0;
+  let tiebreakBlocked = 0;
+  for (const opp of feed) {
+    for (const outcome of opp.outcomes) {
+      totalScanned += 1;
+      if (outcome.setfox.passed) passed += 1;
+      if (outcome.setfox.rejections.includes('tiebreak_blocked')) tiebreakBlocked += 1;
+    }
+  }
+  return {
+    ruleVersion: feed[0]?.outcomes[0]?.setfox.ruleVersion ?? 'setfox.v3.research.itf-normal-12to18',
+    totalScanned,
+    passed,
+    rejected: totalScanned - passed,
+    tiebreakBlocked,
+    capturedAt: null,
+  };
+}
+
+function ScannerCard({ stats, source }: { stats: ScannerStats; source: 'seed' | 'live' }) {
+  const badge = setfoxConfidenceBadge();
+  const manifest = setfoxManifest();
+  return (
+    <article className="card scanner-card">
+      <div className="section-title">
+        <div>
+          <p className="eyebrow">SetFox Scanner · {source === 'live' ? 'Live' : 'Seed'}</p>
+          <h2>{stats.passed} passed · {stats.rejected} rejected</h2>
+        </div>
+        <span className={`chip mono setfox-confidence-${badge.tone}`}>{badge.label}</span>
+      </div>
+      <div className="stats-bar compact">
+        <div>
+          <span>Scanned</span>
+          <strong className="mono">{stats.totalScanned}</strong>
+        </div>
+        <div>
+          <span>SetFox Pass</span>
+          <strong className="mono">{stats.passed}</strong>
+        </div>
+        <div>
+          <span>Tiebreak Blocks</span>
+          <strong className="mono">{stats.tiebreakBlocked}</strong>
+        </div>
+        <div>
+          <span>Reject Rate</span>
+          <strong className="mono">
+            {stats.totalScanned > 0 ? `${Math.round((stats.rejected / stats.totalScanned) * 100)}%` : '0%'}
+          </strong>
+        </div>
+      </div>
+      <ul className="setfox-manifest muted">
+        {manifest.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p className="muted small">
+        SetFox rules are research-grade. Forward-test results need to confirm them before any premium claims.
+      </p>
+    </article>
+  );
 }
 
 function DataStatusBadge({ source, count }: { source: 'seed' | 'live'; count: number }) {
@@ -139,8 +208,9 @@ function SavedSlipCard({ slip }: { slip: SavedSlip }) {
 }
 
 export function Home() {
-  const { feed, source } = useOpportunityFeed();
+  const { feed, source, scanner } = useOpportunityFeed();
   const addLeg = useSlipStore((state) => state.addLeg);
+  const scannerStats = scanner ?? deriveScannerStats(feed);
 
   const addTopLeg = (matchId: string, score: string) => {
     const liveMatch = feed.find((opportunity) => opportunity.id === matchId);
@@ -153,6 +223,8 @@ export function Home() {
           odds: liveOutcome.bookmakerOdds,
           modelProbability: liveOutcome.modelProbability,
           eventId: matchId,
+          setfoxPassed: liveOutcome.setfox.passed,
+          setfoxRuleVersion: liveOutcome.setfox.ruleVersion,
         }
       : legFromOutcome(matchId, score);
 
@@ -170,6 +242,7 @@ export function Home() {
       </section>
 
       <DataStatusBadge source={source} count={feed.length} />
+      <ScannerCard stats={scannerStats} source={source} />
       <LiveAlertBanner />
       <IQRebuildCard compact />
 
@@ -241,27 +314,46 @@ export function FirstSetLab() {
         </div>
 
         <div className="outcome-list">
-          {match.outcomes.map((outcome) => (
-            <article key={outcome.score} className="outcome-card">
-              <div className="outcome-head">
-                <div>
-                  <strong className="mono">{outcome.score}</strong>
-                  <p className="muted">{outcome.classLabel.label}</p>
+          {match.outcomes.map((outcome) => {
+            const explanation = explainSetFox(
+              {
+                score: outcome.score,
+                modelProbability: outcome.modelProbability,
+                bookmakerOdds: outcome.bookmakerOdds,
+                edge: outcome.edge,
+                expectedValue: outcome.expectedValue,
+                scoreFamily: classifyScoreFamily(outcome.score),
+                oddsBucket: outcome.bookmakerOdds ? classifyOddsBucket(outcome.bookmakerOdds) : 'odds_30_plus',
+                tournamentLevel: match.tournamentLevel ?? 'tour_other',
+                matchType: match.matchType ?? 'singles',
+              },
+              outcome.setfox,
+            );
+            return (
+              <article key={outcome.score} className="outcome-card">
+                <div className="outcome-head">
+                  <div>
+                    <strong className="mono">{outcome.score}</strong>
+                    <p className="muted">{outcome.classLabel.label}</p>
+                  </div>
+                  <TierBadge tier={outcome.classLabel.tier} label={outcome.classLabel.label} />
                 </div>
-                <TierBadge tier={outcome.classLabel.tier} label={outcome.classLabel.label} />
-              </div>
-              <ProbabilityBar label="Model probability" probability={outcome.modelProbability} tier={outcome.classLabel.tier} />
-              <div className="metric-grid">
-                <span>Fair {formatNullableOdds(outcome.fairOdds)}</span>
-                <span>Book {formatNullableOdds(outcome.bookmakerOdds)}</span>
-                <span>Edge {formatNullablePercent(outcome.edge)}</span>
-                <span>EV {formatNullablePercent(outcome.expectedValue)}</span>
-              </div>
-              <button className="button" type="button" disabled={!outcome.bookmakerOdds} onClick={() => addOutcome(outcome.score)}>
-                {outcome.bookmakerOdds ? '+ Add to Slip' : 'Market odds unavailable'}
-              </button>
-            </article>
-          ))}
+                <ProbabilityBar label="Model probability" probability={outcome.modelProbability} tier={outcome.classLabel.tier} />
+                <div className="metric-grid">
+                  <span>Fair {formatNullableOdds(outcome.fairOdds)}</span>
+                  <span>Book {formatNullableOdds(outcome.bookmakerOdds)}</span>
+                  <span>Edge {formatNullablePercent(outcome.edge)}</span>
+                  <span>EV {formatNullablePercent(outcome.expectedValue)}</span>
+                </div>
+                <p className={`muted small ${outcome.setfox.passed ? 'setfox-pass-line' : 'setfox-fail-line'}`}>
+                  {explanation}
+                </p>
+                <button className="button" type="button" disabled={!outcome.bookmakerOdds} onClick={() => addOutcome(outcome.score)}>
+                  {outcome.bookmakerOdds ? '+ Add to Slip' : 'Market odds unavailable'}
+                </button>
+              </article>
+            );
+          })}
         </div>
       </section>
 

@@ -1,0 +1,144 @@
+name: Model Walkforward V3
+
+# Runs the v3 backtest engine across 6 sequential windows in two model modes
+# (coupled and independent), then feeds the resulting CSVs into the
+# walk-forward optimizer. Uploads JSON + CSV artifacts so we can audit
+# the rule survival logic offline.
+#
+# Honest expectation: every fold past the first becomes a true out-of-sample
+# test. If no rule survives across multiple folds we leave Strict Mode in
+# Research mode in the app. Do not hand-pick rules from train results.
+
+on:
+  workflow_dispatch:
+    inputs:
+      window_1_start: { description: Window 1 start (YYYY-MM-DD), required: true, default: "2026-02-01" }
+      window_1_stop:  { description: Window 1 stop  (YYYY-MM-DD), required: true, default: "2026-02-15" }
+      window_2_start: { description: Window 2 start, required: true, default: "2026-02-16" }
+      window_2_stop:  { description: Window 2 stop,  required: true, default: "2026-02-28" }
+      window_3_start: { description: Window 3 start, required: true, default: "2026-03-01" }
+      window_3_stop:  { description: Window 3 stop,  required: true, default: "2026-03-15" }
+      window_4_start: { description: Window 4 start, required: true, default: "2026-03-16" }
+      window_4_stop:  { description: Window 4 stop,  required: true, default: "2026-03-31" }
+      window_5_start: { description: Window 5 start, required: true, default: "2026-04-01" }
+      window_5_stop:  { description: Window 5 stop,  required: true, default: "2026-04-15" }
+      window_6_start: { description: Window 6 start, required: true, default: "2026-04-16" }
+      window_6_stop:  { description: Window 6 stop,  required: true, default: "2026-04-30" }
+      chunk_days: { description: Days per API request chunk, required: true, default: "3" }
+      model_mode: { description: "Model mode: coupled or independent (or 'both')", required: true, default: "both" }
+      block_tiebreak: { description: "Block tiebreak scores (1/0)", required: true, default: "1" }
+      include_doubles: { description: "Include doubles (1/0)", required: true, default: "0" }
+      min_bets_per_window: { description: Min bets to consider a fold eligible, required: true, default: "30" }
+      min_total_test_bets: { description: Min total out-of-sample bets, required: true, default: "80" }
+      min_positive_test_folds: { description: Min positive test folds for promotion, required: true, default: "3" }
+      worst_test_roi_floor: { description: "Worst-fold ROI floor (e.g. -0.10)", required: true, default: "-0.10" }
+      max_complexity: { description: Max non-'all' filter dimensions, required: true, default: "3" }
+
+jobs:
+  walkforward-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run V3 backtest windows (coupled)
+        if: ${{ inputs.model_mode == 'coupled' || inputs.model_mode == 'both' }}
+        run: |
+          set -e
+          for i in 1 2 3 4 5 6; do
+            START_VAR="window_${i}_start"
+            STOP_VAR="window_${i}_stop"
+            START="${{ inputs.window_1_start }}"
+            STOP="${{ inputs.window_1_stop }}"
+            case "$i" in
+              1) START="${{ inputs.window_1_start }}"; STOP="${{ inputs.window_1_stop }}";;
+              2) START="${{ inputs.window_2_start }}"; STOP="${{ inputs.window_2_stop }}";;
+              3) START="${{ inputs.window_3_start }}"; STOP="${{ inputs.window_3_stop }}";;
+              4) START="${{ inputs.window_4_start }}"; STOP="${{ inputs.window_4_stop }}";;
+              5) START="${{ inputs.window_5_start }}"; STOP="${{ inputs.window_5_stop }}";;
+              6) START="${{ inputs.window_6_start }}"; STOP="${{ inputs.window_6_stop }}";;
+            esac
+            echo "Running coupled window $i: $START to $STOP"
+            BACKTEST_WINDOW_ID="window-${i}-coupled" \
+            BACKTEST_DATE_START="$START" \
+            BACKTEST_DATE_STOP="$STOP" \
+            BACKTEST_CHUNK_DAYS="${{ inputs.chunk_days }}" \
+            BACKTEST_MODEL_MODE="coupled" \
+            BACKTEST_BLOCK_TIEBREAK="${{ inputs.block_tiebreak }}" \
+            BACKTEST_INCLUDE_DOUBLES="${{ inputs.include_doubles }}" \
+            BACKTEST_OUTPUT_DIR="artifacts/walkforward-v3/coupled" \
+            node scripts/backtest-first-set-lab-v3.mjs
+          done
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Run V3 backtest windows (independent)
+        if: ${{ inputs.model_mode == 'independent' || inputs.model_mode == 'both' }}
+        run: |
+          set -e
+          for i in 1 2 3 4 5 6; do
+            START="${{ inputs.window_1_start }}"
+            STOP="${{ inputs.window_1_stop }}"
+            case "$i" in
+              1) START="${{ inputs.window_1_start }}"; STOP="${{ inputs.window_1_stop }}";;
+              2) START="${{ inputs.window_2_start }}"; STOP="${{ inputs.window_2_stop }}";;
+              3) START="${{ inputs.window_3_start }}"; STOP="${{ inputs.window_3_stop }}";;
+              4) START="${{ inputs.window_4_start }}"; STOP="${{ inputs.window_4_stop }}";;
+              5) START="${{ inputs.window_5_start }}"; STOP="${{ inputs.window_5_stop }}";;
+              6) START="${{ inputs.window_6_start }}"; STOP="${{ inputs.window_6_stop }}";;
+            esac
+            echo "Running independent window $i: $START to $STOP"
+            BACKTEST_WINDOW_ID="window-${i}-independent" \
+            BACKTEST_DATE_START="$START" \
+            BACKTEST_DATE_STOP="$STOP" \
+            BACKTEST_CHUNK_DAYS="${{ inputs.chunk_days }}" \
+            BACKTEST_MODEL_MODE="independent" \
+            BACKTEST_BLOCK_TIEBREAK="${{ inputs.block_tiebreak }}" \
+            BACKTEST_INCLUDE_DOUBLES="${{ inputs.include_doubles }}" \
+            BACKTEST_OUTPUT_DIR="artifacts/walkforward-v3/independent" \
+            node scripts/backtest-first-set-lab-v3.mjs
+          done
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Run walk-forward optimizer (coupled)
+        if: ${{ inputs.model_mode == 'coupled' || inputs.model_mode == 'both' }}
+        run: |
+          CSVS=$(ls artifacts/walkforward-v3/coupled/first-set-lab-v3-rows-window-*-coupled.csv | sort | paste -sd ',' -)
+          echo "Coupled CSVs: $CSVS"
+          WALKFORWARD_CSVS="$CSVS" \
+          WALKFORWARD_OUTPUT_DIR="artifacts/walkforward-v3/coupled-report" \
+          WALKFORWARD_MIN_BETS_PER_WINDOW="${{ inputs.min_bets_per_window }}" \
+          WALKFORWARD_MIN_TOTAL_TEST_BETS="${{ inputs.min_total_test_bets }}" \
+          WALKFORWARD_MIN_POSITIVE_TEST_FOLDS="${{ inputs.min_positive_test_folds }}" \
+          WALKFORWARD_WORST_TEST_ROI_FLOOR="${{ inputs.worst_test_roi_floor }}" \
+          WALKFORWARD_MAX_COMPLEXITY="${{ inputs.max_complexity }}" \
+          WALKFORWARD_MODEL_MODE="coupled" \
+          node scripts/model-walkforward-v3.mjs
+
+      - name: Run walk-forward optimizer (independent)
+        if: ${{ inputs.model_mode == 'independent' || inputs.model_mode == 'both' }}
+        run: |
+          CSVS=$(ls artifacts/walkforward-v3/independent/first-set-lab-v3-rows-window-*-independent.csv | sort | paste -sd ',' -)
+          echo "Independent CSVs: $CSVS"
+          WALKFORWARD_CSVS="$CSVS" \
+          WALKFORWARD_OUTPUT_DIR="artifacts/walkforward-v3/independent-report" \
+          WALKFORWARD_MIN_BETS_PER_WINDOW="${{ inputs.min_bets_per_window }}" \
+          WALKFORWARD_MIN_TOTAL_TEST_BETS="${{ inputs.min_total_test_bets }}" \
+          WALKFORWARD_MIN_POSITIVE_TEST_FOLDS="${{ inputs.min_positive_test_folds }}" \
+          WALKFORWARD_WORST_TEST_ROI_FLOOR="${{ inputs.worst_test_roi_floor }}" \
+          WALKFORWARD_MAX_COMPLEXITY="${{ inputs.max_complexity }}" \
+          WALKFORWARD_MODEL_MODE="independent" \
+          node scripts/model-walkforward-v3.mjs
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-walkforward-v3
+          path: artifacts/walkforward-v3

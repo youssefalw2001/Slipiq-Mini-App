@@ -9,9 +9,29 @@ import {
   probWinGame,
   classifyScore,
 } from './probability';
+import { evaluateSetFox } from './setfoxFilter';
+import {
+  classifyOddsBucket,
+  classifyScoreFamily,
+  type MatchType,
+  type TournamentLevel,
+} from './setfoxStrategy';
 import type { FirstSetOpportunity, ScoreOutcome, SlipLeg, TennisMatch } from '../types';
 
 export const tennisMatches = matches as TennisMatch[];
+
+function inferTournamentLevel(tournament: string): TournamentLevel {
+  const text = tournament.toLowerCase();
+  if (/wimbledon|roland garros|french open|us open|australian open/.test(text)) return 'slam';
+  if (/madrid|rome|monte carlo|indian wells|miami|cincinnati|shanghai|paris masters|canada|toronto|montreal|doha|dubai/.test(text)) return 'tour_premium';
+  if (/challenger|w100|w75|w50|m100|m75|m50/.test(text)) return 'challenger';
+  if (/m15|m25|w15|w25|itf/.test(text)) return 'itf';
+  return 'tour_other';
+}
+
+function inferMatchType(player1: string, player2: string): MatchType {
+  return player1.includes('/') || player2.includes('/') ? 'doubles' : 'singles';
+}
 
 function buildOutcome(match: TennisMatch, score: string, modelProbability: number): ScoreOutcome {
   const seededMarketOdds = match.bookmakerOdds[score];
@@ -20,6 +40,21 @@ function buildOutcome(match: TennisMatch, score: string, modelProbability: numbe
   const impliedProbability = bookmakerOdds ? impliedProbabilityFromOdds(bookmakerOdds) : null;
   const edge = bookmakerOdds ? calculateEdge(modelProbability, bookmakerOdds) : null;
   const expectedValue = bookmakerOdds ? calculateExpectedValue(modelProbability, bookmakerOdds) : null;
+  const tournamentLevel = match.tournamentLevel ?? inferTournamentLevel(match.tournament);
+  const matchType = match.matchType ?? inferMatchType(match.player1, match.player2);
+  const scoreFamily = classifyScoreFamily(score);
+  const oddsBucket = bookmakerOdds ? classifyOddsBucket(bookmakerOdds) : 'odds_30_plus';
+  const setfox = evaluateSetFox({
+    score,
+    modelProbability,
+    bookmakerOdds,
+    edge,
+    expectedValue,
+    scoreFamily,
+    oddsBucket,
+    tournamentLevel,
+    matchType,
+  });
 
   return {
     score,
@@ -31,6 +66,7 @@ function buildOutcome(match: TennisMatch, score: string, modelProbability: numbe
     expectedValue,
     classLabel: classifyScore(modelProbability),
     hasMarketOdds,
+    setfox: { passed: setfox.passed, ruleVersion: setfox.ruleVersion, rejections: setfox.rejections },
   };
 }
 
@@ -63,6 +99,7 @@ export const opportunities: FirstSetOpportunity[] = tennisMatches.map((match) =>
     hold2,
     outcomes,
     top: outcomes.slice(0, 2),
+    setfoxPassedCount: outcomes.filter((outcome) => outcome.setfox.passed).length,
   };
 });
 
@@ -79,5 +116,7 @@ export function legFromOutcome(matchId: string, score: string): SlipLeg | undefi
     odds: outcome.bookmakerOdds,
     modelProbability: outcome.modelProbability,
     eventId: matchId,
+    setfoxPassed: outcome.setfox.passed,
+    setfoxRuleVersion: outcome.setfox.ruleVersion,
   };
 }
