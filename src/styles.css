@@ -918,3 +918,43 @@ h2 {
   0%, 100% { box-shadow: 0 0 0 rgba(255, 215, 0, 0); transform: translateY(0); }
   50% { box-shadow: 0 0 24px rgba(255, 215, 0, 0.12); transform: translateY(-1px); }
 }
+
+/* SetFox v3 badges + scanner card. Kept minimal; relies on existing .chip and
+ * .card classes for spacing and base typography. */
+.setfox-pass {
+  background: rgba(46, 213, 115, 0.18);
+  color: var(--positive);
+  border: 1px solid rgba(46, 213, 115, 0.35);
+}
+.setfox-fail {
+  background: rgba(74, 74, 106, 0.25);
+  color: var(--text-muted);
+  border: 1px solid rgba(74, 74, 106, 0.4);
+}
+.setfox-pass-line { color: var(--positive); }
+.setfox-fail-line { color: var(--text-muted); }
+.setfox-confidence-research {
+  background: rgba(255, 107, 53, 0.12);
+  color: var(--accent-orange);
+  border: 1px solid rgba(255, 107, 53, 0.4);
+}
+.setfox-confidence-watchlist {
+  background: rgba(255, 215, 0, 0.12);
+  color: var(--accent-gold);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+}
+.setfox-confidence-validated {
+  background: rgba(46, 213, 115, 0.18);
+  color: var(--positive);
+  border: 1px solid rgba(46, 213, 115, 0.4);
+}
+.scanner-card .stats-bar.compact { margin-top: 0.5rem; }
+.scanner-card .setfox-manifest {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0 0;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 0.25rem;
+}
+.scanner-card .small { margin-top: 0.5rem; font-size: 0.8rem; }

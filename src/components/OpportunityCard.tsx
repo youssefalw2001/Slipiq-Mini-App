@@ -57,6 +57,15 @@ export default function OpportunityCard({ opportunity, onAddTopLeg }: Opportunit
 
       <div className="card-actions">
         <div className="chip mono">{topMarket ? `×${topMarket.bookmakerOdds?.toFixed(2)}` : 'No market odds'}</div>
+        {opportunity.setfoxPassedCount > 0 ? (
+          <span className="chip mono setfox-pass" title="At least one outcome passes SetFox Strict Mode (research-grade)">
+            SetFox · {opportunity.setfoxPassedCount}
+          </span>
+        ) : (
+          <span className="chip mono setfox-fail" title="No outcome on this match passes SetFox Strict Mode">
+            SetFox · 0
+          </span>
+        )}
         <button
           className="button"
           type="button"

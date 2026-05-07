@@ -135,6 +135,58 @@ create table if not exists public.subscriptions (
 
 create index if not exists subscriptions_user_status_idx on public.subscriptions(user_id, status, expires_at desc);
 
+-- SetFox v3 live signal log. Every model_run records:
+--   * each opportunity row that passed Strict Mode (passed = true)
+--   * scanner aggregate counts in setfox_scanner_runs
+-- This is the foundation for forward-test proof: closing odds and result
+-- columns will be backfilled later once match resolution and CLV pipelines
+-- exist.
+create table if not exists public.live_setfox_signals (
+  id uuid primary key default gen_random_uuid(),
+  model_run_id uuid references public.model_runs(id) on delete cascade,
+  match_id text references public.matches(id) on delete cascade,
+  opportunity_id uuid references public.opportunities(id) on delete cascade,
+  rule_version text not null,
+  passed boolean not null,
+  rejections text[] not null default '{}',
+  score text not null,
+  score_family text not null,
+  odds_bucket text not null,
+  tournament_level text not null,
+  match_type text not null,
+  surface text,
+  model_probability numeric not null,
+  fair_odds numeric not null,
+  signal_odds numeric,
+  opening_odds numeric,
+  closing_odds numeric,
+  clv numeric,
+  beat_closing_line boolean,
+  edge numeric,
+  expected_value numeric,
+  result text not null default 'pending' check (result in ('pending', 'won', 'lost', 'void', 'unknown')),
+  raw_payload jsonb not null default '{}'::jsonb,
+  captured_at timestamptz not null default now()
+);
+
+create index if not exists live_setfox_signals_run_idx on public.live_setfox_signals(model_run_id, captured_at desc);
+create index if not exists live_setfox_signals_passed_idx on public.live_setfox_signals(passed, captured_at desc);
+create index if not exists live_setfox_signals_match_idx on public.live_setfox_signals(match_id, score);
+
+create table if not exists public.setfox_scanner_runs (
+  id uuid primary key default gen_random_uuid(),
+  model_run_id uuid references public.model_runs(id) on delete cascade,
+  rule_version text not null,
+  total_scanned integer not null default 0,
+  passed integer not null default 0,
+  rejected integer not null default 0,
+  tiebreak_blocked integer not null default 0,
+  rejections_by_reason jsonb not null default '{}'::jsonb,
+  captured_at timestamptz not null default now()
+);
+
+create index if not exists setfox_scanner_runs_run_idx on public.setfox_scanner_runs(model_run_id);
+
 create or replace function public.touch_updated_at()
 returns trigger as $$
 begin

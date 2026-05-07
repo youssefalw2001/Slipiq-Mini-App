@@ -2,6 +2,8 @@ export type Surface = 'clay' | 'hard' | 'grass' | 'indoor';
 export type Tier = 'S' | 'A' | 'B' | 'C';
 export type Sport = 'tennis' | 'nba';
 export type ScoreTier = 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED';
+export type TournamentLevel = 'slam' | 'tour_premium' | 'tour_other' | 'challenger' | 'itf';
+export type MatchType = 'singles' | 'doubles';
 
 export interface PlayerServeStats {
   fs1: number;
@@ -19,12 +21,17 @@ export interface TennisMatch {
   player1Stats: PlayerServeStats;
   player2Stats: PlayerServeStats;
   bookmakerOdds: Record<string, number>;
+  tournamentLevel?: TournamentLevel;
+  matchType?: MatchType;
 }
 
 export interface ScoreClass {
   tier: ScoreTier;
   label: 'ANCHOR' | 'MID' | 'PUSH' | 'LOTTO';
 }
+
+import type { SetFoxResult } from '../lib/setfoxStrategy';
+export type SetFoxOutcomeStatus = SetFoxResult;
 
 export interface ScoreOutcome {
   score: string;
@@ -36,6 +43,7 @@ export interface ScoreOutcome {
   expectedValue: number | null;
   classLabel: ScoreClass;
   hasMarketOdds: boolean;
+  setfox: SetFoxOutcomeStatus;
 }
 
 export interface FirstSetOpportunity extends TennisMatch {
@@ -43,6 +51,7 @@ export interface FirstSetOpportunity extends TennisMatch {
   hold2: number;
   outcomes: ScoreOutcome[];
   top: ScoreOutcome[];
+  setfoxPassedCount: number;
 }
 
 export interface SlipLeg {
@@ -52,6 +61,8 @@ export interface SlipLeg {
   odds: number;
   modelProbability: number;
   eventId: string;
+  setfoxPassed?: boolean;
+  setfoxRuleVersion?: string;
 }
 
 export interface SlipSummary {
@@ -61,4 +72,13 @@ export interface SlipSummary {
   payout: number;
   tier: Tier;
   daysToHit: number | null;
+}
+
+export interface ScannerStats {
+  ruleVersion: string;
+  totalScanned: number;
+  passed: number;
+  rejected: number;
+  tiebreakBlocked: number;
+  capturedAt: string | null;
 }
