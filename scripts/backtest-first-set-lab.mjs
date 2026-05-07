@@ -191,13 +191,23 @@ function estimatedPlayerStats(side, firstSetEdge = 0) {
   };
 }
 
+function looksLikeTennisSet(a, b) {
+  return (a === 6 && b <= 7) || (b === 6 && a <= 7) || (a === 7 && b >= 5 && b <= 6) || (b === 7 && a >= 5 && a <= 6);
+}
+
 function parseFirstSetScore(fixture) {
+  if (Array.isArray(fixture.scores)) {
+    const firstSet = fixture.scores.find((score) => String(score?.score_set) === '1') ?? fixture.scores[0];
+    const a = Number(firstSet?.score_first);
+    const b = Number(firstSet?.score_second);
+    if (Number.isFinite(a) && Number.isFinite(b) && looksLikeTennisSet(a, b)) return `${a}-${b}`;
+  }
+
   const candidateFields = [
     fixture.event_first_set_result,
     fixture.event_first_set,
     fixture.event_1st_set,
     fixture.event_first_set_score,
-    fixture.event_final_result,
     fixture.event_result,
     fixture.event_score,
   ].filter(Boolean).map(String);
@@ -208,8 +218,7 @@ function parseFirstSetScore(fixture) {
     for (const match of matches) {
       const a = Number(match[1]);
       const b = Number(match[2]);
-      const looksLikeSet = (a === 6 && b <= 7) || (b === 6 && a <= 7) || (a === 7 && b >= 5 && b <= 6) || (b === 7 && a >= 5 && a <= 6);
-      if (looksLikeSet) return `${a}-${b}`;
+      if (looksLikeTennisSet(a, b)) return `${a}-${b}`;
     }
   }
 
