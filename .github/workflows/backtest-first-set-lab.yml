@@ -11,6 +11,10 @@ on:
         description: Backtest stop date, YYYY-MM-DD
         required: true
         default: "2026-05-06"
+      chunk_days:
+        description: Number of days per API request chunk. Use 1 if API-Tennis returns 500s.
+        required: true
+        default: "3"
       min_probability:
         description: Minimum model probability to qualify a paper bet
         required: true
@@ -42,6 +46,7 @@ jobs:
           API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
           BACKTEST_DATE_START: ${{ inputs.date_start }}
           BACKTEST_DATE_STOP: ${{ inputs.date_stop }}
+          BACKTEST_CHUNK_DAYS: ${{ inputs.chunk_days }}
           BACKTEST_MIN_PROBABILITY: ${{ inputs.min_probability }}
           BACKTEST_MIN_EV: ${{ inputs.min_ev }}
           BACKTEST_MIN_EDGE: ${{ inputs.min_edge }}
