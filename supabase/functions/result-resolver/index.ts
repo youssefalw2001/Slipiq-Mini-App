@@ -123,11 +123,12 @@ async function fetchApiTennis(method: string, params: Record<string, string>) {
 }
 
 function extractFirstSetScore(fixture: Record<string, unknown>) {
-  const eventFinalResult = getText(fixture.event_final_result);
   const eventFirstSet = getText(fixture.event_first_set);
   const eventSetResult = getText(fixture.event_set_result);
 
-  const candidates = [eventFirstSet, eventSetResult, eventFinalResult];
+  // Do not read event_final_result here. API-Tennis often stores match sets
+  // there, e.g. 2-0, which is not a valid first-set correct score.
+  const candidates = [eventFirstSet, eventSetResult];
   for (const candidate of candidates) {
     const match = candidate.match(/(\d+)\s*[-:]\s*(\d+)/);
     if (match) return `${match[1]}-${match[2]}`;
