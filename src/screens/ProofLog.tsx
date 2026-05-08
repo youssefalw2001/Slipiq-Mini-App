@@ -1,19 +1,6 @@
+import { useEffect, useState } from 'react';
 import ResponsibleNotice from '../components/ResponsibleNotice';
-import proofLog from '../data/scoreHunterProofLog.json';
-
-interface PaperProofSignal {
-  id: string;
-  foundAt: string;
-  match: string;
-  tournament: string;
-  score: string;
-  odds: number;
-  signalStrength: number;
-  status: 'pending' | 'won' | 'lost' | 'void';
-  result: string | null;
-  profitUnits: number;
-  note: string;
-}
+import { fetchScoreHunterProofLog, getSeedProofLog, type PaperProofSignal } from '../lib/proofLogData';
 
 const proofStats = [
   { label: 'V2 audit bets', value: '1,664', helper: 'one pick per match' },
@@ -62,8 +49,29 @@ function summarizePaperLog(rows: PaperProofSignal[]) {
 }
 
 export default function ProofLog() {
-  const rows = proofLog as PaperProofSignal[];
+  const [rows, setRows] = useState<PaperProofSignal[]>(() => getSeedProofLog());
+  const [source, setSource] = useState<'seed' | 'live'>('seed');
+  const [loading, setLoading] = useState(true);
   const paperSummary = summarizePaperLog(rows);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    fetchScoreHunterProofLog()
+      .then((signals) => {
+        if (cancelled) return;
+        setRows(signals);
+        setSource(signals.some((signal) => !signal.id.startsWith('paper-')) ? 'live' : 'seed');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <main className="screen">
@@ -100,8 +108,8 @@ export default function ProofLog() {
       <section className="card paper-proof-card">
         <div className="section-title">
           <div>
-            <p className="eyebrow">Live Paper Tracking</p>
-            <h2>Forward proof starts here</h2>
+            <p className="eyebrow">Live Paper Tracking · {source === 'live' ? 'Supabase' : 'Seed'}</p>
+            <h2>{loading ? 'Loading forward proof...' : 'Forward proof starts here'}</h2>
           </div>
           <span className="chip mono setfox-confidence-watchlist">PAPER</span>
         </div>
@@ -135,7 +143,7 @@ export default function ProofLog() {
       <section className="card">
         <div className="section-title">
           <h2>Signal log</h2>
-          <span className="muted">Manual seed until backend logging connects</span>
+          <span className="muted">{source === 'live' ? 'Reading Supabase proof rows' : 'Seed rows until backend logging writes live signals'}</span>
         </div>
         <div className="paper-log-list">
           {rows.map((row) => (
