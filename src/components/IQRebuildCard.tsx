@@ -20,13 +20,52 @@ interface WeakLeg {
   reasons: string[];
 }
 
+type RebuildMode = 'safer' | 'balanced' | 'moonshot';
+
+type RebuildAction = 'hold' | 'apply';
+
+interface RebuildPlan {
+  mode: RebuildMode;
+  title: string;
+  summaryLabel: string;
+  explanation: string;
+  rebuiltLegs: SlipLeg[];
+  summary: SlipSummary;
+  changedLegs: number;
+  action: RebuildAction;
+  actionLabel: string;
+  reason: string;
+  removedLeg?: SlipLeg;
+  addedLeg?: SlipLeg;
+  notes: string[];
+}
+
 const LOW_PROBABILITY_THRESHOLD = 0.08;
 const WATCHLIST_PROBABILITY_THRESHOLD = 0.12;
 
+const MODE_COPY: Record<RebuildMode, { label: string; short: string; tone: string }> = {
+  safer: {
+    label: 'Safer',
+    short: 'Higher hit-rate profile. Usually trims risk and lowers payout.',
+    tone: 'HIT RATE',
+  },
+  balanced: {
+    label: 'Balanced',
+    short: 'Best all-around rebuild. Replaces weak legs only when SetFox finds a strict fit.',
+    tone: 'SMARTER SLIP',
+  },
+  moonshot: {
+    label: 'Moonshot',
+    short: 'Higher payout profile. Only adds upside when a strict replacement exists.',
+    tone: 'HIGH RISK',
+  },
+};
+
 function formatAmericanOdds(decimalOdds: number) {
   if (!Number.isFinite(decimalOdds) || decimalOdds <= 1) return '+0';
-  if (decimalOdds >= 2) return `+${Math.round((decimalOdds - 1) * 100)}`;
-  return `${Math.round(-100 / (decimalOdds - 1))}`;
+  const american = decimalOdds >= 2 ? Math.round((decimalOdds - 1) * 100) : Math.round(-100 / (decimalOdds - 1));
+  const formatted = Math.abs(american).toLocaleString();
+  return american >= 0 ? `+${formatted}` : `-${formatted}`;
 }
 
 function formatDecimalOdds(decimalOdds: number) {
@@ -134,9 +173,126 @@ function findBestSetFoxReplacement(feed: FirstSetOpportunity[], existingLegs: Sl
   })[0] ?? null;
 }
 
-function buildRebuiltLegs(legs: SlipLeg[], weakLeg: WeakLeg | null, replacement: CandidateReplacement | null) {
-  if (!weakLeg || !replacement) return legs;
-  return [...legs.filter((leg) => leg.id !== weakLeg.leg.id), replacement.leg];
+function makePlan({
+  mode,
+  legs,
+  stake,
+  weakLeg,
+  replacement,
+}: {
+  mode: RebuildMode;
+  legs: SlipLeg[];
+  stake: number;
+  weakLeg: WeakLeg | null;
+  replacement: CandidateReplacement | null;
+}): RebuildPlan {
+  const holdPlan = (reason: string, notes: string[] = []): RebuildPlan => ({
+    mode,
+    title: `${MODE_COPY[mode].label} Rebuild`,
+    summaryLabel: 'Held',
+    explanation: MODE_COPY[mode].short,
+    rebuiltLegs: legs,
+    summary: calcSlip(legs, stake),
+    changedLegs: 0,
+    action: 'hold',
+    actionLabel: 'No change available',
+    reason,
+    notes,
+  });
+
+  if (mode === 'safer') {
+    if (!weakLeg || legs.length <= 1) {
+      return holdPlan('No safer trim available. Add at least two legs before Safer mode can reduce risk.', [
+        'Safer mode improves hit-rate profile by trimming the weakest leg, not by forcing a new pick.',
+      ]);
+    }
+
+    const rebuiltLegs = legs.filter((leg) => leg.id !== weakLeg.leg.id);
+    return {
+      mode,
+      title: 'Safer Rebuild',
+      summaryLabel: 'Trim risk',
+      explanation: MODE_COPY.safer.short,
+      rebuiltLegs,
+      summary: calcSlip(rebuiltLegs, stake),
+      changedLegs: 1,
+      action: 'apply',
+      actionLabel: 'Apply safer trim',
+      reason: 'Removes the weakest leg to raise the model hit-rate profile. Payout usually drops.',
+      removedLeg: weakLeg.leg,
+      notes: ['Higher hit-rate profile', 'Lower payout tradeoff', 'No replacement forced'],
+    };
+  }
+
+  if (mode === 'balanced') {
+    if (!weakLeg || !replacement) {
+      return holdPlan('No SetFox Strict replacement right now. Scanner is protecting you from weak markets.', [
+        'Balanced mode only rebuilds when SetFox Strict finds a replacement.',
+      ]);
+    }
+
+    const rebuiltLegs = [...legs.filter((leg) => leg.id !== weakLeg.leg.id), replacement.leg];
+    return {
+      mode,
+      title: 'Balanced Rebuild',
+      summaryLabel: 'Replace weak leg',
+      explanation: MODE_COPY.balanced.short,
+      rebuiltLegs,
+      summary: calcSlip(rebuiltLegs, stake),
+      changedLegs: 1,
+      action: 'apply',
+      actionLabel: 'Apply balanced rebuild',
+      reason: 'Replaces the weakest leg with the best available SetFox Strict candidate.',
+      removedLeg: weakLeg.leg,
+      addedLeg: replacement.leg,
+      notes: ['Best all-around profile', 'Strict replacement only', 'Research Mode'],
+    };
+  }
+
+  if (!replacement) {
+    return holdPlan('No Moonshot rebuild available. SlipIQ will not add random longshot legs without a SetFox Strict candidate.', [
+      'Moonshot mode needs a strict candidate before it can raise payout.',
+    ]);
+  }
+
+  if (legs.length <= 3) {
+    const rebuiltLegs = [...legs, replacement.leg];
+    return {
+      mode,
+      title: 'Moonshot Rebuild',
+      summaryLabel: 'Add upside',
+      explanation: MODE_COPY.moonshot.short,
+      rebuiltLegs,
+      summary: calcSlip(rebuiltLegs, stake),
+      changedLegs: 1,
+      action: 'apply',
+      actionLabel: 'Apply moonshot add-on',
+      reason: 'Adds one SetFox Strict leg for higher payout, with lower expected hit rate.',
+      addedLeg: replacement.leg,
+      notes: ['Higher payout profile', 'Lower hit-rate tradeoff', 'High risk'],
+    };
+  }
+
+  if (!weakLeg) {
+    return holdPlan('No weak leg was available to replace for Moonshot mode.', ['High-risk mode was held.']);
+  }
+
+  const rebuiltLegs = [...legs.filter((leg) => leg.id !== weakLeg.leg.id), replacement.leg];
+  return {
+    mode,
+    title: 'Moonshot Rebuild',
+    summaryLabel: 'Swap for upside',
+    explanation: MODE_COPY.moonshot.short,
+    rebuiltLegs,
+    summary: calcSlip(rebuiltLegs, stake),
+    changedLegs: 1,
+    action: 'apply',
+    actionLabel: 'Apply moonshot swap',
+    reason: 'Swaps the weakest leg for a SetFox Strict candidate with upside. Risk remains high.',
+    removedLeg: weakLeg.leg,
+    addedLeg: replacement.leg,
+    notes: ['Higher payout profile', 'High risk', 'Strict candidate only'],
+  };
 }
 
 function StaticRebuildCard({ compact }: { compact: boolean }) {
@@ -193,6 +349,7 @@ function DynamicRebuildCard() {
   const originalSummary = useSlipSummary();
   const [feed, setFeed] = useState<FirstSetOpportunity[]>([]);
   const [feedState, setFeedState] = useState<'loading' | 'live' | 'empty'>('loading');
+  const [selectedMode, setSelectedMode] = useState<RebuildMode>('balanced');
 
   useEffect(() => {
     let cancelled = false;
@@ -216,31 +373,28 @@ function DynamicRebuildCard() {
     const weakLegs = buildWeakLegs(legs);
     const primaryWeakLeg = weakLegs[0] ?? null;
     const replacement = findBestSetFoxReplacement(feed, legs);
-    const rebuiltLegs = buildRebuiltLegs(legs, primaryWeakLeg, replacement);
-    const rebuiltSummary = calcSlip(rebuiltLegs, stake);
+    const plan = makePlan({ mode: selectedMode, legs, stake, weakLeg: primaryWeakLeg, replacement });
     const originalGrade = scoreSlip(originalSummary, legs);
-    const rebuiltGrade = scoreSlip(rebuiltSummary, rebuiltLegs);
+    const rebuiltGrade = scoreSlip(plan.summary, plan.rebuiltLegs);
     const warnings = buildWarnings(legs, originalSummary);
 
     return {
       weakLegs,
       primaryWeakLeg,
       replacement,
-      rebuiltLegs,
-      rebuiltSummary,
+      plan,
       originalGrade,
       rebuiltGrade,
       warnings,
       originalRisk: riskLevel(originalSummary, legs),
-      rebuiltRisk: riskLevel(rebuiltSummary, rebuiltLegs),
-      changedLegs: primaryWeakLeg && replacement ? 1 : 0,
+      rebuiltRisk: riskLevel(plan.summary, plan.rebuiltLegs),
     };
-  }, [feed, legs, originalSummary, stake]);
+  }, [feed, legs, originalSummary, selectedMode, stake]);
 
   const applyRebuild = () => {
-    if (!rebuild.primaryWeakLeg || !rebuild.replacement) return;
-    removeLeg(rebuild.primaryWeakLeg.leg.id);
-    addLeg(rebuild.replacement.leg);
+    if (rebuild.plan.action !== 'apply') return;
+    if (rebuild.plan.removedLeg) removeLeg(rebuild.plan.removedLeg.id);
+    if (rebuild.plan.addedLeg) addLeg(rebuild.plan.addedLeg);
   };
 
   if (legs.length === 0) {
@@ -254,25 +408,44 @@ function DynamicRebuildCard() {
           <span className="rebuild-risk mono">RESEARCH MODE</span>
         </div>
         <p className="rebuild-note">
-          Add legs from Home or First Set Lab. IQ Rebuild will identify weak legs, compare before/after risk, and only suggest SetFox Strict replacements when the scanner finds one.
+          Add legs from Home or First Set Lab. IQ Rebuild will identify weak legs, compare safer/balanced/moonshot paths, and only suggest SetFox Strict replacements when the scanner finds one.
         </p>
       </section>
     );
   }
 
-  const hasReplacement = Boolean(rebuild.replacement && rebuild.primaryWeakLeg);
+  const plan = rebuild.plan;
+  const planHeld = plan.action === 'hold';
+  const evChange = plan.summary.expectedValue - originalSummary.expectedValue;
+  const hitRateChange = plan.summary.hitRate - originalSummary.hitRate;
 
   return (
     <section className="iq-rebuild-card iq-rebuild-v1" aria-label="IQ Rebuild V1 slip analysis">
       <div className="rebuild-header">
         <div>
           <p className="eyebrow">IQ REBUILD V1 · RESEARCH MODE</p>
-          <h2>Before vs after for your current slip.</h2>
+          <h2>Choose your rebuild path.</h2>
         </div>
         <span className="rebuild-risk mono">NO GUARANTEES</span>
       </div>
 
-      <div className="odds-transform" aria-label="Original slip compared with SlipIQ rebuild">
+      <div className="rebuild-mode-selector" role="group" aria-label="Choose rebuild mode">
+        {(Object.keys(MODE_COPY) as RebuildMode[]).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            className={`rebuild-mode-button ${selectedMode === mode ? 'is-active' : ''}`}
+            onClick={() => setSelectedMode(mode)}
+          >
+            <span className="mono">{MODE_COPY[mode].label}</span>
+            <small>{MODE_COPY[mode].tone}</small>
+          </button>
+        ))}
+      </div>
+
+      <p className="rebuild-mode-copy">{plan.explanation}</p>
+
+      <div className={`odds-transform ${planHeld ? 'is-held' : ''}`} aria-label="Original slip compared with selected SlipIQ rebuild">
         <div className="odds-side odds-base">
           <span className="mono">ORIGINAL SLIP</span>
           <strong className="mono">{formatAmericanOdds(originalSummary.combinedOdds)}</strong>
@@ -282,9 +455,9 @@ function DynamicRebuildCard() {
           <span />
         </div>
         <div className="odds-side odds-iq">
-          <span className="mono">SLIPIQ REBUILD</span>
-          <strong className="mono">{formatAmericanOdds(rebuild.rebuiltSummary.combinedOdds)}</strong>
-          <p className="rebuild-mini-copy">Grade {rebuild.rebuiltGrade.grade} · {rebuild.rebuiltRisk} risk</p>
+          <span className="mono">{planHeld ? 'REBUILD HELD' : plan.title.toUpperCase()}</span>
+          <strong className="mono">{planHeld ? 'HELD' : formatAmericanOdds(plan.summary.combinedOdds)}</strong>
+          <p className="rebuild-mini-copy">{plan.summaryLabel} · {rebuild.rebuiltRisk} risk</p>
         </div>
       </div>
 
@@ -294,13 +467,13 @@ function DynamicRebuildCard() {
           <strong className="mono">{formatPercent(originalSummary.hitRate)}</strong>
         </div>
         <div>
-          <span>Rebuilt hit rate</span>
-          <strong className="mono">{formatPercent(rebuild.rebuiltSummary.hitRate)}</strong>
+          <span>{planHeld ? 'Held hit rate' : 'Rebuilt hit rate'}</span>
+          <strong className="mono">{formatPercent(plan.summary.hitRate)}</strong>
         </div>
         <div>
-          <span>EV change</span>
-          <strong className={`mono ${rebuild.rebuiltSummary.expectedValue >= originalSummary.expectedValue ? 'positive-text' : ''}`}>
-            {formatSignedPercent(rebuild.rebuiltSummary.expectedValue - originalSummary.expectedValue)}
+          <span>{selectedMode === 'safer' ? 'Hit-rate change' : 'EV change'}</span>
+          <strong className={`mono ${selectedMode === 'safer' ? hitRateChange >= 0 ? 'positive-text' : '' : evChange >= 0 ? 'positive-text' : ''}`}>
+            {selectedMode === 'safer' ? formatSignedPercent(hitRateChange) : formatSignedPercent(evChange)}
           </strong>
         </div>
       </div>
@@ -311,10 +484,10 @@ function DynamicRebuildCard() {
           <h3>{legs.length} legs · {formatDecimalOdds(originalSummary.combinedOdds)}</h3>
           <p>EV {formatSignedPercent(originalSummary.expectedValue)} · Hit rate {formatPercent(originalSummary.hitRate)}</p>
         </article>
-        <article className="rebuild-panel">
-          <p className="eyebrow">SlipIQ rebuild</p>
-          <h3>{rebuild.rebuiltLegs.length} legs · {formatDecimalOdds(rebuild.rebuiltSummary.combinedOdds)}</h3>
-          <p>{rebuild.changedLegs} leg changed · {rebuild.rebuiltRisk} risk</p>
+        <article className={`rebuild-panel ${planHeld ? 'is-held' : ''}`}>
+          <p className="eyebrow">{plan.title}</p>
+          <h3>{planHeld ? 'Held · no forced change' : `${plan.rebuiltLegs.length} legs · ${formatDecimalOdds(plan.summary.combinedOdds)}`}</h3>
+          <p>{plan.changedLegs} leg changed · {rebuild.rebuiltRisk} risk</p>
         </article>
       </div>
 
@@ -331,25 +504,35 @@ function DynamicRebuildCard() {
       </div>
 
       <div className="rebuild-section">
-        <p className="eyebrow">Replacement logic</p>
-        {hasReplacement && rebuild.replacement ? (
-          <div className="rebuild-replacement-card">
-            <span className="mono">SETFOX STRICT REPLACEMENT</span>
-            <strong>{rebuild.replacement.leg.label}</strong>
+        <p className="eyebrow">{MODE_COPY[selectedMode].label} logic</p>
+        {planHeld ? (
+          <div className="rebuild-replacement-card is-held">
+            <span className="mono">NO SAFE REBUILD AVAILABLE RIGHT NOW</span>
+            <strong>{plan.reason}</strong>
             <p>
-              Odds {formatDecimalOdds(rebuild.replacement.leg.odds)} · Model {formatPercent(rebuild.replacement.leg.modelProbability)} · EV {formatSignedPercent(rebuild.replacement.outcome.expectedValue ?? 0)}
+              {feedState === 'loading'
+                ? 'Still checking live SetFox Strict replacements...'
+                : 'SlipIQ held the slip instead of forcing a low-quality change.'}
             </p>
-            <button className="button button-gold" type="button" onClick={applyRebuild}>
-              Apply rebuild
-            </button>
           </div>
         ) : (
-          <p className="rebuild-note">
-            {feedState === 'loading'
-              ? 'Checking live SetFox Strict replacements...'
-              : 'No SetFox Strict replacement right now. Scanner is protecting you from weak markets.'}
-          </p>
+          <div className="rebuild-replacement-card">
+            <span className="mono">{MODE_COPY[selectedMode].label.toUpperCase()} PLAN</span>
+            <strong>{plan.reason}</strong>
+            {plan.removedLeg ? <p>Remove: {plan.removedLeg.label}</p> : null}
+            {plan.addedLeg ? <p>Add: {plan.addedLeg.label} · {formatDecimalOdds(plan.addedLeg.odds)} · {formatPercent(plan.addedLeg.modelProbability)}</p> : null}
+            <button className="button button-gold" type="button" onClick={applyRebuild}>
+              {plan.actionLabel}
+            </button>
+          </div>
         )}
+        {plan.notes.length > 0 ? (
+          <div className="rebuild-note-pills">
+            {plan.notes.map((note) => (
+              <span key={note}>{note}</span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {rebuild.warnings.length > 0 ? (
@@ -365,8 +548,13 @@ function DynamicRebuildCard() {
 
       <div className="rebuild-share-preview">
         <p className="eyebrow">Share-card preview</p>
-        <strong className="mono">Before: {formatAmericanOdds(originalSummary.combinedOdds)} → After: {formatAmericanOdds(rebuild.rebuiltSummary.combinedOdds)}</strong>
+        <strong className="mono">
+          {planHeld
+            ? `Original: ${formatAmericanOdds(originalSummary.combinedOdds)} · Rebuild: Held`
+            : `Before: ${formatAmericanOdds(originalSummary.combinedOdds)} → After: ${formatAmericanOdds(plan.summary.combinedOdds)}`}
+        </strong>
         <span>Risk changed: {rebuild.originalRisk} → {rebuild.rebuiltRisk}</span>
+        <span>{planHeld ? 'Reason: No SetFox Strict replacement' : `${MODE_COPY[selectedMode].label} mode · ${plan.changedLegs} leg changed`}</span>
         <span>Research Mode · No guarantees</span>
       </div>
     </section>
