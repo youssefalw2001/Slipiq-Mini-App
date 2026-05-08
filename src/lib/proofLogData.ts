@@ -15,7 +15,7 @@ export interface PaperProofSignal {
 }
 
 interface ProofLogResponse {
-  signals?: PaperProofSignal[];
+  signals?: unknown;
 }
 
 function getProofLogApiUrl() {
@@ -28,9 +28,27 @@ function getProofLogApiUrl() {
   return null;
 }
 
+function getProofLogHeaders() {
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  return {
+    accept: 'application/json',
+    ...(anonKey
+      ? {
+          apikey: anonKey,
+          authorization: `Bearer ${anonKey}`,
+        }
+      : {}),
+  };
+}
+
 function normalizeStatus(value: unknown): PaperProofSignal['status'] {
   if (value === 'won' || value === 'lost' || value === 'void') return value;
   return 'pending';
+}
+
+function finiteNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function normalizeSignal(value: unknown): PaperProofSignal | null {
@@ -44,11 +62,11 @@ function normalizeSignal(value: unknown): PaperProofSignal | null {
     match: String(row.match),
     tournament: String(row.tournament ?? 'Score Hunter Board'),
     score: String(row.score),
-    odds: Number.isFinite(row.odds) ? Number(row.odds) : 0,
-    signalStrength: Number.isFinite(row.signalStrength) ? Number(row.signalStrength) : 0,
+    odds: finiteNumber(row.odds),
+    signalStrength: finiteNumber(row.signalStrength),
     status: normalizeStatus(row.status),
     result: row.result ? String(row.result) : null,
-    profitUnits: Number.isFinite(row.profitUnits) ? Number(row.profitUnits) : 0,
+    profitUnits: finiteNumber(row.profitUnits),
     note: String(row.note ?? 'Paper tracking signal.'),
   };
 }
@@ -62,11 +80,18 @@ export async function fetchScoreHunterProofLog(): Promise<PaperProofSignal[]> {
   if (!apiUrl) return getSeedProofLog();
 
   try {
-    const response = await fetch(apiUrl, { headers: { accept: 'application/json' } });
+    const response = await fetch(apiUrl, { headers: getProofLogHeaders() });
     if (!response.ok) throw new Error(`Proof log request failed: ${response.status}`);
     const payload = (await response.json()) as ProofLogResponse;
-    const rows = (payload.signals ?? []).map(normalizeSignal).filter((row): row is PaperProofSignal => Boolean(row));
-    return rows.length > 0 ? rows : getSeedProofLog();
+
+    if (!Array.isArray(payload.signals)) {
+      throw new Error('Proof log response missing signals array');
+    }
+
+    // Empty live results are valid. Do not replace a successful empty
+    // Supabase response with seed placeholders because that would make the
+    // proof log look more active than it really is.
+    return payload.signals.map(normalizeSignal).filter((row): row is PaperProofSignal => Boolean(row));
   } catch (error) {
     console.warn('SlipIQ proof log unavailable, using seed paper log.', error);
     return getSeedProofLog();
