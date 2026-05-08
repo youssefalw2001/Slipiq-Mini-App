@@ -56,6 +56,7 @@ Implemented or partially implemented:
 - Scheduled data refresh workflow
 - Blind Strategy Simulation workflow
 - Proof Log screen at `/#/proof`
+- Live Paper Proof Log seed table for forward tracking
 
 ## Backend/data pipeline
 
@@ -165,22 +166,22 @@ Before any full product claims, audit and live-track:
 
 ## Current next PR/workstream
 
-The current workstream is the Score Hunter Pivot.
+The current workstream is Live Paper Proof Log.
 
 Goal:
 
 ```txt
-Rename Grass Lab to Score Hunter Lab, show proof transparently, and prepare live paper tracking.
+Start forward proof tracking for every Score Hunter signal before stronger paid claims.
 ```
 
 This workstream should:
 
 - keep all safety copy: Research Mode, No guarantees, Use responsibly
-- make Score Hunter the main research lane
-- downgrade old SetFox Strict to legacy/experimental
-- add or maintain a Proof Log screen
-- avoid claiming future profit
-- avoid using surface as a public product claim
+- make clear this is paper tracking only
+- not place bets or connect sportsbooks
+- log found time, match, tournament, score, odds, signal strength, status, result, and profit/loss
+- keep flat 1u tracking for clarity
+- later connect to Supabase so live data-refresh can append rows automatically
 
 ## How to run Blind Strategy Simulation
 
