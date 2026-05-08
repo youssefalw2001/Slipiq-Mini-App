@@ -1,5 +1,6 @@
 .score-hunter-intro,
-.score-hunter-proof-card {
+.score-hunter-proof-card,
+.paper-proof-card {
   border-color: rgba(255, 215, 0, 0.28);
   background:
     linear-gradient(135deg, rgba(255, 215, 0, 0.08), transparent 32%),
@@ -53,4 +54,81 @@
 
 .proof-stat-grid small {
   margin-top: 4px;
+}
+
+.paper-log-list {
+  display: grid;
+  gap: 10px;
+}
+
+.paper-log-row {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  padding: 11px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.paper-log-row.is-won {
+  border-color: rgba(46, 213, 115, 0.28);
+}
+
+.paper-log-row.is-lost {
+  border-color: rgba(255, 71, 87, 0.28);
+}
+
+.paper-log-row.is-pending {
+  border-color: rgba(255, 215, 0, 0.18);
+}
+
+.paper-log-row__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.paper-log-row__head span {
+  color: var(--accent-teal);
+  font-size: 10px;
+}
+
+.paper-log-row__head strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.paper-log-row__head p {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.paper-log-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.paper-log-metrics div {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 11px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.paper-log-metrics span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.paper-log-metrics strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
 }
