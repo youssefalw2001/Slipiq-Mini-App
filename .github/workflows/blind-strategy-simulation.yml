@@ -11,39 +11,39 @@ on:
   workflow_dispatch:
     inputs:
       start_date:
-        description: Simulation start date (YYYY-MM-DD)
+        description: "Simulation start date (YYYY-MM-DD)"
         required: true
         default: "2025-05-01"
       end_date:
-        description: Simulation end date (YYYY-MM-DD)
+        description: "Simulation end date (YYYY-MM-DD)"
         required: true
         default: "2026-05-06"
       window_days:
-        description: Days per generated simulation window
+        description: "Days per generated simulation window"
         required: true
         default: "30"
       chunk_days:
-        description: Days per API request chunk
+        description: "Days per API request chunk"
         required: true
         default: "3"
       model_mode:
-        description: Model mode to simulate: independent, coupled, or both
+        description: "Model mode to simulate: independent, coupled, or both"
         required: true
         default: "independent"
       block_tiebreak:
-        description: Block tiebreak scores in source rows (1/0)
+        description: "Block tiebreak scores in source rows (1/0)"
         required: true
         default: "1"
       include_doubles:
-        description: Include doubles matches (1/0)
+        description: "Include doubles matches (1/0)"
         required: true
         default: "0"
       max_plays_per_day:
-        description: Max plays per strategy per day
+        description: "Max plays per strategy per day"
         required: true
         default: "5"
       stake_units:
-        description: Flat stake units per play
+        description: "Flat stake units per play"
         required: true
         default: "1"
 
