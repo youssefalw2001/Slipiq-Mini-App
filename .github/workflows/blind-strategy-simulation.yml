@@ -4,8 +4,12 @@ name: Blind Strategy Simulation
 # It generates V3 row CSVs across sequential windows, then applies fixed
 # strategy rules day by day without tuning after results are known.
 #
-# Use the artifact to audit whether SetFox Strict, Grass Lab Candidate,
-# Safer, Balanced, and Moonshot profiles show stable historical performance.
+# V2 audit guardrails:
+# - max one selected score outcome per match by default
+# - calibration report
+# - surface/tournament audit samples
+# - monthly surface breakdown
+# - strategy freeze manifest
 
 on:
   workflow_dispatch:
@@ -46,6 +50,14 @@ on:
         description: "Flat stake units per play"
         required: true
         default: "1"
+      one_pick_per_match:
+        description: "Allow only one score outcome per match per strategy/day (1/0)"
+        required: true
+        default: "1"
+      audit_sample_size:
+        description: "Audit sample rows per strategy"
+        required: true
+        default: "50"
 
 jobs:
   blind-strategy-sim:
@@ -152,6 +164,8 @@ jobs:
           BLIND_SIM_MODEL_MODE="independent" \
           BLIND_SIM_MAX_PLAYS_PER_DAY="${{ inputs.max_plays_per_day }}" \
           BLIND_SIM_STAKE_UNITS="${{ inputs.stake_units }}" \
+          BLIND_SIM_ONE_PICK_PER_MATCH="${{ inputs.one_pick_per_match }}" \
+          BLIND_SIM_AUDIT_SAMPLE_SIZE="${{ inputs.audit_sample_size }}" \
           node scripts/blind-strategy-sim.mjs
 
       - name: Run blind simulation (coupled)
@@ -165,6 +179,8 @@ jobs:
           BLIND_SIM_MODEL_MODE="coupled" \
           BLIND_SIM_MAX_PLAYS_PER_DAY="${{ inputs.max_plays_per_day }}" \
           BLIND_SIM_STAKE_UNITS="${{ inputs.stake_units }}" \
+          BLIND_SIM_ONE_PICK_PER_MATCH="${{ inputs.one_pick_per_match }}" \
+          BLIND_SIM_AUDIT_SAMPLE_SIZE="${{ inputs.audit_sample_size }}" \
           node scripts/blind-strategy-sim.mjs
 
       - name: Upload artifacts
