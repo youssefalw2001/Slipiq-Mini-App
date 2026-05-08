@@ -15,7 +15,7 @@ export interface PaperProofSignal {
 }
 
 interface ProofLogResponse {
-  signals?: unknown[];
+  signals?: unknown;
 }
 
 function getProofLogApiUrl() {
@@ -84,10 +84,14 @@ export async function fetchScoreHunterProofLog(): Promise<PaperProofSignal[]> {
     if (!response.ok) throw new Error(`Proof log request failed: ${response.status}`);
     const payload = (await response.json()) as ProofLogResponse;
 
+    if (!Array.isArray(payload.signals)) {
+      throw new Error('Proof log response missing signals array');
+    }
+
     // Empty live results are valid. Do not replace a successful empty
     // Supabase response with seed placeholders because that would make the
     // proof log look more active than it really is.
-    return (payload.signals ?? []).map(normalizeSignal).filter((row): row is PaperProofSignal => Boolean(row));
+    return payload.signals.map(normalizeSignal).filter((row): row is PaperProofSignal => Boolean(row));
   } catch (error) {
     console.warn('SlipIQ proof log unavailable, using seed paper log.', error);
     return getSeedProofLog();
