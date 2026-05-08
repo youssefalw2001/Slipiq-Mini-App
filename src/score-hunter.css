@@ -1,0 +1,56 @@
+.score-hunter-intro,
+.score-hunter-proof-card {
+  border-color: rgba(255, 215, 0, 0.28);
+  background:
+    linear-gradient(135deg, rgba(255, 215, 0, 0.08), transparent 32%),
+    linear-gradient(145deg, rgba(15, 15, 34, 0.98), rgba(4, 4, 11, 0.98));
+}
+
+.score-hunter-intro {
+  display: grid;
+  gap: 12px;
+}
+
+.score-hunter-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-hunter-mini-grid div {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  padding: 9px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.score-hunter-mini-grid span,
+.proof-stat-grid small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.score-hunter-mini-grid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--accent-gold);
+  font-size: 12px;
+}
+
+.proof-copy-stack {
+  display: grid;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.proof-stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.proof-stat-grid small {
+  margin-top: 4px;
+}
