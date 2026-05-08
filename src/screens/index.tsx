@@ -116,6 +116,41 @@ function deriveScannerStats(feed: FirstSetOpportunity[]): ScannerStats {
   };
 }
 
+function ScoreHunterIntroCard() {
+  return (
+    <article className="card score-hunter-intro">
+      <div className="section-title">
+        <div>
+          <p className="eyebrow">Score Hunter Lab</p>
+          <h2>High-odds first-set score research.</h2>
+        </div>
+        <span className="chip mono setfox-confidence-research">LIVE AUDIT</span>
+      </div>
+      <p className="muted">
+        Grass Lab is now Score Hunter Lab. The signal survived one-pick-per-match testing, but surface labels are under audit, so this is not marketed as a grass-only edge.
+      </p>
+      <div className="score-hunter-mini-grid">
+        <div>
+          <span>V2 audit ROI</span>
+          <strong className="mono">+16.12%</strong>
+        </div>
+        <div>
+          <span>Hit rate</span>
+          <strong className="mono">16.11%</strong>
+        </div>
+        <div>
+          <span>Risk profile</span>
+          <strong className="mono">HIGH VAR</strong>
+        </div>
+      </div>
+      <p className="muted small">Most individual plays lose. The value, if it holds live, appears over many tracked bets with small unit sizing.</p>
+      <Link className="button button-ghost" to="/proof">
+        View Proof Log
+      </Link>
+    </article>
+  );
+}
+
 function ScannerCard({ stats, source }: { stats: ScannerStats; source: 'seed' | 'live' }) {
   const badge = setfoxConfidenceBadge();
   const manifest = setfoxManifest();
@@ -123,7 +158,7 @@ function ScannerCard({ stats, source }: { stats: ScannerStats; source: 'seed' | 
     <article className="card scanner-card">
       <div className="section-title">
         <div>
-          <p className="eyebrow">SetFox Scanner · {source === 'live' ? 'Live' : 'Seed'}</p>
+          <p className="eyebrow">Legacy SetFox Scanner · {source === 'live' ? 'Live' : 'Seed'}</p>
           <h2>{stats.passed} passed · {stats.rejected} rejected</h2>
         </div>
         <span className={`chip mono setfox-confidence-${badge.tone}`}>{badge.label}</span>
@@ -154,7 +189,7 @@ function ScannerCard({ stats, source }: { stats: ScannerStats; source: 'seed' | 
         ))}
       </ul>
       <p className="muted small">
-        SetFox rules are research-grade. Forward-test results need to confirm them before any premium claims.
+        Legacy SetFox is experimental. Score Hunter Lab is the current research lane, and all live results still need forward tracking before premium claims.
       </p>
     </article>
   );
@@ -236,12 +271,13 @@ export function Home() {
   return (
     <main className="screen">
       <section className="hero">
-        <p className="eyebrow">SlipIQ · First Set Lab</p>
-        <h1>Today's Best Opportunities</h1>
-        <p className="muted">Tennis first-set probability, fair odds, market comparison, and slip fit in one terminal-style feed.</p>
+        <p className="eyebrow">SlipIQ · Score Hunter Lab</p>
+        <h1>Today's First-Set Score Research</h1>
+        <p className="muted">High-odds tennis first-set score signals, fair odds, market comparison, slip fit, and proof tracking in one terminal-style feed.</p>
       </section>
 
       <DataStatusBadge source={source} count={feed.length} />
+      <ScoreHunterIntroCard />
       <ScannerCard stats={scannerStats} source={source} />
       <LiveAlertBanner />
       <IQRebuildCard compact />
@@ -283,7 +319,7 @@ export function FirstSetLab() {
   return (
     <main className="screen">
       <section className="detail-header">
-        <p className="eyebrow">🎾 Probability Deep Dive · {match.surface}</p>
+        <p className="eyebrow">🎾 Score Hunter Deep Dive · {match.surface}</p>
         <h1>{match.player1} vs {match.player2}</h1>
         <p className="muted">{match.tournament} · Data freshness: seed model</p>
       </section>
@@ -338,7 +374,7 @@ export function FirstSetLab() {
                   </div>
                   <TierBadge tier={outcome.classLabel.tier} label={outcome.classLabel.label} />
                 </div>
-                <ProbabilityBar label="Model probability" probability={outcome.modelProbability} tier={outcome.classLabel.tier} />
+                <ProbabilityBar label="Signal strength" probability={outcome.modelProbability} tier={outcome.classLabel.tier} />
                 <div className="metric-grid">
                   <span>Fair {formatNullableOdds(outcome.fairOdds)}</span>
                   <span>Book {formatNullableOdds(outcome.bookmakerOdds)}</span>
@@ -394,7 +430,7 @@ export function SlipBuilder() {
       <section className="detail-header">
         <p className="eyebrow">Slip Builder</p>
         <h1>Build Your Slip</h1>
-        <p className="muted">Add First Set Lab legs and supporting NBA legs, then watch probability, payout, EV, and tier update live.</p>
+        <p className="muted">Add Score Hunter legs and supporting NBA legs, then watch signal strength, payout, EV, and tier update live.</p>
       </section>
 
       <IQRebuildCard />
@@ -439,7 +475,7 @@ export function SlipBuilder() {
             Clear
           </button>
         </div>
-        {legs.length === 0 ? <p className="muted">No legs yet. Add a first-set outcome from Home or First Set Lab.</p> : null}
+        {legs.length === 0 ? <p className="muted">No legs yet. Add a first-set outcome from Home or Score Hunter Deep Dive.</p> : null}
         <div className="leg-stack">
           {legs.map((leg) => (
             <SlipLegChip key={leg.id} leg={leg} onRemove={removeLeg} />
@@ -452,8 +488,9 @@ export function SlipBuilder() {
       </section>
 
       <section className="card suggestion-card">
-        <h2>SetFox Notes</h2>
+        <h2>Score Hunter Notes</h2>
         <p>✅ EV is calculated from model probability × actual book odds, not from internally generated fair odds.</p>
+        <p>⚠️ This is a high-variance first-set score strategy. Most individual plays can lose even when the long-term sample is positive.</p>
         {legs.filter((leg) => leg.sport === 'tennis').length > 2 ? <p>⚠️ Several tennis legs are active. Watch same-match/correlation risk before saving.</p> : null}
         <p className="muted">Estimated days to hit: {summary.daysToHit ?? 'N/A'} · EV per $1: {summary.expectedValue.toFixed(3)}</p>
       </section>
@@ -625,7 +662,7 @@ export function Profile() {
           <p className="eyebrow">Free</p>
           <h2>Starter</h2>
           <strong className="mono">3 analyses/day</strong>
-          <p className="muted">1 saved slip, B-tier suggestions, and watermarked sharing.</p>
+          <p className="muted">1 saved slip, research feed previews, and watermarked sharing.</p>
         </article>
         <article className="pricing-card card is-featured">
           <p className="eyebrow">Premium</p>
@@ -634,10 +671,10 @@ export function Profile() {
           <p className="muted">Unlimited analyses, alerts, 30-day history, exports, and EDGE indicators.</p>
         </article>
         <article className="pricing-card card">
-          <p className="eyebrow">VIP</p>
-          <h2>$29.99/mo</h2>
-          <strong className="mono">≈ 1,500 Stars</strong>
-          <p className="muted">Early alerts, weekly report, channel access, and monthly simulations.</p>
+          <p className="eyebrow">Score Hunter Pro · Planned</p>
+          <h2>$99/mo</h2>
+          <strong className="mono">BANKROLL LAB</strong>
+          <p className="muted">Planned only after live proof: bankroll autopilot, unit sizing, cold-streak protection, proof log exports, and private reports.</p>
         </article>
       </section>
 
