@@ -1,0 +1,44 @@
+name: Run Result Resolver
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: Supabase project ref
+        required: true
+        default: qjvpkkcbscsypymxyker
+  schedule:
+    - cron: '43 */3 * * *'
+
+jobs:
+  resolve-results:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Score Hunter result resolver
+        run: |
+          set -euo pipefail
+
+          project_ref="${{ inputs.project_ref || 'qjvpkkcbscsypymxyker' }}"
+          resolver_url="https://${project_ref}.supabase.co/functions/v1/result-resolver"
+
+          header_args=(-H "x-slipiq-refresh-secret: ${SLIPIQ_REFRESH_SECRET}")
+          if [ -n "${SUPABASE_ANON_KEY:-}" ]; then
+            header_args+=( -H "apikey: ${SUPABASE_ANON_KEY}" -H "authorization: Bearer ${SUPABASE_ANON_KEY}" )
+          fi
+
+          response=$(curl -sS -w '\n%{http_code}' -X POST "${header_args[@]}" "${resolver_url}")
+          body=$(printf '%s' "$response" | sed '$d')
+          status=$(printf '%s' "$response" | tail -n 1)
+          echo "$body"
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "Result resolver failed with status $status"
+            exit 1
+          fi
+        env:
+          SLIPIQ_REFRESH_SECRET: ${{ secrets.SLIPIQ_REFRESH_SECRET }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Resolver summary
+        run: |
+          echo "Result resolver completed."
+          echo "Check /#/proof for updated pending/won/lost/void rows."
