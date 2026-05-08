@@ -1,10 +1,18 @@
 -- Score Hunter forward-test result log.
 -- Run with Supabase migrations before deploying result-resolver.
 
+create or replace function public.touch_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
 create table if not exists public.score_hunter_results (
   id uuid primary key default gen_random_uuid(),
-  opportunity_id uuid not null unique references public.opportunities(id) on delete cascade,
-  match_id text references public.matches(id) on delete cascade,
+  opportunity_id uuid unique,
+  match_id text references public.matches(id) on delete set null,
   strategy text not null default 'score_hunter_candidate',
   selected_score text not null,
   actual_score text,
@@ -16,6 +24,7 @@ create table if not exists public.score_hunter_results (
   updated_at timestamptz not null default now()
 );
 
+create index if not exists score_hunter_results_opportunity_idx on public.score_hunter_results(opportunity_id);
 create index if not exists score_hunter_results_status_idx on public.score_hunter_results(status, updated_at desc);
 create index if not exists score_hunter_results_match_idx on public.score_hunter_results(match_id, selected_score);
 
