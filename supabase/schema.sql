@@ -187,6 +187,27 @@ create table if not exists public.setfox_scanner_runs (
 
 create index if not exists setfox_scanner_runs_run_idx on public.setfox_scanner_runs(model_run_id);
 
+-- Score Hunter forward-test result log. This keeps proof rows separate from
+-- the short-lived opportunities board so the Proof tab can show every pending,
+-- won, lost, or void paper signal with flat 1u P/L.
+create table if not exists public.score_hunter_results (
+  id uuid primary key default gen_random_uuid(),
+  opportunity_id uuid not null unique references public.opportunities(id) on delete cascade,
+  match_id text references public.matches(id) on delete cascade,
+  strategy text not null default 'score_hunter_candidate',
+  selected_score text not null,
+  actual_score text,
+  status text not null default 'pending' check (status in ('pending', 'won', 'lost', 'void')),
+  profit_units numeric not null default 0,
+  note text,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists score_hunter_results_status_idx on public.score_hunter_results(status, updated_at desc);
+create index if not exists score_hunter_results_match_idx on public.score_hunter_results(match_id, selected_score);
+
 create or replace function public.touch_updated_at()
 returns trigger as $$
 begin
@@ -203,3 +224,6 @@ create trigger touch_matches_updated_at before update on public.matches for each
 
 drop trigger if exists touch_slips_updated_at on public.slips;
 create trigger touch_slips_updated_at before update on public.slips for each row execute function public.touch_updated_at();
+
+drop trigger if exists touch_score_hunter_results_updated_at on public.score_hunter_results;
+create trigger touch_score_hunter_results_updated_at before update on public.score_hunter_results for each row execute function public.touch_updated_at();
