@@ -28,6 +28,19 @@ function getProofLogApiUrl() {
   return null;
 }
 
+function getProofLogHeaders() {
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  return {
+    accept: 'application/json',
+    ...(anonKey
+      ? {
+          apikey: anonKey,
+          authorization: `Bearer ${anonKey}`,
+        }
+      : {}),
+  };
+}
+
 function normalizeStatus(value: unknown): PaperProofSignal['status'] {
   if (value === 'won' || value === 'lost' || value === 'void') return value;
   return 'pending';
@@ -67,7 +80,7 @@ export async function fetchScoreHunterProofLog(): Promise<PaperProofSignal[]> {
   if (!apiUrl) return getSeedProofLog();
 
   try {
-    const response = await fetch(apiUrl, { headers: { accept: 'application/json' } });
+    const response = await fetch(apiUrl, { headers: getProofLogHeaders() });
     if (!response.ok) throw new Error(`Proof log request failed: ${response.status}`);
     const payload = (await response.json()) as ProofLogResponse;
 
