@@ -48,13 +48,14 @@ cannot lose
 Implemented or partially implemented:
 
 - Home feed with live/seed mode
-- First Set Lab / opportunity cards
+- Score Hunter / First Set Lab opportunity cards
 - Slip Builder
 - IQ Rebuild V1
 - Safer / Balanced / Moonshot rebuild mode selector
 - Ops Control Center at `/#/ops`
 - Scheduled data refresh workflow
 - Blind Strategy Simulation workflow
+- Proof Log screen at `/#/proof`
 
 ## Backend/data pipeline
 
@@ -114,9 +115,9 @@ Positive months: 5/13
 
 Verdict: Not strong enough to be the main product claim.
 
-### Grass Lab Candidate
+### Score Hunter Candidate, formerly Grass Lab Candidate
 
-The strongest current research signal is Grass Lab Candidate:
+The strongest current research signal was originally called Grass Lab Candidate:
 
 ```txt
 surface = grass
@@ -127,64 +128,59 @@ min_ev >= 0
 min_edge >= 0
 ```
 
-Blind sim v1 independent result over 2025-05-01 to 2026-05-06:
+Important: the name Grass Lab is deprecated. Surface labels are not reliable enough for product claims. The signal should be positioned as Score Hunter Lab / Set 1 Score Hunter, not as a grass-court strategy.
+
+Blind sim V2 audit independent result over 2025-05-01 to 2026-05-06 with one pick per match:
 
 ```txt
-Rows loaded: 450,117
-Unique matches: 37,525
-Bets: 1,679
-Wins: 273
-Hit rate: 16.26%
-Average odds: x7.27
-Profit: +288.05u
-ROI: +17.16%
+Rows loaded: 450,093
+Unique matches: 37,523
+Bets: 1,664
+Wins: 268
+Hit rate: 16.11%
+Average odds: x7.26
+Profit: +268.2u
+ROI: +16.12%
 Positive months: 9/13
-Max drawdown: 45.55u
+Max drawdown: 46.45u
+Duplicate match picks after guard: 0
 ```
 
-Verdict: Promising research signal, but not final proof yet.
+Verdict: Promising research signal that survived a stricter audit. Not final proof until live paper tracking verifies odds availability and execution.
 
 ## Important current concern
 
-The Grass Lab result appears in many calendar months, including outside the normal grass season. This may mean:
+The old Grass Lab result appears in many calendar months, including outside the normal grass season. This likely means the surface label is unreliable.
+
+Before any full product claims, audit and live-track:
 
 ```txt
-1. Surface classifier is wrong
-2. API-Tennis has year-round lower-level grass events
-3. Tournament names are being misread
-```
-
-Before any full product pivot or public claims, audit:
-
-```txt
+- actual tournament names in selected bets
+- odds availability before match start
 - one pick per match
-- actual tournament names in Grass Lab selected bets
-- surface classification quality
-- monthly-surface breakdown
+- monthly surface breakdown
 - model probability calibration
-- odds realism
+- losing streak/drawdown behavior
 ```
 
 ## Current next PR/workstream
 
-The current workstream is Blind Sim V2 Audit.
+The current workstream is the Score Hunter Pivot.
 
 Goal:
 
 ```txt
-Make the strategy tester more trustworthy before pivoting the app around Grass Lab.
+Rename Grass Lab to Score Hunter Lab, show proof transparently, and prepare live paper tracking.
 ```
 
-V2 audit should:
+This workstream should:
 
-- enforce max one selected score outcome per match by default
-- emit surface audit output
-- emit top tournament examples
-- emit monthly surface breakdown
-- emit selected audit sample rows
-- emit calibration report comparing model probability buckets to actual hit rate
-- emit strategy freeze manifest
-- keep all app UI unchanged
+- keep all safety copy: Research Mode, No guarantees, Use responsibly
+- make Score Hunter the main research lane
+- downgrade old SetFox Strict to legacy/experimental
+- add or maintain a Proof Log screen
+- avoid claiming future profit
+- avoid using surface as a public product claim
 
 ## How to run Blind Strategy Simulation
 
@@ -226,47 +222,33 @@ results/independent/blind-sim-monthly-surface.csv
 results/independent/blind-sim-bets.csv
 ```
 
-## Decision rules before pivoting app
+## Decision rules before charging hard
 
-Do not fully pivot to Grass Lab unless V2 audit shows:
+Do not launch strong paid claims unless:
 
 ```txt
-Grass Lab remains positive with one-pick-per-match
+Score Hunter remains positive with one-pick-per-match
 ROI is not carried by one small tournament group
-Surface/tournament examples make sense
+Live paper tracking confirms odds are available to users
 Monthly results remain reasonably stable
 Model calibration issues are understood and copy is adjusted
+Users are clearly warned about low hit rate and losing streaks
 ```
 
-If Grass Lab survives V2 audit, the next app PR should be:
-
-```txt
-Grass Lab Strategy Pivot
-```
-
-That PR should:
-
-- make Grass Lab the main scanner identity
-- show a proof/research card with blind sim stats
-- update IQ Rebuild modes around Grass Lab
-- downgrade old SetFox Strict to experimental/research
-- add a Proof Log skeleton
-- keep no-guarantee language everywhere
-
-## Product roadmap after audit
+## Product roadmap after Score Hunter pivot
 
 Recommended order:
 
 ```txt
-1. Blind Sim V2 Audit
-2. Grass Lab Strategy Pivot if audit passes
-3. Public Proof Log
+1. Score Hunter Pivot
+2. Live Paper Proof Log with every signal and result
+3. Bankroll Autopilot / Patience Score
 4. Share-card export
-5. Onboarding explaining Grass Lab and why rejection is valuable
+5. Onboarding explaining high-odds value and losing streaks
 6. Founding member/paywall screen
 7. Private beta with 10-25 users
 ```
 
 ## Important instruction for future AI/developers
 
-Do not chase random new betting strategies. The current priority is to validate or reject Grass Lab cleanly. If it passes, focus the app around it. If it fails, keep SlipIQ as a research/slip grading product and continue strategy search with transparent proof logs.
+Do not chase random new betting strategies. The current priority is to validate Score Hunter live and build transparent proof/logging around it. If live odds or results fail, keep SlipIQ as a research/slip grading product and continue strategy search with transparent proof logs.

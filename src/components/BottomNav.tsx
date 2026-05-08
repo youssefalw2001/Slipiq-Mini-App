@@ -4,7 +4,7 @@ const items = [
   { to: '/', label: 'Home' },
   { to: '/slip', label: 'Builder' },
   { to: '/myslips', label: 'My Slips' },
-  { to: '/alerts', label: 'Alerts' },
+  { to: '/proof', label: 'Proof' },
   { to: '/profile', label: 'Profile' },
 ];
 

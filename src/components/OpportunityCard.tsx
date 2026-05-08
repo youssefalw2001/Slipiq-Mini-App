@@ -18,27 +18,35 @@ function cardTier(opportunity: FirstSetOpportunity) {
   return 'C';
 }
 
+function scoreHunterTag(opportunity: FirstSetOpportunity) {
+  const preferred = pickPreferredOutcome(opportunity);
+  const odds = preferred?.outcome.bookmakerOdds ?? 0;
+  const score = preferred?.outcome.score;
+  const isScoreHunterZone = odds >= 5 && odds < 8 && score !== '7-6' && score !== '6-7';
+  return isScoreHunterZone ? 'Score Hunter zone' : 'Research feed';
+}
+
 export default function OpportunityCard({ opportunity, onAddTopLeg }: OpportunityCardProps) {
   const preferred = pickPreferredOutcome(opportunity);
   const tier = cardTier(opportunity);
-  const buttonLabel = preferred?.isSetfox ? '+ Add SetFox leg' : '+ Add to Slip';
+  const buttonLabel = preferred?.isSetfox ? '+ Add research leg' : '+ Add to Slip';
   const buttonClass = preferred?.isSetfox ? 'button button-gold' : 'button';
 
   return (
     <article className={`opportunity-card tier-left-${tier.toLowerCase()}`}>
       <div className="card-header">
         <div>
-          <p className="eyebrow">🎾 First Set Lab · {opportunity.surface}</p>
+          <p className="eyebrow">🎾 Score Hunter Lab · {scoreHunterTag(opportunity)}</p>
           <Link to={`/lab/${opportunity.id}`} className="match-link">
             {opportunity.player1} vs {opportunity.player2}
           </Link>
-          <p className="muted">{opportunity.tournament}</p>
+          <p className="muted">{opportunity.tournament} · surface label under audit: {opportunity.surface}</p>
         </div>
         <TierBadge tier={tier} />
       </div>
 
       <div className="key-stat">
-        Serve Dominance: <span className="mono">{(opportunity.hold1 * 100).toFixed(1)}%</span> hold vs{' '}
+        Serve profile: <span className="mono">{(opportunity.hold1 * 100).toFixed(1)}%</span> hold vs{' '}
         <span className="mono">{(opportunity.hold2 * 100).toFixed(1)}%</span>
       </div>
 
@@ -65,12 +73,12 @@ export default function OpportunityCard({ opportunity, onAddTopLeg }: Opportunit
             : 'No market odds'}
         </div>
         {opportunity.setfoxPassedCount > 0 ? (
-          <span className="chip mono setfox-pass" title="At least one outcome passes SetFox Strict Mode (research-grade)">
-            SetFox · {opportunity.setfoxPassedCount}
+          <span className="chip mono setfox-pass" title="At least one outcome passes the current research filter">
+            Research · {opportunity.setfoxPassedCount}
           </span>
         ) : (
-          <span className="chip mono setfox-fail" title="No outcome on this match passes SetFox Strict Mode">
-            SetFox · 0
+          <span className="chip mono setfox-fail" title="No outcome on this match passes the current research filter">
+            Research · 0
           </span>
         )}
         <button
