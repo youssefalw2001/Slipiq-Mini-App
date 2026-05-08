@@ -1,0 +1,28 @@
+[
+  {
+    "id": "paper-001",
+    "foundAt": "2026-05-08T14:00:00Z",
+    "match": "Example Player A vs Example Player B",
+    "tournament": "Lower-tier tennis event",
+    "score": "4-6",
+    "odds": 7.25,
+    "signalStrength": 0.202,
+    "status": "pending",
+    "result": null,
+    "profitUnits": 0,
+    "note": "Paper tracking placeholder. Replace with live Score Hunter signal once backend logging is connected."
+  },
+  {
+    "id": "paper-002",
+    "foundAt": "2026-05-08T15:30:00Z",
+    "match": "Example Player C vs Example Player D",
+    "tournament": "Lower-tier tennis event",
+    "score": "6-4",
+    "odds": 6.8,
+    "signalStrength": 0.181,
+    "status": "pending",
+    "result": null,
+    "profitUnits": 0,
+    "note": "Paper tracking only. No bet was placed by SlipIQ."
+  }
+]
