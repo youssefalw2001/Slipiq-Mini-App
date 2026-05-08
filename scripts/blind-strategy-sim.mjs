@@ -137,17 +137,17 @@ const strategies = [
   },
   {
     id: 'grass_lab_candidate',
-    label: 'Grass Lab Candidate',
-    description: 'Research-only walk-forward candidate: grass, odds_5_8, tour_other, positive EV/edge.',
+    label: 'Score Hunter Candidate',
+    description: 'Formerly Grass Lab Candidate. Research-only score signal: surface flag grass, odds_5_8, tour_other, positive EV/edge. Surface label is not trusted for product claims.',
     maxPerDay: maxPlaysPerDay,
     freeze: {
-      surface: 'grass',
+      legacy_surface_flag: 'grass',
       odds_bucket: 'odds_5_8',
       tournament_level: 'tour_other',
       min_model_probability: 0.03,
       min_expected_value: 0,
       min_edge: 0,
-      notes: ['Strongest V1 blind-sim candidate', 'Must audit surface classifier before product promotion'],
+      notes: ['Strongest V2 blind-sim candidate', 'Do not market as grass-only', 'Live odds proof is required before paid claims'],
     },
     rule: (row) => row.surface === 'grass' && row.odds_bucket === 'odds_5_8' && row.tournament_level === 'tour_other' && row.model_probability >= 0.03 && row.expected_value >= 0 && row.edge >= 0,
   },
@@ -312,7 +312,7 @@ function buildAuditSamples(selected, strategyId) {
   const grassSuspiciousMonths = sorted
     .filter((row) => strategyId === 'grass_lab_candidate' && ['2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'].includes(row.event_date.slice(0, 7)))
     .slice(0, Math.ceil(auditSampleSize / 3))
-    .map((row) => ({ ...row, audit_sample_reason: 'grass_offseason_check' }));
+    .map((row) => ({ ...row, audit_sample_reason: 'legacy_surface_flag_offseason_check' }));
   const merged = new Map();
   for (const row of [...first, ...grassSuspiciousMonths, ...last]) merged.set(`${row.strategy_id}|${row.event_key}|${row.score}|${row.audit_sample_reason}`, row);
   return [...merged.values()].slice(0, auditSampleSize);
@@ -434,12 +434,12 @@ function main() {
       'This is historical blind simulation, not live execution proof.',
       'Historical odds may not equal the exact user-available price at bet time.',
       'Safer/Balanced/Moonshot are portfolio proxies, not actual user-uploaded slips.',
-      'Surface classification is heuristic and must be audited through by_tournament and audit_samples before product claims.',
+      'The old Grass Lab surface flag is heuristic and must not be used as a public product claim.',
       'Do not market as guaranteed profit. Use as research and validation input.',
     ],
     audit_questions_to_answer: [
-      'Does one-pick-per-match materially reduce Grass Lab ROI?',
-      'Are Grass Lab tournaments genuinely grass events or surface-classifier false positives?',
+      'Does one-pick-per-match materially reduce Score Hunter ROI?',
+      'Are legacy surface flags creating false confidence?',
       'Is the model probability calibrated, or is it overconfident versus observed hit rate?',
       'Does profit come from stable months or one narrow time pocket?',
       'Would a real user have access to the same odds before match start?',
