@@ -1,14 +1,16 @@
-// SlipIQ Blind Strategy Simulation
+// SlipIQ Blind Strategy Simulation V2 Audit
 //
 // This script audits frozen strategy rules on historical V3 row CSVs.
 // It does NOT tune rules after seeing results. It sorts rows by event_date,
 // applies fixed rule functions day by day, and exports daily/monthly/bet-level
 // artifacts for manual audit.
 //
-// Use this after scripts/backtest-first-set-lab-v3.mjs has generated one or
-// more CSV files. The CSV rows already contain model probabilities, odds,
-// results, surface, score family, odds bucket, tournament level, and the
-// SetFox Strict pass flag.
+// V2 audit additions:
+//   - Enforces max one score outcome per match by default.
+//   - Emits surface, tournament, monthly-surface, and calibration audits.
+//   - Emits strategy freeze manifest so another reviewer can see exactly what
+//     was tested.
+//   - Emits selected-bet samples for manual inspection of suspicious pockets.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +21,8 @@ const modelModeFilter = process.env.BLIND_SIM_MODEL_MODE ?? 'independent';
 const maxPlaysPerDay = Number(process.env.BLIND_SIM_MAX_PLAYS_PER_DAY ?? 5);
 const bankrollStart = Number(process.env.BLIND_SIM_BANKROLL_START ?? 100);
 const stakeUnits = Number(process.env.BLIND_SIM_STAKE_UNITS ?? 1);
+const onePickPerMatch = process.env.BLIND_SIM_ONE_PICK_PER_MATCH !== '0';
+const auditSampleSize = Number(process.env.BLIND_SIM_AUDIT_SAMPLE_SIZE ?? 50);
 
 if (!csvListRaw) {
   console.error('Missing BLIND_SIM_CSVS. Provide comma-separated backtest V3 row CSV paths.');
@@ -80,6 +84,7 @@ function normalizeRows(rawRows, sourceFile) {
     event_date: String(row.event_date ?? ''),
     match: row.match || '',
     tournament: row.tournament || '',
+    tournament_round: row.tournament_round || '',
     surface: row.surface || 'unknown',
     score: row.score || '',
     score_family: row.score_family || 'unknown',
@@ -123,6 +128,11 @@ const strategies = [
     label: 'SetFox Strict',
     description: 'Frozen live strict rule from src/lib/setfoxStrategy.ts.',
     maxPerDay: maxPlaysPerDay,
+    freeze: {
+      source: 'src/lib/setfoxStrategy.ts SETFOX_RULE',
+      rule: 'setfox_passed_default === true',
+      notes: ['Legacy strict rule', 'Research only unless audited positive out-of-sample'],
+    },
     rule: (row) => row.setfox_passed_default,
   },
   {
@@ -130,6 +140,15 @@ const strategies = [
     label: 'Grass Lab Candidate',
     description: 'Research-only walk-forward candidate: grass, odds_5_8, tour_other, positive EV/edge.',
     maxPerDay: maxPlaysPerDay,
+    freeze: {
+      surface: 'grass',
+      odds_bucket: 'odds_5_8',
+      tournament_level: 'tour_other',
+      min_model_probability: 0.03,
+      min_expected_value: 0,
+      min_edge: 0,
+      notes: ['Strongest V1 blind-sim candidate', 'Must audit surface classifier before product promotion'],
+    },
     rule: (row) => row.surface === 'grass' && row.odds_bucket === 'odds_5_8' && row.tournament_level === 'tour_other' && row.model_probability >= 0.03 && row.expected_value >= 0 && row.edge >= 0,
   },
   {
@@ -137,6 +156,15 @@ const strategies = [
     label: 'Safer Profile',
     description: 'Higher hit-rate proxy: singles, non-tiebreak, probability >= 10%, odds <= 8, positive EV/edge.',
     maxPerDay: maxPlaysPerDay,
+    freeze: {
+      match_type: 'singles',
+      blocked_score_family: 'tiebreak',
+      min_model_probability: 0.10,
+      max_bookmaker_odds: 8,
+      min_expected_value: 0,
+      min_edge: 0,
+      notes: ['Portfolio proxy, not actual user slip upload simulation'],
+    },
     rule: (row) => row.match_type === 'singles' && row.score_family !== 'tiebreak' && row.model_probability >= 0.10 && row.bookmaker_odds <= 8 && row.expected_value >= 0 && row.edge >= 0,
   },
   {
@@ -144,6 +172,15 @@ const strategies = [
     label: 'Balanced Profile',
     description: 'Main product proxy: normal/close singles, probability >= 5%, odds <= 18, positive EV/edge.',
     maxPerDay: maxPlaysPerDay,
+    freeze: {
+      match_type: 'singles',
+      allowed_score_families: ['normal', 'close'],
+      min_model_probability: 0.05,
+      max_bookmaker_odds: 18,
+      min_expected_value: 0,
+      min_edge: 0,
+      notes: ['Portfolio proxy, not actual user slip upload simulation'],
+    },
     rule: (row) => row.match_type === 'singles' && ['normal', 'close'].includes(row.score_family) && row.model_probability >= 0.05 && row.bookmaker_odds <= 18 && row.expected_value >= 0 && row.edge >= 0,
   },
   {
@@ -151,6 +188,16 @@ const strategies = [
     label: 'Moonshot Profile',
     description: 'Higher payout proxy: singles, probability >= 3%, odds 12-30, positive EV/edge, no tiebreak.',
     maxPerDay: Math.max(1, Math.min(maxPlaysPerDay, 3)),
+    freeze: {
+      match_type: 'singles',
+      blocked_score_family: 'tiebreak',
+      min_model_probability: 0.03,
+      min_bookmaker_odds: 12,
+      max_bookmaker_odds: 30,
+      min_expected_value: 0,
+      min_edge: 0,
+      notes: ['High-risk portfolio proxy', 'Should not be product default unless audited positive'],
+    },
     rule: (row) => row.match_type === 'singles' && row.score_family !== 'tiebreak' && row.model_probability >= 0.03 && row.bookmaker_odds >= 12 && row.bookmaker_odds <= 30 && row.expected_value >= 0 && row.edge >= 0,
   },
 ];
@@ -185,6 +232,7 @@ function summarizeBets(bets) {
     average_odds: avgOdds,
     average_model_probability: avgProbability,
     average_expected_value: avgEv,
+    model_calibration_gap: total ? wins / total - avgProbability : 0,
   };
 }
 
@@ -203,13 +251,80 @@ function drawdownFromDaily(dailyRows) {
   return { max_drawdown_units: maxDrawdown, ending_bankroll: bankroll, curve };
 }
 
+function selectDailyCandidates(rows, strategy) {
+  const sorted = rows.filter(strategy.rule).sort((a, b) => score(b) - score(a));
+  const selected = [];
+  const usedMatches = new Set();
+  for (const row of sorted) {
+    if (onePickPerMatch && usedMatches.has(row.event_key)) continue;
+    selected.push(row);
+    usedMatches.add(row.event_key);
+    if (selected.length >= strategy.maxPerDay) break;
+  }
+  return selected;
+}
+
+function bucketProbability(value) {
+  if (value < 0.05) return 'p00_05';
+  if (value < 0.10) return 'p05_10';
+  if (value < 0.15) return 'p10_15';
+  if (value < 0.20) return 'p15_20';
+  if (value < 0.30) return 'p20_30';
+  return 'p30_plus';
+}
+
+function buildCalibrationRows(selected) {
+  return [...groupBy(selected, (row) => bucketProbability(row.model_probability)).entries()].map(([probability_bucket, bets]) => ({
+    probability_bucket,
+    ...summarizeBets(bets),
+  })).sort((a, b) => a.probability_bucket.localeCompare(b.probability_bucket));
+}
+
+function summarizeTournamentExamples(selected) {
+  return [...groupBy(selected, (row) => `${row.tournament || 'unknown'}|${row.surface || 'unknown'}|${row.tournament_level || 'unknown'}`).entries()]
+    .map(([key, bets]) => {
+      const [tournament, surface, tournament_level] = key.split('|');
+      const summary = summarizeBets(bets);
+      return {
+        tournament,
+        surface,
+        tournament_level,
+        ...summary,
+        sample_events: bets.slice(0, 5).map((row) => ({
+          event_date: row.event_date,
+          match: row.match,
+          score: row.score,
+          bookmaker_odds: row.bookmaker_odds,
+          won: row.won,
+        })),
+      };
+    })
+    .sort((a, b) => b.bets - a.bets || b.profit_units - a.profit_units)
+    .slice(0, 25);
+}
+
+function buildAuditSamples(selected, strategyId) {
+  const sorted = [...selected].sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)) || score(b) - score(a));
+  if (sorted.length <= auditSampleSize) return sorted.map((row) => ({ ...row, audit_sample_reason: 'all_selected' }));
+
+  const first = sorted.slice(0, Math.ceil(auditSampleSize / 3)).map((row) => ({ ...row, audit_sample_reason: 'earliest' }));
+  const last = sorted.slice(-Math.ceil(auditSampleSize / 3)).map((row) => ({ ...row, audit_sample_reason: 'latest' }));
+  const grassSuspiciousMonths = sorted
+    .filter((row) => strategyId === 'grass_lab_candidate' && ['2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'].includes(row.event_date.slice(0, 7)))
+    .slice(0, Math.ceil(auditSampleSize / 3))
+    .map((row) => ({ ...row, audit_sample_reason: 'grass_offseason_check' }));
+  const merged = new Map();
+  for (const row of [...first, ...grassSuspiciousMonths, ...last]) merged.set(`${row.strategy_id}|${row.event_key}|${row.score}|${row.audit_sample_reason}`, row);
+  return [...merged.values()].slice(0, auditSampleSize);
+}
+
 function simulateStrategy(allRows, strategy) {
   const rowsByDay = groupBy(allRows, (row) => row.event_date);
   const selected = [];
   const daily = [];
 
   for (const [date, rows] of [...rowsByDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const candidates = rows.filter(strategy.rule).sort((a, b) => score(b) - score(a)).slice(0, strategy.maxPerDay);
+    const candidates = selectDailyCandidates(rows, strategy);
     selected.push(...candidates.map((row) => ({ ...row, strategy_id: strategy.id, strategy_label: strategy.label })));
     daily.push({
       strategy_id: strategy.id,
@@ -226,15 +341,24 @@ function simulateStrategy(allRows, strategy) {
     ...summarizeBets(bets),
   })).sort((a, b) => a.month.localeCompare(b.month));
 
+  const monthlySurface = [...groupBy(selected, (row) => `${row.event_date.slice(0, 7)}|${row.surface}`).entries()].map(([key, bets]) => {
+    const [month, surface] = key.split('|');
+    return { strategy_id: strategy.id, month, surface, ...summarizeBets(bets) };
+  }).sort((a, b) => a.month.localeCompare(b.month) || a.surface.localeCompare(b.surface));
+
   const bySurface = [...groupBy(selected, (row) => row.surface).entries()].map(([surface, bets]) => ({ surface, ...summarizeBets(bets) })).sort((a, b) => b.profit_units - a.profit_units);
   const byScoreFamily = [...groupBy(selected, (row) => row.score_family).entries()].map(([score_family, bets]) => ({ score_family, ...summarizeBets(bets) })).sort((a, b) => b.profit_units - a.profit_units);
   const byOddsBucket = [...groupBy(selected, (row) => row.odds_bucket).entries()].map(([odds_bucket, bets]) => ({ odds_bucket, ...summarizeBets(bets) })).sort((a, b) => b.profit_units - a.profit_units);
+  const byTournament = summarizeTournamentExamples(selected);
+  const calibration = buildCalibrationRows(selected);
   const drawdown = drawdownFromDaily(daily);
 
   const positiveMonths = monthly.filter((row) => row.roi_per_bet > 0).length;
   const largestWin = selected.filter((row) => row.won).sort((a, b) => profit(b) - profit(a))[0] ?? null;
   const totalProfit = selected.reduce((sum, row) => sum + profit(row) * stakeUnits, 0);
   const largestWinShare = largestWin && totalProfit > 0 ? (profit(largestWin) * stakeUnits) / totalProfit : 0;
+  const duplicateMatchCount = selected.length - new Set(selected.map((row) => `${row.strategy_id}|${row.event_date}|${row.event_key}`)).size;
+  const auditSamples = buildAuditSamples(selected, strategy.id);
 
   return {
     strategy: {
@@ -242,6 +366,7 @@ function simulateStrategy(allRows, strategy) {
       label: strategy.label,
       description: strategy.description,
       max_plays_per_day: strategy.maxPerDay,
+      freeze: strategy.freeze,
     },
     summary: {
       ...summarizeBets(selected),
@@ -250,6 +375,7 @@ function simulateStrategy(allRows, strategy) {
       max_drawdown_units: drawdown.max_drawdown_units,
       ending_bankroll: drawdown.ending_bankroll,
       largest_single_win_profit_share: largestWinShare,
+      duplicate_match_picks_after_guard: duplicateMatchCount,
       warning: selected.length < 100
         ? 'Low sample. Treat as directional research only.'
         : largestWinShare > 0.4
@@ -258,9 +384,13 @@ function simulateStrategy(allRows, strategy) {
     },
     daily: drawdown.curve,
     monthly,
+    monthly_surface: monthlySurface,
     by_surface: bySurface,
     by_score_family: byScoreFamily,
     by_odds_bucket: byOddsBucket,
+    by_tournament: byTournament,
+    calibration,
+    audit_samples: auditSamples,
     bets: selected,
   };
 }
@@ -282,7 +412,7 @@ function main() {
   const results = strategies.map((strategy) => simulateStrategy(rows, strategy));
 
   const report = {
-    model_version: 'blind_strategy_sim_v1',
+    model_version: 'blind_strategy_sim_v2_audit',
     created_at: new Date().toISOString(),
     csv_paths: csvPaths,
     model_mode_filter: modelModeFilter,
@@ -290,7 +420,10 @@ function main() {
       max_plays_per_day: maxPlaysPerDay,
       stake_units: stakeUnits,
       bankroll_start: bankrollStart,
+      one_pick_per_match: onePickPerMatch,
+      audit_sample_size: auditSampleSize,
     },
+    strategy_freeze_manifest: strategies.map(({ id, label, description, maxPerDay, freeze }) => ({ id, label, description, max_plays_per_day: maxPerDay, freeze })),
     data: {
       rows_loaded: rows.length,
       first_date: rows[0]?.event_date ?? null,
@@ -301,15 +434,27 @@ function main() {
       'This is historical blind simulation, not live execution proof.',
       'Historical odds may not equal the exact user-available price at bet time.',
       'Safer/Balanced/Moonshot are portfolio proxies, not actual user-uploaded slips.',
+      'Surface classification is heuristic and must be audited through by_tournament and audit_samples before product claims.',
       'Do not market as guaranteed profit. Use as research and validation input.',
     ],
-    strategies: results.map(({ strategy, summary, monthly, by_surface, by_score_family, by_odds_bucket }) => ({
+    audit_questions_to_answer: [
+      'Does one-pick-per-match materially reduce Grass Lab ROI?',
+      'Are Grass Lab tournaments genuinely grass events or surface-classifier false positives?',
+      'Is the model probability calibrated, or is it overconfident versus observed hit rate?',
+      'Does profit come from stable months or one narrow time pocket?',
+      'Would a real user have access to the same odds before match start?',
+    ],
+    strategies: results.map(({ strategy, summary, monthly, monthly_surface, by_surface, by_score_family, by_odds_bucket, by_tournament, calibration, audit_samples }) => ({
       strategy,
       summary,
       monthly,
+      monthly_surface,
       by_surface,
       by_score_family,
       by_odds_bucket,
+      by_tournament,
+      calibration,
+      audit_samples,
     })),
   };
 
@@ -322,15 +467,25 @@ function main() {
 
   const allMonthly = results.flatMap((result) => result.monthly);
   writeCsv(path.join(outputDir, 'blind-sim-monthly.csv'), allMonthly, [
-    'strategy_id', 'month', 'bets', 'wins', 'losses', 'hit_rate', 'staked_units', 'profit_units', 'roi_per_bet', 'average_odds', 'average_model_probability', 'average_expected_value',
+    'strategy_id', 'month', 'bets', 'wins', 'losses', 'hit_rate', 'staked_units', 'profit_units', 'roi_per_bet', 'average_odds', 'average_model_probability', 'average_expected_value', 'model_calibration_gap',
+  ]);
+
+  const allMonthlySurface = results.flatMap((result) => result.monthly_surface);
+  writeCsv(path.join(outputDir, 'blind-sim-monthly-surface.csv'), allMonthlySurface, [
+    'strategy_id', 'month', 'surface', 'bets', 'wins', 'losses', 'hit_rate', 'staked_units', 'profit_units', 'roi_per_bet', 'average_odds', 'average_model_probability', 'average_expected_value', 'model_calibration_gap',
+  ]);
+
+  const allAuditSamples = results.flatMap((result) => result.audit_samples);
+  writeCsv(path.join(outputDir, 'blind-sim-audit-samples.csv'), allAuditSamples, [
+    'strategy_id', 'strategy_label', 'audit_sample_reason', 'model_mode', 'event_date', 'event_key', 'match', 'tournament', 'tournament_round', 'surface', 'tournament_level', 'match_type', 'score', 'score_family', 'odds_bucket', 'model_probability', 'bookmaker_odds', 'edge', 'expected_value', 'won', 'setfox_passed_default',
   ]);
 
   const allBets = results.flatMap((result) => result.bets);
   writeCsv(path.join(outputDir, 'blind-sim-bets.csv'), allBets, [
-    'strategy_id', 'strategy_label', 'model_mode', 'event_date', 'event_key', 'match', 'tournament', 'surface', 'tournament_level', 'match_type', 'score', 'score_family', 'odds_bucket', 'model_probability', 'bookmaker_odds', 'edge', 'expected_value', 'won', 'setfox_passed_default',
+    'strategy_id', 'strategy_label', 'model_mode', 'event_date', 'event_key', 'match', 'tournament', 'tournament_round', 'surface', 'tournament_level', 'match_type', 'score', 'score_family', 'odds_bucket', 'model_probability', 'bookmaker_odds', 'edge', 'expected_value', 'won', 'setfox_passed_default',
   ]);
 
-  console.log('SlipIQ Blind Strategy Simulation report:');
+  console.log('SlipIQ Blind Strategy Simulation V2 Audit report:');
   console.log(JSON.stringify(report, null, 2));
   console.log(`Wrote artifacts to ${outputDir}`);
 }
