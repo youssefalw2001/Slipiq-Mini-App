@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ResponsibleNotice from '../components/ResponsibleNotice';
-import { fetchScoreHunterProofLog, getSeedProofLog, type PaperProofSignal } from '../lib/proofLogData';
+import { fetchScoreHunterProofLogData, getSeedProofLog, type PaperProofSignal } from '../lib/proofLogData';
 
 const proofStats = [
   { label: 'V2 audit bets', value: '1,664', helper: 'one pick per match' },
@@ -58,11 +58,11 @@ export default function ProofLog() {
     let cancelled = false;
     setLoading(true);
 
-    fetchScoreHunterProofLog()
-      .then((signals) => {
+    fetchScoreHunterProofLogData()
+      .then((data) => {
         if (cancelled) return;
-        setRows(signals);
-        setSource(signals.some((signal) => !signal.id.startsWith('paper-')) ? 'live' : 'seed');
+        setRows(data.signals);
+        setSource(data.source);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -146,6 +146,7 @@ export default function ProofLog() {
           <span className="muted">{source === 'live' ? 'Reading Supabase proof rows' : 'Seed rows until backend logging writes live signals'}</span>
         </div>
         <div className="paper-log-list">
+          {rows.length === 0 ? <p className="muted">No live paper signals right now. The scanner is protecting the proof log from weak markets.</p> : null}
           {rows.map((row) => (
             <article key={row.id} className={`paper-log-row is-${row.status}`}>
               <div className="paper-log-row__head">
