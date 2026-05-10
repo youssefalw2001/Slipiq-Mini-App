@@ -1,0 +1,48 @@
+name: Official Filter Retest
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_path:
+        description: "Enriched CSV path in repo to retest"
+        required: true
+        default: "artifacts/input/blind-sim-bets-enriched-first-set-scores.csv"
+
+jobs:
+  official-filter-retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check input CSV exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "${{ inputs.input_path }}" ]; then
+            echo "Input CSV not found: ${{ inputs.input_path }}"
+            echo "Upload the enriched holdout CSV to artifacts/input, or set input_path to the correct repo path."
+            exit 1
+          fi
+          wc -l "${{ inputs.input_path }}"
+
+      - name: Run Official filter retest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/official-filter-retest.mjs \
+            --input "${{ inputs.input_path }}" \
+            --output-dir artifacts/output/official-filter-retest
+
+      - name: Upload Official filter retest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-filter-retest
+          path: artifacts/output/official-filter-retest
+          if-no-files-found: error
