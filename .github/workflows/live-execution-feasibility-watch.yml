@@ -1,0 +1,87 @@
+name: Live Execution Feasibility Watch
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: "Start date to scan, usually today (YYYY-MM-DD)"
+        required: false
+        default: ""
+      date_stop:
+        description: "Stop date to scan, usually tomorrow (YYYY-MM-DD)"
+        required: false
+        default: ""
+      cycles:
+        description: "Number of observation cycles"
+        required: true
+        default: "1"
+      interval_seconds:
+        description: "Seconds between cycles"
+        required: true
+        default: "0"
+      max_fixtures:
+        description: "Max tour_other singles fixtures to inspect per cycle"
+        required: true
+        default: "250"
+      scorelines:
+        description: "Comma-separated scorelines to track"
+        required: true
+        default: "4-6,3-6,6-4,6-3"
+
+jobs:
+  live-execution-feasibility-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify API key
+        shell: bash
+        run: |
+          if [ -z "$API_TENNIS_KEY" ]; then
+            echo "Missing required GitHub secret: API_TENNIS_KEY"
+            exit 1
+          fi
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Calculate dates
+        id: dates
+        shell: bash
+        run: |
+          set -euo pipefail
+          START="${{ inputs.date_start }}"
+          STOP="${{ inputs.date_stop }}"
+          if [ -z "$START" ]; then START=$(date -u +%F); fi
+          if [ -z "$STOP" ]; then STOP=$(date -u -d tomorrow +%F); fi
+          echo "start=$START" >> "$GITHUB_OUTPUT"
+          echo "stop=$STOP" >> "$GITHUB_OUTPUT"
+          echo "Scanning $START to $STOP"
+
+      - name: Run live execution feasibility watch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/live-execution-feasibility-watch.mjs \
+            --date-start "${{ steps.dates.outputs.start }}" \
+            --date-stop "${{ steps.dates.outputs.stop }}" \
+            --cycles "${{ inputs.cycles }}" \
+            --interval-seconds "${{ inputs.interval_seconds }}" \
+            --max-fixtures "${{ inputs.max_fixtures }}" \
+            --scorelines "${{ inputs.scorelines }}" \
+            --output-dir artifacts/output/live-execution-feasibility-watch
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Upload live execution feasibility artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-execution-feasibility-watch
+          path: artifacts/output/live-execution-feasibility-watch
+          if-no-files-found: error
