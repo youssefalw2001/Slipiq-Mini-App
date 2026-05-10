@@ -66,35 +66,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/output/official-full-period-retest-auto/combined
-          node <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
-          const holdout = process.env.HOLDOUT;
-          const oldEnriched = 'artifacts/output/official-full-period-retest-auto/old-enriched/old-2025-2026-enriched-first-set-scores.csv';
-          const output = path.join('artifacts/output/official-full-period-retest-auto/combined', process.env.OUTPUT_NAME);
-          const inputs = [holdout, oldEnriched];
-          const chunks = [];
-          let header = null;
-          for (const file of inputs) {
-            const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trimEnd();
-            const lines = text.split('\n').filter(Boolean);
-            if (!lines.length) continue;
-            if (!header) {
-              header = lines[0];
-              chunks.push(header);
-            } else if (lines[0] !== header) {
-              throw new Error(`CSV header mismatch. ${file} does not match first input header.`);
-            }
-            chunks.push(...lines.slice(1));
-          }
-          fs.writeFileSync(output, `${chunks.join('\n')}\n`);
-          console.log(`Wrote combined CSV: ${output}`);
-          console.log(`Combined lines including header: ${chunks.length}`);
-          NODE
-        env:
-          HOLDOUT: ${{ inputs.holdout_enriched_path }}
-          OUTPUT_NAME: ${{ inputs.combined_output_name }}
+          node scripts/combine-csv-union.mjs \
+            --inputs "${{ inputs.holdout_enriched_path }},artifacts/output/official-full-period-retest-auto/old-enriched/old-2025-2026-enriched-first-set-scores.csv" \
+            --output "artifacts/output/official-full-period-retest-auto/combined/${{ inputs.combined_output_name }}"
 
       - name: Run Official filter retest on combined data
         shell: bash
