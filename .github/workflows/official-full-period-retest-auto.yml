@@ -1,0 +1,112 @@
+name: Official Full Period Retest Auto
+
+on:
+  workflow_dispatch:
+    inputs:
+      holdout_enriched_path:
+        description: "Current 2024-2025 enriched holdout CSV path"
+        required: true
+        default: "artifacts/input/blind-sim-bets-enriched-first-set-scores.csv"
+      old_raw_blind_sim_path:
+        description: "Older 2025-2026 raw blind-sim-bets CSV path"
+        required: true
+        default: "artifacts/input/blind-sim-bets.csv"
+      combined_output_name:
+        description: "Combined enriched CSV filename"
+        required: true
+        default: "combined-2024-2026-enriched-first-set-scores.csv"
+
+jobs:
+  official-full-period-retest-auto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify API key
+        shell: bash
+        run: |
+          if [ -z "$API_TENNIS_KEY" ]; then
+            echo "Missing required GitHub secret: API_TENNIS_KEY"
+            exit 1
+          fi
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Check input files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in "${{ inputs.holdout_enriched_path }}" "${{ inputs.old_raw_blind_sim_path }}"; do
+            if [ ! -f "$file" ]; then
+              echo "Input CSV not found: $file"
+              exit 1
+            fi
+            wc -l "$file"
+          done
+
+      - name: Enrich old raw 2025-2026 blind sim file
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/enrich-blind-sim-first-set-scores.mjs \
+            --input "${{ inputs.old_raw_blind_sim_path }}" \
+            --output-dir artifacts/output/official-full-period-retest-auto/old-enriched \
+            --output-name old-2025-2026-enriched-first-set-scores.csv
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Combine holdout and old enriched CSVs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/output/official-full-period-retest-auto/combined
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const holdout = process.env.HOLDOUT;
+          const oldEnriched = 'artifacts/output/official-full-period-retest-auto/old-enriched/old-2025-2026-enriched-first-set-scores.csv';
+          const output = path.join('artifacts/output/official-full-period-retest-auto/combined', process.env.OUTPUT_NAME);
+          const inputs = [holdout, oldEnriched];
+          const chunks = [];
+          let header = null;
+          for (const file of inputs) {
+            const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trimEnd();
+            const lines = text.split('\n').filter(Boolean);
+            if (!lines.length) continue;
+            if (!header) {
+              header = lines[0];
+              chunks.push(header);
+            } else if (lines[0] !== header) {
+              throw new Error(`CSV header mismatch. ${file} does not match first input header.`);
+            }
+            chunks.push(...lines.slice(1));
+          }
+          fs.writeFileSync(output, `${chunks.join('\n')}\n`);
+          console.log(`Wrote combined CSV: ${output}`);
+          console.log(`Combined lines including header: ${chunks.length}`);
+          NODE
+        env:
+          HOLDOUT: ${{ inputs.holdout_enriched_path }}
+          OUTPUT_NAME: ${{ inputs.combined_output_name }}
+
+      - name: Run Official filter retest on combined data
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/official-filter-retest.mjs \
+            --input "artifacts/output/official-full-period-retest-auto/combined/${{ inputs.combined_output_name }}" \
+            --output-dir artifacts/output/official-full-period-retest-auto/results
+
+      - name: Upload Official full-period auto retest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-full-period-retest-auto
+          path: artifacts/output/official-full-period-retest-auto
+          if-no-files-found: error
