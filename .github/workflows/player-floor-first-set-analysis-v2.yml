@@ -1,0 +1,59 @@
+name: Player Floor First Set Analysis V2
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_path:
+        description: Enriched CSV path in repo to analyze
+        required: true
+        default: artifacts/input/blind-sim-bets-enriched-first-set-scores.csv
+      output_name:
+        description: Player-floor enriched CSV output filename
+        required: true
+        default: blind-sim-bets-player-floor-enriched.csv
+      prior_weight:
+        description: Shrinkage prior weight for player-floor features
+        required: true
+        default: '20'
+
+jobs:
+  player-floor-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check enriched input CSV exists
+        run: |
+          set -euo pipefail
+          if [ ! -f "${{ inputs.input_path }}" ]; then
+            echo "Input CSV not found: ${{ inputs.input_path }}"
+            echo "Upload/commit blind-sim-bets-enriched-first-set-scores.csv to that path, or rerun with a different input_path."
+            exit 1
+          fi
+          wc -l "${{ inputs.input_path }}"
+
+      - name: Run player-floor analysis v2
+        run: |
+          set -euo pipefail
+          node scripts/player-floor-first-set-analysis-v2.mjs \
+            --input "${{ inputs.input_path }}" \
+            --output-dir artifacts/output \
+            --output-name "${{ inputs.output_name }}" \
+            --prior-weight "${{ inputs.prior_weight }}"
+
+      - name: Upload player-floor artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-floor-first-set-analysis-v2
+          path: |
+            artifacts/output/${{ inputs.output_name }}
+            artifacts/output/player-floor-analysis-summary.json
+            artifacts/output/player-floor-analysis-summary.md
+          if-no-files-found: error
