@@ -1,54 +1,46 @@
 name: Blind Player Floor Pipeline
 
-# One-click pipeline:
-# 1) Generate historical blind strategy rows for a fresh date range
-# 2) Export blind-sim-bets.csv
-# 3) Enrich with actual first-set scores
-# 4) Run Player Floor First Set Analysis V2
-#
-# This keeps the blind-pick step and the scoring/enrichment step separated in artifacts.
-
 on:
   workflow_dispatch:
     inputs:
       start_date:
-        description: Fresh holdout start date (YYYY-MM-DD)
+        description: "Fresh holdout start date (YYYY-MM-DD)"
         required: true
         default: "2024-05-10"
       end_date:
-        description: Fresh holdout end date (YYYY-MM-DD)
+        description: "Fresh holdout end date (YYYY-MM-DD)"
         required: true
         default: "2025-05-09"
       window_days:
-        description: Days per generated simulation window
+        description: "Days per generated simulation window"
         required: true
         default: "30"
       chunk_days:
-        description: Days per API request chunk
+        description: "Days per API request chunk"
         required: true
         default: "3"
       model_mode:
-        description: Model mode to simulate: independent, coupled, or both
+        description: "Model mode to simulate: independent, coupled, or both"
         required: true
         default: "independent"
       block_tiebreak:
-        description: Block tiebreak scores in source rows (1/0)
+        description: "Block tiebreak scores in source rows (1/0)"
         required: true
         default: "1"
       include_doubles:
-        description: Include doubles matches (1/0)
+        description: "Include doubles matches (1/0)"
         required: true
         default: "0"
       max_plays_per_day:
-        description: Max plays per strategy per day
+        description: "Max plays per strategy per day"
         required: true
         default: "5"
       stake_units:
-        description: Flat stake units per play
+        description: "Flat stake units per play"
         required: true
         default: "1"
       prior_weight:
-        description: Shrinkage prior weight for player-floor features
+        description: "Shrinkage prior weight for player-floor features"
         required: true
         default: "20"
 
