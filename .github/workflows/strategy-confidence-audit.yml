@@ -1,0 +1,53 @@
+name: Strategy Confidence Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_path:
+        description: "Combined enriched CSV path to audit"
+        required: true
+        default: "artifacts/output/official-full-period-retest-auto/combined/combined-2024-2026-enriched-first-set-scores.csv"
+      bootstrap_iterations:
+        description: "Bootstrap iterations"
+        required: true
+        default: "1000"
+
+jobs:
+  strategy-confidence-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check input CSV exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "${{ inputs.input_path }}" ]; then
+            echo "Input CSV not found: ${{ inputs.input_path }}"
+            echo "This workflow audits an existing combined CSV. If it was produced by a previous Action artifact, upload/commit it to the repo first or use the all-in-one workflow after it is added."
+            exit 1
+          fi
+          wc -l "${{ inputs.input_path }}"
+
+      - name: Run strategy confidence audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/strategy-confidence-audit.mjs \
+            --input "${{ inputs.input_path }}" \
+            --output-dir artifacts/output/strategy-confidence-audit \
+            --bootstrap-iterations "${{ inputs.bootstrap_iterations }}"
+
+      - name: Upload strategy confidence audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: strategy-confidence-audit
+          path: artifacts/output/strategy-confidence-audit
+          if-no-files-found: error
