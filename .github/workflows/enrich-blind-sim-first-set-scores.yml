@@ -1,0 +1,55 @@
+name: Enrich Blind Sim First Set Scores
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_path:
+        description: CSV path in repo to enrich
+        required: true
+        default: artifacts/input/blind-sim-bets.csv
+      output_name:
+        description: Enriched CSV output filename
+        required: true
+        default: blind-sim-bets-enriched-first-set-scores.csv
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check input CSV exists
+        run: |
+          set -euo pipefail
+          if [ ! -f "${{ inputs.input_path }}" ]; then
+            echo "Input CSV not found: ${{ inputs.input_path }}"
+            echo "Upload/commit blind-sim-bets.csv to that path, or rerun with a different input_path."
+            exit 1
+          fi
+          wc -l "${{ inputs.input_path }}"
+
+      - name: Enrich first-set scores
+        run: |
+          set -euo pipefail
+          node scripts/enrich-blind-sim-first-set-scores.mjs \
+            --input "${{ inputs.input_path }}" \
+            --output-dir artifacts/output \
+            --output-name "${{ inputs.output_name }}"
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Upload enriched CSV artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blind-sim-first-set-enriched
+          path: |
+            artifacts/output/${{ inputs.output_name }}
+            artifacts/output/blind-sim-first-set-enrichment-summary.json
+          if-no-files-found: error
