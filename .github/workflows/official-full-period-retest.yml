@@ -1,0 +1,91 @@
+name: Official Full Period Retest
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_path_1:
+        description: "First enriched CSV path in repo, usually 2024-2025 holdout"
+        required: true
+        default: "artifacts/input/holdout-2024-2025-enriched-first-set-scores.csv"
+      input_path_2:
+        description: "Second enriched CSV path in repo, usually 2025-2026 enriched file"
+        required: true
+        default: "artifacts/input/blind-sim-bets-enriched-first-set-scores.csv"
+      combined_output_name:
+        description: "Combined enriched CSV filename"
+        required: true
+        default: "combined-2024-2026-enriched-first-set-scores.csv"
+
+jobs:
+  official-full-period-retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check inputs exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in "${{ inputs.input_path_1 }}" "${{ inputs.input_path_2 }}"; do
+            if [ ! -f "$file" ]; then
+              echo "Input CSV not found: $file"
+              echo "Upload the enriched CSVs to artifacts/input or rerun with the correct paths."
+              exit 1
+            fi
+            wc -l "$file"
+          done
+
+      - name: Combine enriched CSVs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/output/official-full-period-retest
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const inputs = [process.env.INPUT_1, process.env.INPUT_2];
+          const output = path.join('artifacts/output/official-full-period-retest', process.env.OUTPUT_NAME);
+          const parts = [];
+          let header = null;
+          for (const file of inputs) {
+            const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trimEnd();
+            const lines = text.split('\n');
+            if (!lines.length) continue;
+            if (!header) {
+              header = lines[0];
+              parts.push(header);
+            } else if (lines[0] !== header) {
+              throw new Error(`CSV headers do not match between files. Mismatch at ${file}`);
+            }
+            parts.push(...lines.slice(1).filter(Boolean));
+          }
+          fs.writeFileSync(output, `${parts.join('\n')}\n`);
+          console.log(`Wrote combined CSV: ${output}`);
+          console.log(`Combined lines: ${parts.length}`);
+          NODE
+        env:
+          INPUT_1: ${{ inputs.input_path_1 }}
+          INPUT_2: ${{ inputs.input_path_2 }}
+          OUTPUT_NAME: ${{ inputs.combined_output_name }}
+
+      - name: Run Official filter retest on combined data
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/official-filter-retest.mjs \
+            --input "artifacts/output/official-full-period-retest/${{ inputs.combined_output_name }}" \
+            --output-dir artifacts/output/official-full-period-retest/results
+
+      - name: Upload Official full-period retest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-full-period-retest
+          path: artifacts/output/official-full-period-retest
+          if-no-files-found: error
