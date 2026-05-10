@@ -1,0 +1,215 @@
+name: Blind Player Floor Pipeline
+
+# One-click pipeline:
+# 1) Generate historical blind strategy rows for a fresh date range
+# 2) Export blind-sim-bets.csv
+# 3) Enrich with actual first-set scores
+# 4) Run Player Floor First Set Analysis V2
+#
+# This keeps the blind-pick step and the scoring/enrichment step separated in artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: Fresh holdout start date (YYYY-MM-DD)
+        required: true
+        default: "2024-05-10"
+      end_date:
+        description: Fresh holdout end date (YYYY-MM-DD)
+        required: true
+        default: "2025-05-09"
+      window_days:
+        description: Days per generated simulation window
+        required: true
+        default: "30"
+      chunk_days:
+        description: Days per API request chunk
+        required: true
+        default: "3"
+      model_mode:
+        description: Model mode to simulate: independent, coupled, or both
+        required: true
+        default: "independent"
+      block_tiebreak:
+        description: Block tiebreak scores in source rows (1/0)
+        required: true
+        default: "1"
+      include_doubles:
+        description: Include doubles matches (1/0)
+        required: true
+        default: "0"
+      max_plays_per_day:
+        description: Max plays per strategy per day
+        required: true
+        default: "5"
+      stake_units:
+        description: Flat stake units per play
+        required: true
+        default: "1"
+      prior_weight:
+        description: Shrinkage prior weight for player-floor features
+        required: true
+        default: "20"
+
+jobs:
+  blind-player-floor-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify API key
+        shell: bash
+        run: |
+          if [ -z "$API_TENNIS_KEY" ]; then
+            echo "Missing required GitHub secret: API_TENNIS_KEY"
+            exit 1
+          fi
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Build historical windows
+        shell: bash
+        run: |
+          node <<'NODE' > /tmp/windows.txt
+          const start = new Date(`${process.env.START_DATE}T00:00:00Z`);
+          const end = new Date(`${process.env.END_DATE}T00:00:00Z`);
+          const windowDays = Number(process.env.WINDOW_DAYS || 30);
+          if (!Number.isFinite(windowDays) || windowDays <= 0) throw new Error('window_days must be positive');
+          const addDays = (date, days) => {
+            const next = new Date(date);
+            next.setUTCDate(next.getUTCDate() + days);
+            return next;
+          };
+          const fmt = (date) => date.toISOString().slice(0, 10);
+          let cursor = start;
+          let i = 1;
+          while (cursor <= end) {
+            const stop = addDays(cursor, windowDays - 1);
+            const capped = stop > end ? end : stop;
+            console.log(`${i},${fmt(cursor),fmt(capped)}`);
+            cursor = addDays(capped, 1);
+            i += 1;
+          }
+          NODE
+          cat /tmp/windows.txt
+        env:
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+          WINDOW_DAYS: ${{ inputs.window_days }}
+
+      - name: Generate V3 rows independent
+        if: ${{ inputs.model_mode == 'independent' || inputs.model_mode == 'both' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS=, read -r i start stop; do
+            echo "Independent blind window $i: $start to $stop"
+            BACKTEST_WINDOW_ID="pipeline-${i}-independent" \
+            BACKTEST_DATE_START="$start" \
+            BACKTEST_DATE_STOP="$stop" \
+            BACKTEST_CHUNK_DAYS="${{ inputs.chunk_days }}" \
+            BACKTEST_MODEL_MODE="independent" \
+            BACKTEST_BLOCK_TIEBREAK="${{ inputs.block_tiebreak }}" \
+            BACKTEST_INCLUDE_DOUBLES="${{ inputs.include_doubles }}" \
+            BACKTEST_OUTPUT_DIR="artifacts/blind-player-floor-pipeline/source/independent" \
+            node scripts/backtest-first-set-lab-v3.mjs
+          done < /tmp/windows.txt
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Generate V3 rows coupled
+        if: ${{ inputs.model_mode == 'coupled' || inputs.model_mode == 'both' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS=, read -r i start stop; do
+            echo "Coupled blind window $i: $start to $stop"
+            BACKTEST_WINDOW_ID="pipeline-${i}-coupled" \
+            BACKTEST_DATE_START="$start" \
+            BACKTEST_DATE_STOP="$stop" \
+            BACKTEST_CHUNK_DAYS="${{ inputs.chunk_days }}" \
+            BACKTEST_MODEL_MODE="coupled" \
+            BACKTEST_BLOCK_TIEBREAK="${{ inputs.block_tiebreak }}" \
+            BACKTEST_INCLUDE_DOUBLES="${{ inputs.include_doubles }}" \
+            BACKTEST_OUTPUT_DIR="artifacts/blind-player-floor-pipeline/source/coupled" \
+            node scripts/backtest-first-set-lab-v3.mjs
+          done < /tmp/windows.txt
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Run blind simulation independent
+        if: ${{ inputs.model_mode == 'independent' || inputs.model_mode == 'both' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CSVS=$(ls artifacts/blind-player-floor-pipeline/source/independent/first-set-lab-v3-rows-pipeline-*-independent.csv | sort | paste -sd ',' -)
+          BLIND_SIM_CSVS="$CSVS" \
+          BLIND_SIM_OUTPUT_DIR="artifacts/blind-player-floor-pipeline/blind-sim/independent" \
+          BLIND_SIM_MODEL_MODE="independent" \
+          BLIND_SIM_MAX_PLAYS_PER_DAY="${{ inputs.max_plays_per_day }}" \
+          BLIND_SIM_STAKE_UNITS="${{ inputs.stake_units }}" \
+          node scripts/blind-strategy-sim.mjs
+
+      - name: Run blind simulation coupled
+        if: ${{ inputs.model_mode == 'coupled' || inputs.model_mode == 'both' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CSVS=$(ls artifacts/blind-player-floor-pipeline/source/coupled/first-set-lab-v3-rows-pipeline-*-coupled.csv | sort | paste -sd ',' -)
+          BLIND_SIM_CSVS="$CSVS" \
+          BLIND_SIM_OUTPUT_DIR="artifacts/blind-player-floor-pipeline/blind-sim/coupled" \
+          BLIND_SIM_MODEL_MODE="coupled" \
+          BLIND_SIM_MAX_PLAYS_PER_DAY="${{ inputs.max_plays_per_day }}" \
+          BLIND_SIM_STAKE_UNITS="${{ inputs.stake_units }}" \
+          node scripts/blind-strategy-sim.mjs
+
+      - name: Choose blind sim bets file
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f artifacts/blind-player-floor-pipeline/blind-sim/independent/blind-sim-bets.csv ]; then
+            cp artifacts/blind-player-floor-pipeline/blind-sim/independent/blind-sim-bets.csv artifacts/blind-player-floor-pipeline/blind-sim-bets.csv
+          elif [ -f artifacts/blind-player-floor-pipeline/blind-sim/coupled/blind-sim-bets.csv ]; then
+            cp artifacts/blind-player-floor-pipeline/blind-sim/coupled/blind-sim-bets.csv artifacts/blind-player-floor-pipeline/blind-sim-bets.csv
+          else
+            echo "No blind-sim-bets.csv found"
+            find artifacts/blind-player-floor-pipeline -type f | sort
+            exit 1
+          fi
+          wc -l artifacts/blind-player-floor-pipeline/blind-sim-bets.csv
+
+      - name: Enrich first-set scores
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/enrich-blind-sim-first-set-scores.mjs \
+            --input artifacts/blind-player-floor-pipeline/blind-sim-bets.csv \
+            --output-dir artifacts/blind-player-floor-pipeline/enriched \
+            --output-name blind-sim-bets-enriched-first-set-scores.csv
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Run player-floor V2 analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/player-floor-first-set-analysis-v2.mjs \
+            --input artifacts/blind-player-floor-pipeline/enriched/blind-sim-bets-enriched-first-set-scores.csv \
+            --output-dir artifacts/blind-player-floor-pipeline/player-floor-v2 \
+            --output-name blind-sim-bets-player-floor-enriched.csv \
+            --prior-weight "${{ inputs.prior_weight }}"
+
+      - name: Upload pipeline artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blind-player-floor-pipeline
+          path: artifacts/blind-player-floor-pipeline
