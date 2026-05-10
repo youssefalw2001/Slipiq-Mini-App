@@ -94,7 +94,7 @@ jobs:
           while (cursor <= end) {
             const stop = addDays(cursor, windowDays - 1);
             const capped = stop > end ? end : stop;
-            console.log(`${i},${fmt(cursor),fmt(capped)}`);
+            console.log(`${i},${fmt(cursor)},${fmt(capped)}`);
             cursor = addDays(capped, 1);
             i += 1;
           }
