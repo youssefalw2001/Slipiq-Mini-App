@@ -15,6 +15,10 @@ function boolArg(name, fallback = false) {
   return ['1', 'true', 'yes', 'y'].includes(String(value).toLowerCase());
 }
 
+function splitList(value) {
+  return String(value ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+}
+
 function csvEscape(value) {
   const s = value == null ? '' : String(value);
   return /[",\n\r]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
@@ -39,9 +43,7 @@ function valueToDecimalOdds(value) {
     const n = Number(value.replace(',', '.').trim());
     if (Number.isFinite(n) && n > 1) return n;
     const american = Number(value.replace('+', '').trim());
-    if (Number.isFinite(american) && Math.abs(american) >= 100) {
-      return american > 0 ? 1 + american / 100 : 1 + 100 / Math.abs(american);
-    }
+    if (Number.isFinite(american) && Math.abs(american) >= 100) return american > 0 ? 1 + american / 100 : 1 + 100 / Math.abs(american);
   }
   return null;
 }
@@ -157,12 +159,12 @@ async function main() {
 
   const outputDir = arg('output-dir', 'artifacts/output/sportsgameodds-player2-9-12-scan');
   const bookmakerID = arg('bookmaker', 'bet365');
-  const hoursAhead = Number(arg('hours-ahead', '72')) || 72;
-  const eventLimit = Number(arg('event-limit', '500')) || 500;
+  const hoursAhead = Number(arg('hours-ahead', '24')) || 24;
+  const eventLimit = Number(arg('event-limit', '100')) || 100;
+  const maxLeagues = Number(arg('max-leagues', '12')) || 12;
+  const manualLeagueIDs = splitList(arg('league-ids', ''));
+  const manualEventIDs = splitList(arg('event-ids', ''));
   const includeLive = boolArg('include-live', false);
-
-  // SportsGameOdds REST examples use apiKeyParam as the documented default.
-  // Header auth may work for some endpoints, but this scanner uses query-param auth first.
   const client = new SportsGameOdds({ apiKeyParam: API_KEY, timeout: 60000, maxRetries: 2 });
 
   const now = new Date();
@@ -170,6 +172,7 @@ async function main() {
   const startsBefore = new Date(now.getTime() + hoursAhead * 3600_000).toISOString();
 
   const debug = { authMode: 'apiKeyParam', sports: [], leagues: [], queryAttempts: [] };
+  const errors = [];
 
   try {
     const sportsResp = await client.sports.get();
@@ -180,39 +183,42 @@ async function main() {
   }
 
   try {
-    const leaguesResp = await client.leagues.get();
+    const leaguesResp = await client.leagues.get({ sportID: 'TENNIS' });
     const leagues = Array.isArray(leaguesResp?.data) ? leaguesResp.data : Array.isArray(leaguesResp) ? leaguesResp : Object.values(leaguesResp ?? {});
     debug.leagues = leagues
-      .map((l) => ({ leagueID: l?.leagueID, sportID: l?.sportID, name: l?.name || l?.displayName || l?.leagueName || objectValuesText(l).slice(0, 100) }))
-      .filter((l) => includesAny(`${l.leagueID} ${l.name} ${l.sportID}`, ['tennis', 'atp', 'wta', 'challenger', 'itf']));
+      .map((l) => ({ leagueID: l?.leagueID, sportID: l?.sportID, name: l?.name || l?.displayName || l?.leagueName || objectValuesText(l).slice(0, 100), enabled: l?.enabled }))
+      .filter((l) => l.leagueID);
   } catch (e) {
     debug.leagues_error = e instanceof Error ? e.message : String(e);
   }
 
-  const sportIDs = [...new Set(debug.sports.filter((s) => includesAny(`${s.sportID} ${s.name}`, ['tennis', 'atp', 'wta'])).map((s) => s.sportID).filter(Boolean))];
-  const leagueIDs = [...new Set(debug.leagues.map((l) => l.leagueID).filter(Boolean))];
+  const autoLeagueIDs = debug.leagues
+    .filter((l) => includesAny(`${l.leagueID} ${l.name} ${l.sportID}`, ['tennis', 'atp', 'wta', 'challenger', 'itf', 'utr']) || l.sportID === 'TENNIS')
+    .map((l) => l.leagueID)
+    .filter(Boolean)
+    .slice(0, maxLeagues);
+
+  const leagueIDs = manualLeagueIDs.length ? manualLeagueIDs : autoLeagueIDs;
 
   const eventQueries = [];
-  for (const sportID of sportIDs) {
-    eventQueries.push({ label: `sport:${sportID}`, params: { sportID, bookmakerID, oddsAvailable: true, started: includeLive ? undefined : false, startsAfter, startsBefore, includeAltLines: true, limit: 100 } });
+  if (manualEventIDs.length) {
+    eventQueries.push({ label: 'manual-event-ids', params: { eventIDs: manualEventIDs.join(','), bookmakerID, includeAltLines: true } });
   }
-  if (leagueIDs.length) {
-    eventQueries.push({ label: 'tennis-leagues', params: { leagueID: leagueIDs.slice(0, 25).join(','), bookmakerID, oddsAvailable: true, started: includeLive ? undefined : false, startsAfter, startsBefore, includeAltLines: true, limit: 100 } });
+  for (const leagueID of leagueIDs) {
+    eventQueries.push({
+      label: `league:${leagueID}`,
+      params: { leagueID, bookmakerID, oddsAvailable: true, started: includeLive ? undefined : false, startsAfter, startsBefore, includeAltLines: true, limit: 100 },
+    });
   }
-  eventQueries.push({ label: 'broad-upcoming-odds', params: { bookmakerID, oddsAvailable: true, started: includeLive ? undefined : false, startsAfter, startsBefore, includeAltLines: true, limit: 100 } });
 
   const events = new Map();
   const matches = [];
-  const errors = [];
 
   for (const query of eventQueries) {
     try {
       debug.queryAttempts.push({ label: query.label, params: query.params });
       const got = await collectPages(client.events.get(query.params), eventLimit);
       for (const event of got) {
-        const text = objectValuesText(event);
-        const looksTennis = includesAny(`${event.sportID} ${event.leagueID} ${eventName(event)} ${text.slice(0, 1000)}`, ['tennis', 'atp', 'wta', 'challenger', 'itf']);
-        if (!looksTennis && query.label === 'broad-upcoming-odds') continue;
         if (!events.has(event.eventID)) events.set(event.eventID, event);
       }
     } catch (e) {
@@ -237,12 +243,13 @@ async function main() {
   const groupedAtTarget = groupedRows.filter((r) => Number(r.decimal_odds) >= 3.3);
 
   const summary = {
-    mode: 'sportsgameodds_player2_9_12_market_scan_v2_param_auth',
+    mode: 'sportsgameodds_player2_9_12_market_scan_v3_league_mode',
     checked_at: new Date().toISOString(),
-    config: { bookmakerID, hoursAhead, eventLimit, includeLive, startsAfter, startsBefore },
+    config: { bookmakerID, hoursAhead, eventLimit, maxLeagues, manualLeagueIDs, manualEventIDs, includeLive, startsAfter, startsBefore },
     discovered: {
-      sports_matching_tennis: sportIDs,
+      sports_matching_tennis: debug.sports.filter((s) => String(s.sportID).includes('TENNIS') || includesAny(`${s.sportID} ${s.name}`, ['tennis'])),
       tennis_like_leagues: debug.leagues,
+      queried_league_ids: leagueIDs,
       events_scanned: events.size,
       candidate_odd_rows: matches.length,
       exact_4_6_candidate_rows: exactRows.length,
@@ -251,10 +258,10 @@ async function main() {
     },
     errors,
     notes: [
+      'League-mode scanner for SportsGameOdds free-trial tiers requiring leagueID or eventID.',
       'Uses SportsGameOdds apiKeyParam authentication.',
-      'This scan detects candidate markets by fuzzy text matching SportsGameOdds odd market fields.',
-      'Verify player order manually before betting; SportsGameOdds team/home/away order may not equal API-Tennis Player 1/Player 2 order.',
-      'If player2_9_12_candidate_rows is zero, inspect raw-events-sample.json and sportsgameodds-market-candidates.csv.'
+      'If leagues are discovered but no events are scanned, rerun with specific league_ids from debug-discovery.json.',
+      'Verify player order manually before betting.'
     ],
     sample_exact_4_6_rows: exactRows.slice(0, 20),
     sample_player2_9_12_rows: groupedRows.slice(0, 20),
