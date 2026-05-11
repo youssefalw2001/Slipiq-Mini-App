@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import * as XLSX from 'xlsx';
+
+const execFileAsync = promisify(execFile);
 
 function arg(name, fallback = null) {
   const i = process.argv.indexOf(`--${name}`);
@@ -44,13 +49,6 @@ function excelDateToISO(value) {
     return `${String(year).padStart(4, '0')}-${String(Number(m[2])).padStart(2, '0')}-${String(Number(m[1])).padStart(2, '0')}`;
   }
   return s;
-}
-
-function firstAvailable(row, keys) {
-  for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
-  }
-  return null;
 }
 
 function sideOdds(row, side) {
@@ -119,7 +117,6 @@ function makeSideRow(row, side, meta) {
   const sideIsFavorite = so.odds && oo.odds ? so.odds < oo.odds : null;
   const rankGap = sr != null && or != null ? sr - or : null;
   const rankGapAbs = rankGap != null ? Math.abs(rankGap) : null;
-
   return {
     source_file: meta.sourceFile,
     tour: meta.tour,
@@ -155,11 +152,67 @@ function makeSideRow(row, side, meta) {
   };
 }
 
-async function fetchWorkbook(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
+function urlVariants(url) {
+  const variants = new Set([url]);
+  if (url.startsWith('https://')) variants.add(url.replace('https://', 'http://'));
+  if (url.startsWith('http://')) variants.add(url.replace('http://', 'https://'));
+  for (const u of [...variants]) {
+    if (u.endsWith('.xlsx')) variants.add(u.replace(/\.xlsx$/, '.xls'));
+    if (u.endsWith('.xls')) variants.add(u.replace(/\.xls$/, '.xlsx'));
+  }
+  return [...variants];
+}
+
+async function fetchWorkbookViaNode(url) {
+  const response = await fetch(url, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+      accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,*/*',
+    },
+    redirect: 'follow',
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length < 1000) throw new Error(`download too small: ${buffer.length} bytes`);
   return XLSX.read(buffer, { type: 'buffer', cellDates: true });
+}
+
+async function fetchWorkbookViaCurl(url) {
+  const tmp = path.join(os.tmpdir(), `tennis-data-${Date.now()}-${Math.random().toString(16).slice(2)}.xlsx`);
+  try {
+    await execFileAsync('curl', [
+      '-L',
+      '--fail',
+      '--retry', '3',
+      '--connect-timeout', '20',
+      '--max-time', '120',
+      '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+      '-o', tmp,
+      url,
+    ], { timeout: 150000, maxBuffer: 1024 * 1024 });
+    const buffer = await fs.readFile(tmp);
+    if (buffer.length < 1000) throw new Error(`curl download too small: ${buffer.length} bytes`);
+    return XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  } finally {
+    await fs.rm(tmp, { force: true }).catch(() => {});
+  }
+}
+
+async function fetchWorkbook(url) {
+  const errors = [];
+  for (const candidate of urlVariants(url)) {
+    try {
+      return { workbook: await fetchWorkbookViaNode(candidate), finalUrl: candidate, method: 'node_fetch' };
+    } catch (error) {
+      errors.push(`${candidate} node_fetch: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    try {
+      return { workbook: await fetchWorkbookViaCurl(candidate), finalUrl: candidate, method: 'curl' };
+    } catch (error) {
+      errors.push(`${candidate} curl: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(errors.join(' | '));
 }
 
 function rowsFromWorkbook(workbook) {
@@ -197,11 +250,7 @@ function filterDefs() {
   for (const [sideName, sideFn] of sideTypes) {
     for (const [oddsName, min, max] of oddsRanges) {
       for (const surface of surfaces) {
-        defs.push({
-          name: `${sideName}_${oddsName}_${surface.toLowerCase()}`,
-          surface,
-          predicate: (r) => sideFn(r) && Number(r.side_match_odds) >= min && Number(r.side_match_odds) < max && (surface === 'ANY' || String(r.surface) === surface),
-        });
+        defs.push({ name: `${sideName}_${oddsName}_${surface.toLowerCase()}`, surface, predicate: (r) => sideFn(r) && Number(r.side_match_odds) >= min && Number(r.side_match_odds) < max && (surface === 'ANY' || String(r.surface) === surface) });
       }
     }
   }
@@ -216,10 +265,7 @@ function summarizeRows(rows, name = 'all') {
   return { filter: name, bets, wins, losses, hit_rate: hitRate, break_even_odds: hitRate ? 1 / hitRate : null };
 }
 
-function groupKey(row, dims) {
-  return dims.map((d) => row[d] ?? '').join(' | ');
-}
-
+function groupKey(row, dims) { return dims.map((d) => row[d] ?? '').join(' | '); }
 function groupedSummaries(rows, dims, minRows) {
   const map = new Map();
   for (const row of rows) {
@@ -253,61 +299,17 @@ function compoundBacktest(rows, odds, startingBankroll, riskFraction) {
     const stake = bankroll * riskFraction;
     const win = Number(row.side_won_first_set_9_12) === 1;
     const profit = win ? stake * (odds - 1) : -stake;
-    if (win) {
-      wins += 1;
-      currentLossStreak = 0;
-    } else {
-      losses += 1;
-      currentLossStreak += 1;
-      worstLossStreak = Math.max(worstLossStreak, currentLossStreak);
-    }
+    if (win) { wins += 1; currentLossStreak = 0; } else { losses += 1; currentLossStreak += 1; worstLossStreak = Math.max(worstLossStreak, currentLossStreak); }
     bankroll += profit;
     peak = Math.max(peak, bankroll);
     maxDrawdown = Math.max(maxDrawdown, peak > 0 ? (peak - bankroll) / peak : 0);
-    curve.push({
-      index: i + 1,
-      filter: row.filter_name ?? '',
-      date: row.date,
-      tournament: row.tournament,
-      side_name: row.side_name,
-      opponent_name: row.opponent_name,
-      surface: row.surface,
-      side_match_odds: row.side_match_odds,
-      first_set_score_for_side: row.first_set_score_for_side,
-      win: win ? 1 : 0,
-      scenario_grouped_odds: odds,
-      stake: Number(stake.toFixed(2)),
-      profit: Number(profit.toFixed(2)),
-      bankroll_after: Number(bankroll.toFixed(2)),
-      drawdown_pct: Number((peak > 0 ? (peak - bankroll) / peak : 0).toFixed(4)),
-    });
+    curve.push({ index: i + 1, filter: row.filter_name ?? '', date: row.date, tournament: row.tournament, side_name: row.side_name, opponent_name: row.opponent_name, surface: row.surface, side_match_odds: row.side_match_odds, first_set_score_for_side: row.first_set_score_for_side, win: win ? 1 : 0, scenario_grouped_odds: odds, stake: Number(stake.toFixed(2)), profit: Number(profit.toFixed(2)), bankroll_after: Number(bankroll.toFixed(2)), drawdown_pct: Number((peak > 0 ? (peak - bankroll) / peak : 0).toFixed(4)) });
   }
-  return {
-    bets: sorted.length,
-    wins,
-    losses,
-    hit_rate: sorted.length ? wins / sorted.length : 0,
-    final_bankroll: bankroll,
-    profit: bankroll - startingBankroll,
-    return_pct: bankroll / startingBankroll - 1,
-    worst_losing_streak: worstLossStreak,
-    max_drawdown_pct: maxDrawdown,
-    curve,
-  };
+  return { bets: sorted.length, wins, losses, hit_rate: sorted.length ? wins / sorted.length : 0, final_bankroll: bankroll, profit: bankroll - startingBankroll, return_pct: bankroll / startingBankroll - 1, worst_losing_streak: worstLossStreak, max_drawdown_pct: maxDrawdown, curve };
 }
 
 function compactBacktest(result) {
-  return {
-    bets: result.bets,
-    wins: result.wins,
-    losses: result.losses,
-    hit_rate: Number(result.hit_rate.toFixed(4)),
-    final_bankroll: Number(result.final_bankroll.toFixed(2)),
-    profit: Number(result.profit.toFixed(2)),
-    return_pct: Number(result.return_pct.toFixed(4)),
-    worst_losing_streak: result.worst_losing_streak,
-    max_drawdown_pct: Number(result.max_drawdown_pct.toFixed(4)),
-  };
+  return { bets: result.bets, wins: result.wins, losses: result.losses, hit_rate: Number(result.hit_rate.toFixed(4)), final_bankroll: Number(result.final_bankroll.toFixed(2)), profit: Number(result.profit.toFixed(2)), return_pct: Number(result.return_pct.toFixed(4)), worst_losing_streak: result.worst_losing_streak, max_drawdown_pct: Number(result.max_drawdown_pct.toFixed(4)) };
 }
 
 async function main() {
@@ -319,26 +321,23 @@ async function main() {
   const riskFraction = Number(arg('risk', '0.02')) || 0.02;
   const scenarioOdds = splitList(arg('scenario-odds', '3.00,3.30,3.50,3.60')).map(Number).filter((x) => Number.isFinite(x) && x > 1);
   const minRows = Number(arg('min-rows', '50')) || 50;
-
-  const sources = sourceUrls.length
-    ? sourceUrls.map((url, idx) => ({ year: '', tour: `custom_${idx + 1}`, url }))
-    : generatedSources(years, tours);
+  const sources = sourceUrls.length ? sourceUrls.map((url, idx) => ({ year: '', tour: `custom_${idx + 1}`, url })) : generatedSources(years, tours);
 
   const allRows = [];
   const sourceStatus = [];
   for (const source of sources) {
     try {
       console.log(`Downloading ${source.url}`);
-      const workbook = await fetchWorkbook(source.url);
-      const rows = rowsFromWorkbook(workbook);
+      const downloaded = await fetchWorkbook(source.url);
+      const rows = rowsFromWorkbook(downloaded.workbook);
       let sideRows = 0;
       for (const row of rows) {
-        const winnerRow = makeSideRow(row, 'winner', { sourceFile: source.url, tour: source.tour, year: source.year });
-        const loserRow = makeSideRow(row, 'loser', { sourceFile: source.url, tour: source.tour, year: source.year });
+        const winnerRow = makeSideRow(row, 'winner', { sourceFile: downloaded.finalUrl, tour: source.tour, year: source.year });
+        const loserRow = makeSideRow(row, 'loser', { sourceFile: downloaded.finalUrl, tour: source.tour, year: source.year });
         if (winnerRow && winnerRow.first_set_score_for_side) { allRows.push(winnerRow); sideRows += 1; }
         if (loserRow && loserRow.first_set_score_for_side) { allRows.push(loserRow); sideRows += 1; }
       }
-      sourceStatus.push({ ...source, ok: true, raw_rows: rows.length, side_rows: sideRows });
+      sourceStatus.push({ ...source, ok: true, final_url: downloaded.finalUrl, method: downloaded.method, raw_rows: rows.length, side_rows: sideRows });
     } catch (error) {
       sourceStatus.push({ ...source, ok: false, error: error instanceof Error ? error.message : String(error) });
       console.error(`Failed ${source.url}: ${sourceStatus.at(-1).error}`);
@@ -347,39 +346,9 @@ async function main() {
 
   const usable = allRows.filter((r) => r.side_match_odds && r.first_set_score_for_side);
   const leakFree = usable.filter((r) => r.side_is_underdog !== '' || r.side_is_favorite !== '');
-  const summary = {
-    mode: 'tennis_data_9_12_filter_backtest_v1',
-    config: { years, tours, sourceUrls, startingBankroll, riskFraction, scenarioOdds, minRows },
-    warnings: [
-      'Tennis-Data stores rows as Winner/Loser, not bookmaker Player 1/Player 2 order. This tests selected-player first-set 9-12 outcomes, not direct Player 2 listing order.',
-      'Tennis-Data includes match-winner odds, not direct Player & 9-12 grouped odds. Scenario odds are used for bankroll math.',
-      'Use this to build filters/confidence score, not to claim direct historical Player 2 & 9-12 market availability.'
-    ],
-    sourceStatus,
-    rows: {
-      side_rows_total: allRows.length,
-      side_rows_with_match_odds: usable.length,
-      side_rows_with_pre_match_fav_dog: leakFree.length,
-    },
-    overall: summarizeRows(usable, 'all_selected_sides_with_odds'),
-    underdog: summarizeRows(usable.filter((r) => r.side_is_underdog === 'true'), 'underdog_sides'),
-    favorite: summarizeRows(usable.filter((r) => r.side_is_favorite === 'true'), 'favorite_sides'),
-    best_filters: [],
-    backtests: {},
-  };
+  const summary = { mode: 'tennis_data_9_12_filter_backtest_v2_robust_download', config: { years, tours, sourceUrls, startingBankroll, riskFraction, scenarioOdds, minRows }, warnings: ['Tennis-Data stores rows as Winner/Loser, not bookmaker Player 1/Player 2 order. This tests selected-player first-set 9-12 outcomes, not direct Player 2 listing order.', 'Tennis-Data includes match-winner odds, not direct Player & 9-12 grouped odds. Scenario odds are used for bankroll math.', 'Use this to build filters/confidence score, not to claim direct historical Player 2 & 9-12 market availability.'], sourceStatus, rows: { side_rows_total: allRows.length, side_rows_with_match_odds: usable.length, side_rows_with_pre_match_fav_dog: leakFree.length }, overall: summarizeRows(usable, 'all_selected_sides_with_odds'), underdog: summarizeRows(usable.filter((r) => r.side_is_underdog === 'true'), 'underdog_sides'), favorite: summarizeRows(usable.filter((r) => r.side_is_favorite === 'true'), 'favorite_sides'), best_filters: [], backtests: {} };
 
-  const dimSets = [
-    ['side_odds_bucket'],
-    ['surface'],
-    ['tour'],
-    ['round_group'],
-    ['side_is_underdog', 'side_odds_bucket'],
-    ['side_is_underdog', 'surface'],
-    ['side_is_underdog', 'surface', 'side_odds_bucket'],
-    ['side_is_underdog', 'round_group', 'side_odds_bucket'],
-    ['surface', 'round_group', 'side_odds_bucket'],
-    ['rank_gap_abs_bucket', 'side_odds_bucket'],
-  ];
+  const dimSets = [['side_odds_bucket'], ['surface'], ['tour'], ['round_group'], ['side_is_underdog', 'side_odds_bucket'], ['side_is_underdog', 'surface'], ['side_is_underdog', 'surface', 'side_odds_bucket'], ['side_is_underdog', 'round_group', 'side_odds_bucket'], ['surface', 'round_group', 'side_odds_bucket'], ['rank_gap_abs_bucket', 'side_odds_bucket']];
   const grouped = [];
   for (const dims of dimSets) grouped.push(...groupedSummaries(usable, dims, minRows).map((r) => ({ dimensions: dims.join('+'), ...r })));
 
@@ -406,7 +375,6 @@ async function main() {
   const groupHeaders = ['dimensions','filter','bets','wins','losses','hit_rate','break_even_odds','side_odds_bucket','surface','tour','round_group','side_is_underdog','rank_gap_abs_bucket'];
   const filterHeaders = ['filter','bets','wins','losses','hit_rate','break_even_odds'];
   const curveHeaders = ['filter','index','date','tournament','side_name','opponent_name','surface','side_match_odds','first_set_score_for_side','win','scenario_grouped_odds','stake','profit','bankroll_after','drawdown_pct'];
-
   await fs.writeFile(path.join(outputDir, 'tennis-data-side-candidates.csv'), writeCsv(sideHeaders, usable));
   await fs.writeFile(path.join(outputDir, 'tennis-data-grouped-filter-summary.csv'), writeCsv(groupHeaders, grouped));
   await fs.writeFile(path.join(outputDir, 'tennis-data-best-filters.csv'), writeCsv(filterHeaders, summary.best_filters));
@@ -415,7 +383,4 @@ async function main() {
   console.log(JSON.stringify(summary, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
-  process.exit(1);
-});
+main().catch((error) => { console.error(error instanceof Error ? error.stack ?? error.message : error); process.exit(1); });
