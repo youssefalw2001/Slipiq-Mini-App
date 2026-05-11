@@ -1,0 +1,84 @@
+name: V3 Player 2 Favorite 9-12 Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: "Backtest start date YYYY-MM-DD"
+        required: true
+        default: "2025-04-01"
+      date_stop:
+        description: "Backtest stop date YYYY-MM-DD"
+        required: true
+        default: "2026-05-01"
+      bankroll:
+        description: "Starting bankroll"
+        required: true
+        default: "5000"
+      risk:
+        description: "Risk fraction per bet. 0.02 = 2%"
+        required: true
+        default: "0.02"
+      scenario_odds:
+        description: "Scenario Player 2 & 9-12 odds"
+        required: true
+        default: "3.00,3.30,3.50,3.60"
+      near_ratio:
+        description: "Near-favorite if Player2 odds / Player1 odds <= this"
+        required: true
+        default: "1.15"
+      near_max_odds:
+        description: "Near-favorite if Player2 match odds <= this"
+        required: true
+        default: "2.20"
+      delay_ms:
+        description: "Delay between API calls to reduce rate-limit risk"
+        required: true
+        default: "150"
+
+jobs:
+  v3-player2-favorite-9-12-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify API key
+        shell: bash
+        run: |
+          if [ -z "$API_TENNIS_KEY" ]; then
+            echo "Missing required GitHub secret: API_TENNIS_KEY"
+            exit 1
+          fi
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Run V3 Player 2 favorite 9-12 backtest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backtest-v3-player2-favorite-9-12.mjs \
+            --date-start "${{ inputs.date_start }}" \
+            --date-stop "${{ inputs.date_stop }}" \
+            --bankroll "${{ inputs.bankroll }}" \
+            --risk "${{ inputs.risk }}" \
+            --scenario-odds "${{ inputs.scenario_odds }}" \
+            --near-ratio "${{ inputs.near_ratio }}" \
+            --near-max-odds "${{ inputs.near_max_odds }}" \
+            --delay-ms "${{ inputs.delay_ms }}" \
+            --output-dir artifacts/output/v3-player2-favorite-9-12-backtest
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Upload V3 Player 2 favorite artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-player2-favorite-9-12-backtest
+          path: artifacts/output/v3-player2-favorite-9-12-backtest
+          if-no-files-found: error
