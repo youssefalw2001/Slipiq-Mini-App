@@ -1,0 +1,68 @@
+name: SportsGameOdds Player 2 9-12 Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      bookmaker:
+        description: "Bookmaker ID to scan. Try bet365 first."
+        required: true
+        default: "bet365"
+      hours_ahead:
+        description: "How many upcoming hours to scan"
+        required: true
+        default: "72"
+      event_limit:
+        description: "Max events to scan per query"
+        required: true
+        default: "500"
+      include_live:
+        description: "Include already-started/live events? 1 yes, 0 no"
+        required: true
+        default: "0"
+
+jobs:
+  sportsgameodds-player2-9-12-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify SportsGameOdds API key
+        shell: bash
+        run: |
+          if [ -z "$SPORTS_ODDS_API_KEY_HEADER" ]; then
+            echo "Missing required GitHub secret: SPORTS_ODDS_API_KEY_HEADER"
+            exit 1
+          fi
+        env:
+          SPORTS_ODDS_API_KEY_HEADER: ${{ secrets.SPORTS_ODDS_API_KEY_HEADER }}
+
+      - name: Install SportsGameOdds SDK
+        shell: bash
+        run: npm install --no-save sports-odds-api
+
+      - name: Run SportsGameOdds Player 2 9-12 scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/scan-sportsgameodds-player2-9-12.mjs \
+            --bookmaker "${{ inputs.bookmaker }}" \
+            --hours-ahead "${{ inputs.hours_ahead }}" \
+            --event-limit "${{ inputs.event_limit }}" \
+            --include-live "${{ inputs.include_live }}" \
+            --output-dir artifacts/output/sportsgameodds-player2-9-12-scan
+        env:
+          SPORTS_ODDS_API_KEY_HEADER: ${{ secrets.SPORTS_ODDS_API_KEY_HEADER }}
+
+      - name: Upload SportsGameOdds scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sportsgameodds-player2-9-12-scan
+          path: artifacts/output/sportsgameodds-player2-9-12-scan
+          if-no-files-found: error
