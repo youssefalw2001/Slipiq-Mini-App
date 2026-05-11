@@ -1,0 +1,74 @@
+name: Player 2 9-12 Two-Leg Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: "Backtest start date YYYY-MM-DD"
+        required: true
+        default: "2025-04-01"
+      date_stop:
+        description: "Backtest stop date YYYY-MM-DD"
+        required: true
+        default: "2026-05-01"
+      bankroll:
+        description: "Starting bankroll"
+        required: true
+        default: "5000"
+      risk:
+        description: "Risk fraction per bet/parlay. 0.02 = 2%"
+        required: true
+        default: "0.02"
+      scenario_odds:
+        description: "Fallback grouped leg odds if real Player2 9-12 odds are missing"
+        required: true
+        default: "2.80,3.00,3.30,3.50,3.60"
+      delay_ms:
+        description: "Delay between API calls to reduce rate-limit risk"
+        required: true
+        default: "150"
+
+jobs:
+  player2-9-12-two-leg-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify API key
+        shell: bash
+        run: |
+          if [ -z "$API_TENNIS_KEY" ]; then
+            echo "Missing required GitHub secret: API_TENNIS_KEY"
+            exit 1
+          fi
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Run Player 2 9-12 two-leg backtest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backtest-player2-9-12-two-leg.mjs \
+            --date-start "${{ inputs.date_start }}" \
+            --date-stop "${{ inputs.date_stop }}" \
+            --bankroll "${{ inputs.bankroll }}" \
+            --risk "${{ inputs.risk }}" \
+            --scenario-odds "${{ inputs.scenario_odds }}" \
+            --delay-ms "${{ inputs.delay_ms }}" \
+            --output-dir artifacts/output/player2-9-12-two-leg-backtest
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+
+      - name: Upload Player 2 9-12 backtest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: player2-9-12-two-leg-backtest
+          path: artifacts/output/player2-9-12-two-leg-backtest
+          if-no-files-found: error
