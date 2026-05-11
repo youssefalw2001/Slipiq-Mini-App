@@ -10,11 +10,23 @@ on:
       hours_ahead:
         description: "How many upcoming hours to scan"
         required: true
-        default: "72"
+        default: "24"
       event_limit:
         description: "Max events to scan per query"
         required: true
-        default: "500"
+        default: "100"
+      league_ids:
+        description: "Comma-separated SportsGameOdds league IDs"
+        required: true
+        default: "ATP,WTA,ITF"
+      max_leagues:
+        description: "Max auto-discovered leagues if league_ids is blank"
+        required: true
+        default: "12"
+      event_ids:
+        description: "Optional comma-separated event IDs for direct event scan"
+        required: false
+        default: ""
       include_live:
         description: "Include already-started/live events? 1 yes, 0 no"
         required: true
@@ -36,12 +48,17 @@ jobs:
       - name: Verify SportsGameOdds API key
         shell: bash
         run: |
-          if [ -z "$SPORTS_ODDS_API_KEY_HEADER" ]; then
-            echo "Missing required GitHub secret: SPORTS_ODDS_API_KEY_HEADER"
+          if [ -z "$SPORTS_ODDS_API_KEY_HEADER" ] && [ -z "$SPORTSGAMEODDS_API_KEY" ] && [ -z "$SPORTS_GAME_ODDS_API_KEY" ]; then
+            echo "Missing SportsGameOdds key. Add one of these GitHub secrets: SPORTS_ODDS_API_KEY_HEADER, SPORTSGAMEODDS_API_KEY, or SPORTS_GAME_ODDS_API_KEY"
             exit 1
           fi
+          if [ -n "$SPORTS_ODDS_API_KEY_HEADER" ]; then echo "Found SPORTS_ODDS_API_KEY_HEADER secret"; fi
+          if [ -n "$SPORTSGAMEODDS_API_KEY" ]; then echo "Found SPORTSGAMEODDS_API_KEY secret"; fi
+          if [ -n "$SPORTS_GAME_ODDS_API_KEY" ]; then echo "Found SPORTS_GAME_ODDS_API_KEY secret"; fi
         env:
           SPORTS_ODDS_API_KEY_HEADER: ${{ secrets.SPORTS_ODDS_API_KEY_HEADER }}
+          SPORTSGAMEODDS_API_KEY: ${{ secrets.SPORTSGAMEODDS_API_KEY }}
+          SPORTS_GAME_ODDS_API_KEY: ${{ secrets.SPORTS_GAME_ODDS_API_KEY }}
 
       - name: Install SportsGameOdds SDK
         shell: bash
@@ -55,10 +72,15 @@ jobs:
             --bookmaker "${{ inputs.bookmaker }}" \
             --hours-ahead "${{ inputs.hours_ahead }}" \
             --event-limit "${{ inputs.event_limit }}" \
+            --league-ids "${{ inputs.league_ids }}" \
+            --max-leagues "${{ inputs.max_leagues }}" \
+            --event-ids "${{ inputs.event_ids }}" \
             --include-live "${{ inputs.include_live }}" \
             --output-dir artifacts/output/sportsgameodds-player2-9-12-scan
         env:
           SPORTS_ODDS_API_KEY_HEADER: ${{ secrets.SPORTS_ODDS_API_KEY_HEADER }}
+          SPORTSGAMEODDS_API_KEY: ${{ secrets.SPORTSGAMEODDS_API_KEY }}
+          SPORTS_GAME_ODDS_API_KEY: ${{ secrets.SPORTS_GAME_ODDS_API_KEY }}
 
       - name: Upload SportsGameOdds scan artifact
         uses: actions/upload-artifact@v4
