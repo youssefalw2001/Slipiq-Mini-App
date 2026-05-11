@@ -1,0 +1,75 @@
+name: Odds-API.io Player 2 9-12 Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      bookmaker:
+        description: "Bookmaker name to scan. Try Bet365 first."
+        required: true
+        default: "Bet365"
+      hours_ahead:
+        description: "How many upcoming hours to scan"
+        required: true
+        default: "72"
+      event_limit:
+        description: "Max events to scan per query"
+        required: true
+        default: "500"
+      include_live:
+        description: "Include already-started/live events? 1 yes, 0 no"
+        required: true
+        default: "0"
+
+jobs:
+  oddsapi-io-player2-9-12-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify Odds-API.io key
+        shell: bash
+        run: |
+          if [ -z "$ODDS_API_KEY" ] && [ -z "$ODDS_API_IO_KEY" ] && [ -z "$ODDSAPI_KEY" ]; then
+            echo "Missing Odds-API.io key. Add one of these GitHub secrets: ODDS_API_KEY, ODDS_API_IO_KEY, or ODDSAPI_KEY"
+            exit 1
+          fi
+          if [ -n "$ODDS_API_KEY" ]; then echo "Found ODDS_API_KEY secret"; fi
+          if [ -n "$ODDS_API_IO_KEY" ]; then echo "Found ODDS_API_IO_KEY secret"; fi
+          if [ -n "$ODDSAPI_KEY" ]; then echo "Found ODDSAPI_KEY secret"; fi
+          KEY_LEN=${#ODDS_API_KEY}
+          if [ "$KEY_LEN" -eq 0 ]; then KEY_LEN=${#ODDS_API_IO_KEY}; fi
+          if [ "$KEY_LEN" -eq 0 ]; then KEY_LEN=${#ODDSAPI_KEY}; fi
+          echo "Odds-API.io key length detected: $KEY_LEN characters"
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_API_IO_KEY: ${{ secrets.ODDS_API_IO_KEY }}
+          ODDSAPI_KEY: ${{ secrets.ODDSAPI_KEY }}
+
+      - name: Run Odds-API.io Player 2 9-12 scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/scan-oddsapi-io-player2-9-12.mjs \
+            --bookmaker "${{ inputs.bookmaker }}" \
+            --hours-ahead "${{ inputs.hours_ahead }}" \
+            --event-limit "${{ inputs.event_limit }}" \
+            --include-live "${{ inputs.include_live }}" \
+            --output-dir artifacts/output/oddsapi-io-player2-9-12-scan
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_API_IO_KEY: ${{ secrets.ODDS_API_IO_KEY }}
+          ODDSAPI_KEY: ${{ secrets.ODDSAPI_KEY }}
+
+      - name: Upload Odds-API.io scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsapi-io-player2-9-12-scan
+          path: artifacts/output/oddsapi-io-player2-9-12-scan
+          if-no-files-found: error
