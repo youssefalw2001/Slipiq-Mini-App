@@ -1,0 +1,71 @@
+name: Tennis-Data 9-12 Filter Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Comma-separated years to download from tennis-data.co.uk"
+        required: true
+        default: "2024,2025,2026"
+      tours:
+        description: "Comma-separated tours: atp,wta"
+        required: true
+        default: "atp,wta"
+      bankroll:
+        description: "Starting bankroll"
+        required: true
+        default: "5000"
+      risk:
+        description: "Risk fraction per scenario bet. 0.02 = 2%"
+        required: true
+        default: "0.02"
+      scenario_odds:
+        description: "Scenario grouped Player & 9-12 odds"
+        required: true
+        default: "3.00,3.30,3.50,3.60"
+      min_rows:
+        description: "Minimum rows required for a filter bucket"
+        required: true
+        default: "50"
+      urls:
+        description: "Optional custom comma-separated .xlsx/.xls URLs. Leave blank for auto Tennis-Data URLs."
+        required: false
+        default: ""
+
+jobs:
+  tennis-data-9-12-filter-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install parser dependency
+        shell: bash
+        run: npm install --no-save xlsx
+
+      - name: Run Tennis-Data 9-12 filter backtest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backtest-tennis-data-9-12-filter.mjs \
+            --years "${{ inputs.years }}" \
+            --tours "${{ inputs.tours }}" \
+            --bankroll "${{ inputs.bankroll }}" \
+            --risk "${{ inputs.risk }}" \
+            --scenario-odds "${{ inputs.scenario_odds }}" \
+            --min-rows "${{ inputs.min_rows }}" \
+            --urls "${{ inputs.urls }}" \
+            --output-dir artifacts/output/tennis-data-9-12-filter-backtest
+
+      - name: Upload Tennis-Data 9-12 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tennis-data-9-12-filter-backtest
+          path: artifacts/output/tennis-data-9-12-filter-backtest
+          if-no-files-found: error
