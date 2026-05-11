@@ -59,7 +59,6 @@ function player2FromEvent(event) {
   const home = event?.teams?.home?.names?.long || event?.teams?.home?.names?.medium || event?.teams?.home?.names?.short;
   const players = event?.players && typeof event.players === 'object' ? Object.values(event.players) : [];
   const names = players.map((p) => p?.name || [p?.firstName, p?.lastName].filter(Boolean).join(' ')).filter(Boolean);
-  // For tennis APIs, player order is not always the same as API-Tennis. We label away/second as candidate Player 2 and store all names for manual verification.
   return away || names[1] || home || '';
 }
 
@@ -161,13 +160,16 @@ async function main() {
   const hoursAhead = Number(arg('hours-ahead', '72')) || 72;
   const eventLimit = Number(arg('event-limit', '500')) || 500;
   const includeLive = boolArg('include-live', false);
-  const client = new SportsGameOdds({ apiKeyHeader: API_KEY, timeout: 60000, maxRetries: 2 });
+
+  // SportsGameOdds REST examples use apiKeyParam as the documented default.
+  // Header auth may work for some endpoints, but this scanner uses query-param auth first.
+  const client = new SportsGameOdds({ apiKeyParam: API_KEY, timeout: 60000, maxRetries: 2 });
 
   const now = new Date();
   const startsAfter = now.toISOString();
   const startsBefore = new Date(now.getTime() + hoursAhead * 3600_000).toISOString();
 
-  const debug = { sports: [], leagues: [], queryAttempts: [] };
+  const debug = { authMode: 'apiKeyParam', sports: [], leagues: [], queryAttempts: [] };
 
   try {
     const sportsResp = await client.sports.get();
@@ -197,7 +199,6 @@ async function main() {
   if (leagueIDs.length) {
     eventQueries.push({ label: 'tennis-leagues', params: { leagueID: leagueIDs.slice(0, 25).join(','), bookmakerID, oddsAvailable: true, started: includeLive ? undefined : false, startsAfter, startsBefore, includeAltLines: true, limit: 100 } });
   }
-  // Fallback broad query in case sport/league IDs are not discoverable.
   eventQueries.push({ label: 'broad-upcoming-odds', params: { bookmakerID, oddsAvailable: true, started: includeLive ? undefined : false, startsAfter, startsBefore, includeAltLines: true, limit: 100 } });
 
   const events = new Map();
@@ -219,9 +220,7 @@ async function main() {
     }
   }
 
-  for (const event of events.values()) {
-    matches.push(...candidateOddRows(event, bookmakerID));
-  }
+  for (const event of events.values()) matches.push(...candidateOddRows(event, bookmakerID));
 
   const eventSummaries = [...events.values()].map((event) => ({
     eventID: event.eventID,
@@ -238,7 +237,7 @@ async function main() {
   const groupedAtTarget = groupedRows.filter((r) => Number(r.decimal_odds) >= 3.3);
 
   const summary = {
-    mode: 'sportsgameodds_player2_9_12_market_scan_v1',
+    mode: 'sportsgameodds_player2_9_12_market_scan_v2_param_auth',
     checked_at: new Date().toISOString(),
     config: { bookmakerID, hoursAhead, eventLimit, includeLive, startsAfter, startsBefore },
     discovered: {
@@ -252,9 +251,10 @@ async function main() {
     },
     errors,
     notes: [
+      'Uses SportsGameOdds apiKeyParam authentication.',
       'This scan detects candidate markets by fuzzy text matching SportsGameOdds odd market fields.',
       'Verify player order manually before betting; SportsGameOdds team/home/away order may not equal API-Tennis Player 1/Player 2 order.',
-      'If player2_9_12_candidate_rows is zero, inspect raw-events-sample.json to see whether the market uses different naming or is absent.'
+      'If player2_9_12_candidate_rows is zero, inspect raw-events-sample.json and sportsgameodds-market-candidates.csv.'
     ],
     sample_exact_4_6_rows: exactRows.slice(0, 20),
     sample_player2_9_12_rows: groupedRows.slice(0, 20),
