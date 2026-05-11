@@ -1,352 +1,794 @@
-# SlipIQ AI Handoff Context
+# SlipIQ AI Handoff Memory
 
-Use this file as the first context source for any new AI/chat tab working on SlipIQ.
+This is the canonical context file for any new AI/chat session working on SlipIQ. Read it before changing code, running GitHub Actions, interpreting Supabase data, or giving strategy advice.
 
-## Project identity
+Last updated: 2026-05-11
 
-SlipIQ is a Telegram Mini App and research engine for tennis first-set correct-score probability intelligence.
+---
 
-Core brand positioning:
+## 1. Product identity
 
-- Tagline: `Don’t guess. Calculate.`
-- Flagship feature: First Set Lab
-- Main launch wedge: tennis first-set correct-score edge, especially 4-6 and related second-player first-set scorelines.
+SlipIQ is a Telegram Mini App / betting-intelligence product focused on tennis first-set probability.
+
+Core positioning:
+
+- Tagline: **Don’t guess. Calculate.**
+- Flagship feature: **First Set Lab**
+- Main wedge: tennis first-set probability, especially Player 2 first-set pressure spots.
 - Product stance: decision support and probability intelligence, not guaranteed picks.
+- Design style: dark terminal intelligence / Bloomberg terminal meets sports betting.
 
-## Tech stack
+Original stack:
 
-Frontend:
+- React + Vite or Next.js
+- TypeScript
+- Tailwind CSS
+- Telegram Web App SDK
+- Supabase/PostgreSQL
+- Telegram Bot alerts
+- GitHub Actions as the main research/test runner
+- API-Tennis for fixtures, odds, and score enrichment
 
-- React + Vite + TypeScript
-- Tailwind-style dark mobile UI
-- Telegram Mini App SDK
-- Zustand
-- Recharts
-
-Backend/live research:
-
-- Supabase project currently used live: `afemheuneiqwoaambmvw`
-- Supabase Edge Functions
-- Supabase tables for live observation logs/runs
-- API-Tennis for fixtures, odds, and result/first-set score enrichment
-- GitHub Actions are used as the research/test runner
-
-GitHub repo:
-
-- `youssefalw2001/Slipiq-Mini-App`
-
-## Current strongest strategy
-
-The best historical strategy so far is NOT the old SetFox 12-18 odds rule.
-
-Current main strategy:
+Repo:
 
 ```txt
-Official V2:
-score = 4-6
-tournament_level = tour_other / lower-tier style bucket
-odds = 5.50 to 7.50
-singles only
-pre-match only
-one pick per match
-void/retired/cancelled excluded/refunded
+youssefalw2001/Slipiq-Mini-App
 ```
 
-Ultra strategy:
+Supabase project used live:
 
 ```txt
-Ultra V1:
-score = 4-6
-tournament_level = tour_other
-odds = 6.50 to 6.99
-lead window target = 120-299 minutes before start
+afemheuneiqwoaambmvw
 ```
 
-3-6 status:
+---
+
+## 2. The major strategy evolution
+
+### Old core idea
+
+The old strategy was exact first-set correct score:
 
 ```txt
-3-6 is not the main money strategy yet.
-It is a companion/shadow candidate because many 4-6 misses are actual 3-6.
-Use it only as shadow/proxy until real live 3-6 odds are logged.
+Market: Tennis 1st Set Correct Score
+Target scoreline: 4-6
+Meaning: Player 2 wins the first set 4 games to 6 games
 ```
 
-## Historical test results from enriched 13-month file
-
-The enriched blind-sim file contained:
+Main exact-score trigger:
 
 ```txt
-Total rows: 7,688
-Actual first-set scores resolved: 7,500
-Void/retired/cancelled: 187
-Unknown: 1
+Official V3 Strict
+scoreline: 4-6
+odds: 6.25–6.99
+tournament_level: tour_other / lower-tier bucket
+match type: singles only
+timing: pre-match only
 ```
 
-Official V2 from player-floor artifact:
+Ultra exact trigger:
 
 ```txt
-Bets: 1,234
-Wins: 219
-Hit rate: 17.75%
-Profit: +322.8u
-ROI: +26.16%
-Max drawdown: 38.4u
-Worst losing streak: 33
+Ultra V1
+scoreline: 4-6
+odds: 6.50–6.99
+tournament_level: tour_other
+match type: singles only
+timing: pre-match only
 ```
 
-Ultra V1:
+### New core strategy
+
+Live settlement showed exact `4-6` was too narrow, but many exact-score losses were still Player 2 first-set wins nearby:
 
 ```txt
-Bets: 227
-Wins: 50
-Hit rate: 22.03%
-Profit: +106.9u
-ROI: +47.09%
-Max drawdown: 14.85u
-Worst losing streak: 12
+3-6
+4-6
+5-7
 ```
 
-Player-floor top filters from artifact:
+So the new best strategy is:
 
 ```txt
-Top 25% player_floor_4_6_score:
-Bets: 310
-Hit rate: 19.68%
-Profit: +121u
-ROI: +39.03%
-Max drawdown: 27.65u
-Worst streak: 23
-
-Top 20% player_floor_4_6_score:
-Bets: 248
-Hit rate: 20.16%
-Profit: +106.9u
-ROI: +43.10%
-Max drawdown: 22.65u
-Worst streak: 17
+Market: 1 Set Winner & 1 Set Exact Games
+Selection: Player 2 & 9–12
+Wins on: 3-6, 4-6, 5-7
 ```
 
-Discovery/blind from same artifact:
+This means SlipIQ is no longer mainly “predict exact 4-6.” It is now:
 
 ```txt
-Discovery first 6 months:
-631 bets
-ROI: +15.21%
-Profit: +95.95u
-
-Blind last 7 months:
-603 bets
-ROI: +37.62%
-Profit: +226.85u
-Positive months: 6 of 7
+Detect Player 2 first-set pressure, then choose the best market.
 ```
 
-Important confidence note:
+Current hierarchy:
 
 ```txt
-This is promising historical evidence, not live execution proof.
-Live proof still requires controlled live odds + settled win/loss data.
+#1 Main safer strategy:
+Player 2 & 9–12 after V3 Strict / Ultra exact 4-6 trigger
+
+#2 Upside strategy:
+2-leg parlay using two separate Player 2 & 9–12 signals
+
+#3 High-payout shadow:
+Exact 4-6, small stake / tracker only until live proof improves
+
+#4 Side trackers:
+Exact 3-6, exact 5-7, Player 2 & 13
+
+#5 Old V2 wide:
+Scanner only / context, not main staking
 ```
 
-## Player-floor model meaning
-
-Player-floor V2 is a no-same-day-leakage expanding-history model.
-
-It calculates player tendencies using prior dates only:
-
-- Player 1: historical tendency to lose first sets 4-6 / 3-6
-- Player 2: player-centric tendency to win equivalent scores 6-4 / 6-3
-- Combined scores:
-  - `player_floor_4_6_score`
-  - `player_floor_3_6_score`
-  - `player_floor_4_6_or_3_6_score`
-  - `p2_first_set_pressure_score`
-
-Accuracy controls used:
-
-- No same-day leakage
-- Unique match dedupe before updating player history
-- Player-centric conversion: scoreboard 4-6 means player 2 won 6-4 from player 2 perspective
-- Shrinkage with `prior_weight = 20`
-- Low-sample players are not overtrusted
-
-## 3-6 companion simulation
-
-Proxy result using same odds as 4-6:
+Critical distinction:
 
 ```txt
-4-6 only:
-ROI: +26.16%
-Worst streak: 33
-
-80/20 4-6 + 3-6 proxy:
-Hit rate: ~32.50%
-ROI: +21.88%
-Worst streak: 17
+Do NOT bet Player 2 & 9–12 on every tennis match.
+Only consider it when the exact 4-6 trigger appears in the V3 Strict / Ultra zone.
 ```
 
-Interpretation:
+---
 
-- 3-6 reduces streak pain.
-- 3-6 lowers ROI.
-- Do not bet 3-6 until real live 3-6 odds are logged.
+## 3. Market definitions
 
-## Supabase live system
-
-Live observation functions/tables have been built in Supabase.
-
-Important live workflow:
+### Exact 4-6
 
 ```txt
-private-live-observation-auto-cycle
-private-live-observation-cycle-v3_odds_tracking
-private-live-observation-resolver
+First set exact score 4-6.
+Player 2 wins the first set 6 games to 4.
 ```
 
-The auto cycle scans live/pre-match API-Tennis fixtures and logs strict candidates.
+### Player 2 & 9–12
 
-The resolver was deployed to fill:
+This is usually **not** listed under plain Correct Score. Search book menus for:
 
 ```txt
-actual_first_set_score
-result = won / lost / void / unknown
-profit_units_if_flat
-settled_at
-settlement_notes
+1 Set Winner & 1 Set Exact Games
+1st Set Winner & Total Games
+Set 1 Winner & Total Games
+Set Winner + Total Games
+Set Winner & Games
+Player Name & 9–12
 ```
 
-At the last known checkpoint:
+For a match listed as:
 
 ```txt
-Live automation: working
-Odds tracking: working
-Strict candidates: logging
-Result settlement: waiting for matches to start/finish
+Player 1 vs Player 2
 ```
 
-Current live proof status:
+and an exact trigger of:
 
 ```txt
-Odds availability looked good so far.
-No major odds/API errors seen.
-No candidate dropped below x5.50 in early checks.
-But settled live ROI proof was not complete yet.
+4-6
 ```
 
-## GitHub Actions workflows
-
-The user runs tests mainly through GitHub Actions, not local terminal.
-
-Important workflows:
+the grouped safer bet is:
 
 ```txt
-Blind Strategy Simulation
-Enrich Blind Sim First Set Scores
-Player Floor First Set Analysis V2
-Blind Player Floor Pipeline
-Deploy Supabase Function
+Player 2 & 9–12
 ```
 
-The latest useful workflow:
+It wins on:
 
 ```txt
-Player Floor First Set Analysis V2
+3-6
+4-6
+5-7
 ```
 
-It expects an enriched CSV and outputs:
+It loses on:
 
 ```txt
-player-floor-first-set-analysis-v2 artifact
-player-floor-analysis-summary.json
-player-floor-analysis-summary.md
-blind-sim-bets-player-floor-enriched.csv
+0-6
+1-6
+2-6
+6-7
+all Player 1 first-set wins
 ```
 
-The all-in-one fresh holdout workflow added:
+Important: `6-7` is 13 total games, not 9–12.
+
+---
+
+## 4. Historical proxy results for Player 2 & 9–12
+
+Important limitation: the historical Supabase table had real exact `4-6` odds, but did **not** have true historical `Player 2 & 9–12` grouped odds. Therefore grouped market ROI is scenario/proxy based using assumed odds.
+
+Supabase table used:
 
 ```txt
-Blind Player Floor Pipeline
+private_first_set_history
 ```
 
-Intended fresh holdout window:
+Dataset context:
 
 ```txt
-2024-05-10 to 2025-05-09
+tour_other singles
+observed table range in the analysis: 2026-03-01 → 2026-05-01
 ```
 
-Inputs to use:
+### V3 Strict trigger proxy
+
+Trigger:
 
 ```txt
-start_date: 2024-05-10
-end_date: 2025-05-09
-window_days: 30
-chunk_days: 3
-model_mode: independent
-block_tiebreak: 1
-include_doubles: 0
-max_plays_per_day: 5
-stake_units: 1
-prior_weight: 20
+Exact 4-6 odds 6.25–6.99
 ```
 
-A YAML issue was patched around the workflow description/input parsing. If the workflow still fails, inspect the red error from the first failed step.
-
-## What to do next
-
-Priority order:
-
-1. Make `Blind Player Floor Pipeline` run successfully on 2024-05-10 to 2025-05-09.
-2. Upload the artifact back to ChatGPT.
-3. Analyze:
-   - Official V2
-   - Ultra V1
-   - Floor Elite top 20/25%
-   - 3-6 companion proxy
-   - blind/holdout month stability
-4. If fresh holdout passes, update live Supabase observation to tag:
-   - Official V2
-   - Ultra V1
-   - Floor Elite
-   - Companion 3-6 Shadow
-5. Keep real-money/live execution small until 100-300 settled live candidates confirm ROI.
-
-## Risk management guidance
-
-Do not overstate certainty.
-
-Recommended live risk until proven:
+Grouped Player 2 & 9–12 proxy:
 
 ```txt
-1% to 1.5% per bet during live test
-2%+ only after strong settled live sample
-Do not use 10-20% risk per bet
+Bets: 106
+Wins: 41
+Losses: 65
+Hit rate: 38.68%
+Break-even odds: 2.585
 ```
 
-Ultra theoretical Kelly appeared high, but practical risk should stay much lower due to uncertainty and losing streak risk.
-
-## Tone for future AI responses
-
-Be honest and skeptical.
-
-Avoid phrases like:
-
-- guaranteed
-- lock
-- free money
-- safe bet
-- cracked the code for sure
-
-Use language like:
-
-- promising historical edge
-- needs live settlement proof
-- odds execution risk
-- sample-size risk
-- slippage/bookmaker-limit risk
-
-## Quick start prompt for new chat
-
-Paste this in a new chat:
+Scenario ROI:
 
 ```txt
-Read docs/SLIPIQ_AI_HANDOFF.md in my GitHub repo `youssefalw2001/Slipiq-Mini-App` first. We are working on SlipIQ, a tennis first-set correct-score strategy. Current main strategy is Official V2: 4-6, tour_other, odds 5.50-7.50. Ultra V1 is 4-6, odds 6.50-6.99. Player Floor V2 improved historical results using no-same-day leakage and shrinkage. Supabase project is `afemheuneiqwoaambmvw`. We use GitHub Actions as the test runner. Current task is to get Blind Player Floor Pipeline running for 2024-05-10 to 2025-05-09 and analyze the artifact honestly.
+At 3.00 odds: +16.04% ROI, +17.0u
+At 3.50 odds: +35.38% ROI, +37.5u
+At 3.85 odds: +48.92% ROI, +51.85u
+At 4.00 odds: +54.72% ROI, +58.0u
+```
+
+### Ultra trigger proxy
+
+Trigger:
+
+```txt
+Exact 4-6 odds 6.50–6.99
+```
+
+Grouped Player 2 & 9–12 proxy:
+
+```txt
+Bets: 95
+Wins: 38
+Losses: 57
+Hit rate: 40.00%
+Break-even odds: 2.50
+```
+
+Scenario ROI:
+
+```txt
+At 3.00 odds: +20.00% ROI, +19u
+At 3.50 odds: +40.00% ROI, +38u
+At 3.85 odds: +54.00% ROI, +51.3u
+At 4.00 odds: +60.00% ROI, +57u
+```
+
+Takeaway:
+
+```txt
+The model seems better at identifying Player 2 first-set pressure than exact 4-6 only.
+```
+
+---
+
+## 5. Early live settlement results
+
+### Exact 4-6 live start
+
+Early exact V3 Strict live settlement was weak:
+
+```txt
+Exact V3 Strict sample: about 21–23 settled matches
+Exact 4-6 wins: 2
+Hit rate: about 8.7%–9.5%
+Profit: roughly -8u to -10u
+```
+
+This is too small to kill the strategy, but it is a strong warning not to scale exact `4-6` aggressively.
+
+### Player 2 & 9–12 live proxy
+
+On the same V3 Strict matches:
+
+```txt
+Settled grouped proxy rows: 21
+Wins: 7
+Losses: 14
+Hit rate: 33.33%
+```
+
+At example grouped odds of 3.85:
+
+```txt
+Break-even hit rate: 25.97%
+Proxy hit rate: 33.33%
+Approx ROI: +28%
+```
+
+Takeaway:
+
+```txt
+Player 2 & 9–12 is currently the best SlipIQ live strategy candidate.
+```
+
+---
+
+## 6. Odds rules
+
+### Straight Player 2 & 9–12
+
+Based on historical proxy + early live proxy:
+
+```txt
+2.60 = theoretical historical break-even area
+2.80 = playable only with caution / Ultra preference
+3.00 = minimum playable
+3.30+ = good
+3.50–3.60 = strong
+3.85–4.00 = excellent
+```
+
+bet365 was reported by the user/Manus to show this market around:
+
+```txt
+2.80–3.60
+```
+
+Preferred rule:
+
+```txt
+Use V3 Strict or Ultra exact 4-6 trigger.
+Bet Player 2 & 9–12 only if odds are 3.00+.
+Prefer 3.30+.
+```
+
+### 2-leg Player 2 & 9–12 parlay
+
+Two separate qualifying signals are paired:
+
+```txt
+Leg 1: Player 2 & 9–12
+Leg 2: Player 2 & 9–12
+Parlay odds = leg odds × leg odds
+```
+
+Examples:
+
+```txt
+2.80 × 2.80 = 7.84
+3.00 × 3.00 = 9.00
+3.30 × 3.30 = 10.89
+3.50 × 3.50 = 12.25
+3.60 × 3.60 = 12.96
+```
+
+Latest requested GitHub workflow uses:
+
+```txt
+Starting bankroll: $5,000
+Risk: 2% compound per parlay
+Date range: 2025-04-01 → 2026-05-01
+```
+
+---
+
+## 7. Simulation results already discussed
+
+### Straight Player 2 & 9–12, $5k, 1.3% compound, 13-month projection
+
+V3 Strict projected about 675 bets in 13 months:
+
+```txt
+2.80 odds: $5k → $9,324
+3.00 odds: $5k → $18,090
+3.30 odds: $5k → $48,735
+3.50 odds: $5k → $94,160
+3.60 odds: $5k → $130,801
+```
+
+Ultra projected about 605 bets in 13 months:
+
+```txt
+2.80 odds: $5k → $11,674
+3.00 odds: $5k → $21,578
+3.30 odds: $5k → $54,066
+3.50 odds: $5k → $99,546
+3.60 odds: $5k → $134,998
+```
+
+These are projections from a 62-day proxy sample and assume hit rate, volume, odds availability, and compounding all hold.
+
+### 2-leg Player 2 & 9–12 parlay, $5k, 1.3% compound, 13-month projection
+
+V3 Strict 2-leg proxy:
+
+```txt
+Sample: 53 parlays
+Wins: 8
+Losses: 45
+Observed hit rate: 15.09%
+Projected 13 months: about 338 parlays
+```
+
+Projected:
+
+```txt
+2.80 leg odds / 7.84 parlay: $5k → $9,024
+3.00 leg odds / 9.00 parlay: $5k → $18,192
+3.30 leg odds / 10.89 parlay: $5k → $55,864
+3.50 leg odds / 12.25 parlay: $5k → $123,373
+3.60 leg odds / 12.96 parlay: $5k → $185,675
+```
+
+Ultra 2-leg proxy:
+
+```txt
+Sample: 47 parlays
+Wins: 7
+Losses: 40
+Observed hit rate: 14.89%
+Projected 13 months: about 299 parlays
+```
+
+Projected:
+
+```txt
+2.80 leg odds / 7.84 parlay: $5k → $7,957
+3.00 leg odds / 9.00 parlay: $5k → $14,695
+3.30 leg odds / 10.89 parlay: $5k → $39,221
+3.50 leg odds / 12.25 parlay: $5k → $78,453
+3.60 leg odds / 12.96 parlay: $5k → $112,190
+```
+
+---
+
+## 8. GitHub workflows and files
+
+### Live feasibility workflow
+
+Files:
+
+```txt
+scripts/live-execution-feasibility-watch.mjs
+.github/workflows/live-execution-feasibility-watch.yml
+```
+
+Workflow name:
+
+```txt
+Live Execution Feasibility Watch
+```
+
+Purpose:
+
+```txt
+Checks whether exact 4-6 odds in the 6.25–6.99 range appear live before match start.
+Tracks lead_minutes and odds stability.
+```
+
+Useful settings:
+
+```txt
+Quick:
+cycles: 1
+interval_seconds: 0
+
+Short stability:
+cycles: 4
+interval_seconds: 300
+
+Long watch:
+cycles: 8
+interval_seconds: 1800
+```
+
+### New Player 2 & 9–12 two-leg workflow
+
+Files:
+
+```txt
+scripts/backtest-player2-9-12-two-leg.mjs
+.github/workflows/player2-9-12-two-leg-backtest.yml
+```
+
+Commits:
+
+```txt
+b256ad0  Add Player 2 9-12 two-leg backtest script
+96de819  Add Player 2 9-12 two-leg backtest workflow
+```
+
+Workflow name:
+
+```txt
+Player 2 9-12 Two-Leg Backtest
+```
+
+Purpose:
+
+```txt
+1. Scan historical API-Tennis fixtures + odds
+2. Find V3 Strict / Ultra exact 4-6 triggers
+3. Try to extract real Player 2 & 9–12 grouped odds
+4. Fall back to scenario odds if real grouped odds are missing
+5. Simulate straight Player 2 & 9–12
+6. Simulate 2-leg Player 2 & 9–12 parlays
+7. Use configured bankroll and risk
+```
+
+Recommended run settings:
+
+```txt
+date_start: 2025-04-01
+date_stop: 2026-05-01
+bankroll: 5000
+risk: 0.02
+scenario_odds: 2.80,3.00,3.30,3.50,3.60
+delay_ms: 150
+```
+
+Artifact to upload back:
+
+```txt
+player2-9-12-two-leg-backtest
+```
+
+Main file:
+
+```txt
+player2-9-12-two-leg-summary.json
+```
+
+Other useful files:
+
+```txt
+player2-9-12-candidates.csv
+two-leg-parlay-backtest-rows.csv
+straight-backtest-rows.csv
+```
+
+When reading results, always separate:
+
+```txt
+Exact 4-6 result
+Straight Player 2 & 9–12 result
+2-leg Player 2 & 9–12 parlay result
+Real grouped odds result
+Scenario grouped odds result
+```
+
+Do not mix real grouped odds with scenario odds without labeling clearly.
+
+---
+
+## 9. Supabase tables and status
+
+Relevant tables:
+
+```txt
+private_live_observation_log
+private_live_observation_runs
+private_result_resolver_runs
+private_first_set_history
+private_grouped_9_12_observation_log
+private_bankroll_settings
+```
+
+### private_live_observation_log
+
+Tracks exact-score live signals, odds movement, start time, actual score, result, and profit.
+
+Important issue found:
+
+```txt
+The resolver depended on is_strict_candidate = true.
+Some V3 Strict odds-band rows had is_strict_candidate = false.
+Rows with candidate_scoreline='4-6' and odds_at_discovery in [6.25, 7.00) were patched to is_strict_candidate=true.
+After that, resolver started settling rows.
+```
+
+### private_grouped_9_12_observation_log
+
+Created to track new grouped market separately.
+
+Purpose:
+
+```txt
+Stores Player 2 & 9–12 derived candidates from V3 Strict 4-6 signals.
+Wins if actual first set is 3-6, 4-6, or 5-7.
+Allows manual/API grouped odds logging from bet365/Dexsport/etc.
+```
+
+Initial status after creation:
+
+```txt
+Total grouped rows: 33
+Settled grouped rows: 21
+Wins: 7
+Losses: 14
+Pending result: 12
+Proxy hit rate: 33.33%
+Grouped odds: null for all at creation because book odds need manual/API capture
+```
+
+---
+
+## 10. Platform notes
+
+The strategy needs books that support:
+
+```txt
+Tennis first set markets
+1 Set Winner & 1 Set Exact Games
+Player name & 9–12
+1st Set Correct Score
+```
+
+### Regulated sportsbook candidate
+
+bet365 appears promising because it reportedly has the needed Player 2 & 9–12 market around:
+
+```txt
+2.80–3.60
+```
+
+Other regulated books to check:
+
+```txt
+DraftKings
+BetMGM
+Fanatics
+FanDuel
+Caesars
+```
+
+Market availability varies by state and match.
+
+### Crypto/casino-like sportsbook candidate
+
+Dexsport screenshots showed the exact grouped format:
+
+```txt
+Player Name & 6
+Player Name & 7–8
+Player Name & 9–12
+Player Name & 13
+```
+
+Example:
+
+```txt
+Cobolli & 9–12 = 2.45
+Tirante & 9–12 = 3.85
+```
+
+Stake screenshots showed exact score odds:
+
+```txt
+4-6 = 7.20
+3-6 = 8.60
+5-7 = 21.00
+```
+
+But Stake grouped Player & 9–12 was not confirmed in screenshots.
+
+Compliance note:
+
+```txt
+Do not recommend illegal use or bypassing geolocation restrictions.
+For U.S. users, use only legal platforms available where they are physically located.
+Stake.com and Stake.us differ; Stake.us is not the same sportsbook product.
+```
+
+---
+
+## 11. Productization and pricing
+
+The new strategy is strong enough to become the flagship SlipIQ product.
+
+Positioning:
+
+```txt
+SlipIQ First Set Lab detects Player 2 first-set pressure and identifies when grouped 9–12 game markets may be mispriced.
+```
+
+Do not market as guaranteed profit.
+
+Suggested launch tiers:
+
+```txt
+Founders: $29/month for first 50–100 users
+Premium: $49/month
+VIP: $99/month
+```
+
+After 100–300 settled live grouped bets with real odds and positive ROI:
+
+```txt
+Premium: $79/month
+VIP: $149/month
+Elite: $249/month limited seats
+```
+
+Estimated private strategy/product value by proof stage:
+
+```txt
+Backtest only: $5k–$20k
+Backtest + early live proxy/current stage: $20k–$75k
+100–300 live settled grouped bets positive: $100k–$300k+
+6+ months verified live results + paying users: $500k+ product potential
+```
+
+---
+
+## 12. Current action plan
+
+Immediate next step:
+
+```txt
+Run GitHub Actions → Player 2 9-12 Two-Leg Backtest
+```
+
+Use:
+
+```txt
+date_start: 2025-04-01
+date_stop: 2026-05-01
+bankroll: 5000
+risk: 0.02
+scenario_odds: 2.80,3.00,3.30,3.50,3.60
+delay_ms: 150
+```
+
+Upload artifact back into ChatGPT:
+
+```txt
+player2-9-12-two-leg-backtest
+```
+
+Analyze:
+
+```txt
+1. Did the API expose real Player 2 & 9–12 grouped odds?
+2. If yes, compare real grouped odds ROI.
+3. If no, use scenario odds carefully.
+4. Compare straight vs 2-leg parlay.
+5. Compare V3 Strict vs Ultra trigger.
+6. Watch drawdowns and losing streaks.
+```
+
+Continue Supabase live tracking and manually/API log real grouped odds from bet365/Dexsport.
+
+---
+
+## 13. Risk rules
+
+Suggested live discipline:
+
+```txt
+Paper or tiny stakes until real grouped odds are logged.
+Do not scale exact 4-6 aggressively.
+For Player 2 & 9–12, require 3.00+ odds; prefer 3.30+.
+For 2-leg parlays, both legs should meet minimum odds.
+Use 1.0%–1.3% until more live proof; 2% is aggressive and currently only being backtested.
+Stop after bad streaks.
+Never chase losses.
+```
+
+Stop rules:
+
+```txt
+Stop after 5 parlay losses in one day.
+Pause after -10% to -15% drawdown.
+Pause if odds are not actually available live.
+Pause if settlement/resolver data looks wrong.
+```
+
+---
+
+## 14. Quick prompt for a new AI tab
+
+Paste this:
+
+```txt
+Read docs/SLIPIQ_AI_HANDOFF.md in my GitHub repo `youssefalw2001/Slipiq-Mini-App` first. We are working on SlipIQ First Set Lab. The old exact 4-6 strategy is now mainly a trigger. The current main strategy is Player 2 & 9–12 after a V3 Strict / Ultra exact 4-6 trigger, plus optional 2-leg Player 2 & 9–12 parlays. Focus on the GitHub workflow `Player 2 9-12 Two-Leg Backtest`, Supabase grouped tracking, and real grouped odds logging. Separate real grouped odds from scenario odds.
 ```
