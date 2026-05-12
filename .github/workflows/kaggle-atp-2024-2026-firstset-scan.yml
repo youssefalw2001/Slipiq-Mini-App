@@ -1,0 +1,96 @@
+name: Kaggle ATP 2024-2026 First-Set Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Kaggle dataset slug
+        required: true
+        default: dissfya/atp-tennis-2000-2023daily-pull
+      date_start:
+        description: Start date inclusive
+        required: true
+        default: '2024-01-01'
+      date_stop:
+        description: Stop date inclusive
+        required: true
+        default: '2026-12-31'
+      min_rows:
+        description: Minimum rows per filter bucket
+        required: true
+        default: '50'
+
+jobs:
+  kaggle-atp-firstset-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Kaggle CLI
+        run: python -m pip install --upgrade kaggle
+
+      - name: Configure Kaggle credentials
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
+            echo "Missing KAGGLE_USERNAME or KAGGLE_KEY secret."
+            exit 1
+          fi
+          mkdir -p ~/.kaggle
+          cat > ~/.kaggle/kaggle.json <<EOF
+          {"username":"$KAGGLE_USERNAME","key":"$KAGGLE_KEY"}
+          EOF
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Download Kaggle ATP dataset
+        run: |
+          mkdir -p data/kaggle-atp
+          kaggle datasets download -d "${{ github.event.inputs.dataset }}" -p data/kaggle-atp --unzip
+          echo "Downloaded files:"
+          find data/kaggle-atp -maxdepth 2 -type f -print
+
+      - name: Locate ATP CSV
+        id: locate_csv
+        run: |
+          CSV_PATH="$(find data/kaggle-atp -type f \( -iname 'atp_tennis.csv' -o -iname '*.csv' \) | head -n 1)"
+          if [ -z "$CSV_PATH" ]; then
+            echo "No CSV found after Kaggle download."
+            exit 1
+          fi
+          echo "csv_path=$CSV_PATH" >> "$GITHUB_OUTPUT"
+          echo "CSV_PATH=$CSV_PATH"
+
+      - name: Run SlipIQ Player 2 first-set scan
+        run: |
+          node scripts/kaggle-atp-2024-2026-firstset-scan.mjs \
+            --input "${{ steps.locate_csv.outputs.csv_path }}" \
+            --date-start "${{ github.event.inputs.date_start }}" \
+            --date-stop "${{ github.event.inputs.date_stop }}" \
+            --min-rows "${{ github.event.inputs.min_rows }}" \
+            --out-dir output/kaggle-atp-2024-2026
+
+      - name: Upload 2024-2026 filtered ATP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaggle-atp-2024-2026-firstset-scan
+          path: |
+            output/kaggle-atp-2024-2026/atp_tennis_2024_2026.csv
+            output/kaggle-atp-2024-2026/player2-firstset-2024-2026-derived.csv
+            output/kaggle-atp-2024-2026/player2-9-12-best-filters-2024-2026.csv
+            output/kaggle-atp-2024-2026/kaggle-atp-2024-2026-firstset-summary.json
+          if-no-files-found: error
