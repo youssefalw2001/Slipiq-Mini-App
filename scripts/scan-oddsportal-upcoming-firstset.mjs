@@ -53,10 +53,7 @@ console.error(`[*] Leagues: ${leagues || 'all available for date'}`);
 console.error(`[*] Threshold: ${threshold}`);
 console.error(`[*] Max runtime minutes: ${maxRuntimeMinutes > 0 ? maxRuntimeMinutes : 'none'}`);
 
-const spawnOptions = {
-  stdio: 'inherit',
-  env: { ...process.env },
-};
+const spawnOptions = { stdio: 'inherit', env: { ...process.env } };
 if (maxRuntimeMinutes > 0) {
   spawnOptions.timeout = Math.round(maxRuntimeMinutes * 60 * 1000);
   spawnOptions.killSignal = 'SIGTERM';
@@ -67,14 +64,9 @@ const scraperTimedOut = Boolean(result.error && result.error.code === 'ETIMEDOUT
 const scraperExitStatus = result.status;
 const scraperSignal = result.signal || null;
 
-if (result.error && !scraperTimedOut) {
-  console.error('Error running oddsharvester:', result.error);
-}
-if (scraperTimedOut) {
-  console.error('[!] OddsHarvester hit the partial-scan timeout. Parsing any files written so far.');
-} else if (scraperExitStatus && scraperExitStatus !== 0) {
-  console.error(`[!] OddsHarvester exited with status ${scraperExitStatus}. Parsing any files written so far.`);
-}
+if (result.error && !scraperTimedOut) console.error('Error running oddsharvester:', result.error);
+if (scraperTimedOut) console.error('[!] OddsHarvester hit the partial-scan timeout. Parsing any files written so far.');
+else if (scraperExitStatus && scraperExitStatus !== 0) console.error(`[!] OddsHarvester exited with status ${scraperExitStatus}. Parsing any files written so far.`);
 
 function parseCsvLine(line) {
   const out = [];
@@ -129,7 +121,6 @@ function americanToDecimal(value) {
 function extractBestMarketOdds(rawMarket) {
   const s = String(rawMarket ?? '').trim();
   if (!s || s === '[]') return { decimal: null, american: null, bookmaker: null, period: null };
-
   const entries = [];
   const itemRegex = /correct_score['"]?\s*:\s*['"]([^'"]+)['"][\s\S]*?bookmaker_name['"]?\s*:\s*['"]([^'"]*)['"][\s\S]*?period['"]?\s*:\s*['"]([^'"]*)['"]/g;
   let m;
@@ -137,7 +128,6 @@ function extractBestMarketOdds(rawMarket) {
     const decimal = americanToDecimal(m[1]);
     if (decimal) entries.push({ american: m[1], decimal, bookmaker: m[2], period: m[3] });
   }
-
   if (!entries.length) {
     const fallbackRegex = /[+\-]\d{3,4}|\b\d+(?:\.\d+)?\b/g;
     const candidates = [...s.matchAll(fallbackRegex)]
@@ -145,7 +135,6 @@ function extractBestMarketOdds(rawMarket) {
       .filter((x) => x.decimal && x.decimal > 1.01 && x.decimal < 150);
     entries.push(...candidates);
   }
-
   entries.sort((a, b) => b.decimal - a.decimal);
   return entries[0] || { decimal: null, american: null, bookmaker: null, period: null };
 }
@@ -161,6 +150,21 @@ function firstSetScore(partialResults) {
   const m = s.match(/^(\d+)\s*[:\-]\s*(\d+)/);
   if (!m) return null;
   return `${m[1]}-${m[2]}`;
+}
+
+function parseDateTimeUtc(value) {
+  const s = String(value || '').trim();
+  if (!s) return null;
+  const d = new Date(s.replace(' UTC', 'Z'));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isActionableUpcoming(row, now = new Date()) {
+  const matchDate = parseDateTimeUtc(row.match_date);
+  if (!matchDate || matchDate.getTime() <= now.getTime()) return false;
+  if (row.first_set_score) return false;
+  if (/exhibition/i.test(row.league_name || '')) return false;
+  return true;
 }
 
 const files = walk(outDir).filter((file) => file.toLowerCase().endsWith('.csv'));
@@ -183,7 +187,7 @@ for (const file of files) {
     if (!reconstructed) continue;
 
     const fsScore = firstSetScore(row.partial_results);
-    rows.push({
+    const parsed = {
       scraped_date: row.scraped_date || '',
       match_date: row.match_date || '',
       league_name: row.league_name || '',
@@ -206,12 +210,15 @@ for (const file of files) {
       estimated_player2_9_12_odds: reconstructed,
       play_status: reconstructed >= 3.5 ? 'TARGET_3_50_PLUS' : reconstructed >= 3.3 ? 'PLAYABLE_3_30_PLUS' : reconstructed >= 3.0 ? 'CAUTION_3_00_PLUS' : 'REJECT',
       match_link: row.match_link || '',
-    });
+    };
+    parsed.is_actionable_upcoming = isActionableUpcoming(parsed) ? 'true' : 'false';
+    rows.push(parsed);
   }
 }
 
 rows.sort((a, b) => b.estimated_player2_9_12_odds - a.estimated_player2_9_12_odds);
 const candidates = rows.filter((row) => row.estimated_player2_9_12_odds >= threshold);
+const actionableCandidates = candidates.filter((row) => row.is_actionable_upcoming === 'true');
 
 const summary = {
   generated_at: new Date().toISOString(),
@@ -225,6 +232,8 @@ const summary = {
   raw_csv_files_scanned: files.length,
   rows_with_reconstructed_odds: rows.length,
   candidates_count: candidates.length,
+  actionable_candidates_count: actionableCandidates.length,
+  actionable_candidates: actionableCandidates,
   candidates,
   all_rows_top_50: rows.slice(0, 50),
   warning: 'Read-only scan. This does not place bets. Confirm prices manually before any wager. If scraper_timed_out=true, this is partial output only.',
@@ -233,14 +242,15 @@ const summary = {
 fs.writeFileSync(path.join(outDir, 'upcoming_firstset_summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
 
 const headers = [
-  'match_date','league_name','home_team','away_team','odds_3_6_decimal','odds_4_6_decimal','odds_5_7_decimal',
+  'match_date','league_name','home_team','away_team','first_set_score','is_actionable_upcoming','odds_3_6_decimal','odds_4_6_decimal','odds_5_7_decimal',
   'estimated_player2_9_12_odds','play_status','bookmaker_3_6','bookmaker_4_6','bookmaker_5_7','match_link'
 ];
-const csv = [headers.join(','), ...candidates.map((row) => headers.map((h) => csvEscape(row[h])).join(','))].join('\n');
-fs.writeFileSync(path.join(outDir, 'upcoming_firstset_candidates.csv'), `${csv}\n`);
+function writeCsv(fileName, dataRows) {
+  const csv = [headers.join(','), ...dataRows.map((row) => headers.map((h) => csvEscape(row[h])).join(','))].join('\n');
+  fs.writeFileSync(path.join(outDir, fileName), `${csv}\n`);
+}
+writeCsv('upcoming_firstset_candidates.csv', candidates);
+writeCsv('upcoming_firstset_actionable_candidates.csv', actionableCandidates);
 
 console.log(JSON.stringify(summary, null, 2));
-
-// Always exit 0 so GitHub uploads partial artifacts even if the scraper timed out
-// or exited non-zero after writing some files.
 process.exit(0);
