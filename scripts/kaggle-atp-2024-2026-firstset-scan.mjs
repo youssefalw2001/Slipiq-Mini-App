@@ -48,30 +48,23 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizeName(value) {
-  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
 function parseDateValue(value) {
   const s = String(value || '').trim();
   if (!s) return null;
-
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
-
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-
   const d = new Date(s);
   if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   return null;
 }
 
-function firstSetFromScore(score) {
+function firstSetFromListedScore(score) {
   const s = String(score || '').trim();
   const m = s.match(/(\d+)\s*-\s*(\d+)(?:\s*\(\d+\))?/);
   if (!m) return null;
-  return { winnerSideGames: Number(m[1]), loserSideGames: Number(m[2]), raw: m[0] };
+  return { p1Games: Number(m[1]), p2Games: Number(m[2]), raw: m[0] };
 }
 
 function oddsBand(odd) {
@@ -88,8 +81,7 @@ function oddsBand(odd) {
 
 function rankGapBand(rank1, rank2) {
   if (rank1 === null || rank2 === null) return 'unknown';
-  const gap = rank2 - rank1;
-  const abs = Math.abs(gap);
+  const abs = Math.abs(rank2 - rank1);
   if (abs <= 10) return '0-10';
   if (abs <= 25) return '11-25';
   if (abs <= 50) return '26-50';
@@ -109,12 +101,6 @@ function addGroup(groups, keyParts, row) {
       exact_4_6: 0,
       exact_5_7: 0,
       player2_first_set_wins: 0,
-      break_even_odds: null,
-      roi_at_3_00: null,
-      roi_at_3_30: null,
-      roi_at_3_50: null,
-      roi_at_3_60: null,
-      hit_rate: null,
     });
   }
   const g = groups.get(key);
@@ -182,24 +168,14 @@ async function main() {
     const baseObj = Object.fromEntries(headers.map((h, i) => [h, cells[i] ?? '']));
     rows2024To2026.push(baseObj);
 
-    const fsSet = firstSetFromScore(get('Score'));
+    const fsSet = firstSetFromListedScore(get('Score'));
     if (!fsSet) {
       parseErrors.push({ lineNo: lineNo + 1, date: isoDate, score: get('Score'), reason: 'first set not parseable' });
       continue;
     }
 
-    const p1 = get('Player_1');
-    const p2 = get('Player_2');
-    const winner = get('Winner');
-    const winnerIsP1 = normalizeName(winner) === normalizeName(p1);
-    const winnerIsP2 = normalizeName(winner) === normalizeName(p2);
-    if (!winnerIsP1 && !winnerIsP2) {
-      parseErrors.push({ lineNo: lineNo + 1, date: isoDate, score: get('Score'), reason: 'winner does not match Player_1 or Player_2' });
-      continue;
-    }
-
-    const p1First = winnerIsP1 ? fsSet.winnerSideGames : fsSet.loserSideGames;
-    const p2First = winnerIsP2 ? fsSet.winnerSideGames : fsSet.loserSideGames;
+    const p1First = fsSet.p1Games;
+    const p2First = fsSet.p2Games;
     const listedFirstSetScore = `${p1First}-${p2First}`;
     const player2FirstWin = p2First > p1First;
     const player2Exact36 = listedFirstSetScore === '3-6';
@@ -214,10 +190,16 @@ async function main() {
     if (player2Exact46) exact46 += 1;
     if (player2Exact57) exact57 += 1;
 
+    const p1 = get('Player_1');
+    const p2 = get('Player_2');
+    const winner = get('Winner');
     const rank1 = toNumber(get('Rank_1'));
     const rank2 = toNumber(get('Rank_2'));
     const odd1 = toNumber(get('Odd_1'));
     const odd2 = toNumber(get('Odd_2'));
+    const player2Underdog = odd1 !== null && odd2 !== null ? odd2 > odd1 : null;
+    const player2Favorite = odd1 !== null && odd2 !== null ? odd2 < odd1 : null;
+
     const row = {
       Date: isoDate,
       Tournament: get('Tournament'),
@@ -245,8 +227,9 @@ async function main() {
       player2_exact_3_6_win: player2Exact36,
       player2_exact_4_6_win: player2Exact46,
       player2_exact_5_7_win: player2Exact57,
-      player2_is_match_winner: winnerIsP2,
-      player2_is_underdog_by_match_odds: odd1 !== null && odd2 !== null ? odd2 > odd1 : null,
+      player2_is_match_winner: String(winner).trim().toLowerCase() === String(p2).trim().toLowerCase(),
+      player2_is_underdog_by_match_odds: player2Underdog,
+      player2_is_favorite_by_match_odds: player2Favorite,
       player2_match_odds_band: oddsBand(odd2),
       rank_gap_band_abs: rankGapBand(rank1, rank2),
       rank2_minus_rank1: rank1 !== null && rank2 !== null ? rank2 - rank1 : null,
@@ -259,9 +242,13 @@ async function main() {
     addGroup(groups, ['Round', safe(row.Round)], row);
     addGroup(groups, ['P2Odds', row.player2_match_odds_band], row);
     addGroup(groups, ['RankGap', row.rank_gap_band_abs], row);
+    addGroup(groups, ['P2Underdog', String(row.player2_is_underdog_by_match_odds)], row);
     addGroup(groups, ['Surface+P2Odds', safe(row.Surface), row.player2_match_odds_band], row);
     addGroup(groups, ['Series+P2Odds', safe(row.Series), row.player2_match_odds_band], row);
+    addGroup(groups, ['Surface+P2Underdog', safe(row.Surface), String(row.player2_is_underdog_by_match_odds)], row);
+    addGroup(groups, ['Series+P2Underdog', safe(row.Series), String(row.player2_is_underdog_by_match_odds)], row);
     addGroup(groups, ['Surface+Round+P2Odds', safe(row.Surface), safe(row.Round), row.player2_match_odds_band], row);
+    addGroup(groups, ['Series+Surface+P2Odds', safe(row.Series), safe(row.Surface), row.player2_match_odds_band], row);
   }
 
   const filteredHeaders = headers;
@@ -278,8 +265,8 @@ async function main() {
     'p2_first_set_games', 'listed_first_set_score', 'player2_first_set_win',
     'player2_9_12_win', 'player2_exact_3_6_win', 'player2_exact_4_6_win',
     'player2_exact_5_7_win', 'player2_is_match_winner',
-    'player2_is_underdog_by_match_odds', 'player2_match_odds_band',
-    'rank_gap_band_abs', 'rank2_minus_rank1',
+    'player2_is_underdog_by_match_odds', 'player2_is_favorite_by_match_odds',
+    'player2_match_odds_band', 'rank_gap_band_abs', 'rank2_minus_rank1',
   ];
   const derivedCsv = [
     derivedHeaders.join(','),
@@ -312,6 +299,7 @@ async function main() {
     filtered_rows_2024_2026: dateFilteredRows,
     parseable_first_set_rows: parseableFirstSetRows,
     player2_first_set_wins: player2FirstSetWins,
+    player2_first_set_win_rate: parseableFirstSetRows ? player2FirstSetWins / parseableFirstSetRows : 0,
     player2_9_12_wins: player2NineToTwelveWins,
     player2_9_12_losses: parseableFirstSetRows - player2NineToTwelveWins,
     player2_9_12_hit_rate: parseableFirstSetRows ? player2NineToTwelveWins / parseableFirstSetRows : 0,
@@ -332,15 +320,14 @@ async function main() {
     best_filters_top_25: grouped.slice(0, 25),
     parse_error_count: parseErrors.length,
     parse_errors_sample: parseErrors.slice(0, 25),
+    important_correction: 'Kaggle Score is treated as listed Player_1-Player_2 order, not winner-loser order.',
     important_limitations: [
       'This dataset has match-winner odds only, not real Player 2 & 9-12 odds.',
       'This scan is an outcome/filter layer, not historical market-price proof.',
-      'Score orientation is assumed to be winner-vs-loser order; first-set games are mapped back to Player_1/Player_2 using Winner.',
       'Use this with V3/Ultra 4-6 triggers later; do not treat every row as a SlipIQ bet.',
     ],
   };
   await fs.writeFile(path.join(outDir, 'kaggle-atp-2024-2026-firstset-summary.json'), JSON.stringify(summary, null, 2));
-
   console.log(JSON.stringify(summary, null, 2));
 }
 
