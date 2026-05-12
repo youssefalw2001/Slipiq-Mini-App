@@ -10,15 +10,19 @@ on:
       leagues:
         description: Comma-separated OddsHarvester tennis league slugs
         required: true
-        default: 'atp-rome,wta-rome,atp-madrid,wta-madrid,atp-french-open,wta-french-open'
+        default: 'atp-rome'
       seasons:
         description: Comma-separated seasons to test
         required: true
-        default: '2025,2024'
+        default: '2025'
       markets:
         description: Comma-separated concrete OddsHarvester tennis correct-score markets
         required: true
         default: 'correct_score_3_6,correct_score_4_6,correct_score_5_7'
+      period:
+        description: Tennis period to scrape. Use 1st_set for SlipIQ First Set Lab.
+        required: true
+        default: '1st_set'
       max_pages:
         description: Max result pages per league/season
         required: true
@@ -26,18 +30,19 @@ on:
       request_delay:
         description: Seconds between match requests
         required: true
-        default: '2.5'
+        default: '1.25'
 
 jobs:
   oddsportal-firstset-hunt:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      LEAGUES: ${{ github.event.inputs.leagues || 'atp-rome,wta-rome,atp-madrid,wta-madrid,atp-french-open,wta-french-open' }}
-      SEASONS: ${{ github.event.inputs.seasons || '2025,2024' }}
+      LEAGUES: ${{ github.event.inputs.leagues || 'atp-rome' }}
+      SEASONS: ${{ github.event.inputs.seasons || '2025' }}
       MARKETS: ${{ github.event.inputs.markets || 'correct_score_3_6,correct_score_4_6,correct_score_5_7' }}
+      PERIOD: ${{ github.event.inputs.period || '1st_set' }}
       MAX_PAGES: ${{ github.event.inputs.max_pages || '1' }}
-      REQUEST_DELAY: ${{ github.event.inputs.request_delay || '2.5' }}
+      REQUEST_DELAY: ${{ github.event.inputs.request_delay || '1.25' }}
       OUT_ROOT: artifacts/output/oddsportal-firstset-hunt
 
     steps:
@@ -61,7 +66,7 @@ jobs:
           python -m playwright install chromium --with-deps
           oddsharvester --help
 
-      - name: Run OddsPortal tennis concrete correct-score hunt
+      - name: Run OddsPortal tennis first-set correct-score hunt
         shell: bash
         run: |
           mkdir -p "$OUT_ROOT/raw" "$OUT_ROOT/logs"
@@ -73,9 +78,9 @@ jobs:
             for season in "${SEASON_LIST[@]}"; do
               season="$(echo "$season" | xargs)"
               [ -z "$season" ] && continue
-              slug="${league}_${season}"
+              slug="${league}_${season}_${PERIOD}"
               out="$OUT_ROOT/raw/$slug"
-              echo "::group::OddsHarvester $league $season $MARKETS"
+              echo "::group::OddsHarvester $league $season $MARKETS period=$PERIOD"
               mkdir -p "$out"
               set +e
               oddsharvester historic \
@@ -83,9 +88,10 @@ jobs:
                 -l "$league" \
                 --season "$season" \
                 -m "$MARKETS" \
+                --period "$PERIOD" \
                 --max-pages "$MAX_PAGES" \
                 -f csv \
-                -o "$out/correct_score_3_6_4_6_5_7" \
+                -o "$out/first_set_correct_score_3_6_4_6_5_7" \
                 --headless \
                 --request-delay "$REQUEST_DELAY" \
                 --concurrency 1 \
