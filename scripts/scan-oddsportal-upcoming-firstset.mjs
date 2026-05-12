@@ -28,6 +28,7 @@ const date = params.date || formatDate(new Date());
 const threshold = Number.parseFloat(params.threshold || '3.5');
 const leagues = params.leagues || '';
 const requestDelay = params['request-delay'] || '1.25';
+const maxRuntimeMinutes = Number.parseFloat(params['max-runtime-minutes'] || '0');
 const outDir = path.join('.tmp', `upcoming-${Date.now()}`);
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -50,15 +51,29 @@ if (leagues) cliArgs.push('-l', leagues);
 console.error(`[*] Scraping upcoming first-set odds for ${date}`);
 console.error(`[*] Leagues: ${leagues || 'all available for date'}`);
 console.error(`[*] Threshold: ${threshold}`);
+console.error(`[*] Max runtime minutes: ${maxRuntimeMinutes > 0 ? maxRuntimeMinutes : 'none'}`);
 
-const result = spawnSync('oddsharvester', cliArgs, {
+const spawnOptions = {
   stdio: 'inherit',
   env: { ...process.env },
-});
+};
+if (maxRuntimeMinutes > 0) {
+  spawnOptions.timeout = Math.round(maxRuntimeMinutes * 60 * 1000);
+  spawnOptions.killSignal = 'SIGTERM';
+}
 
-if (result.error) {
+const result = spawnSync('oddsharvester', cliArgs, spawnOptions);
+const scraperTimedOut = Boolean(result.error && result.error.code === 'ETIMEDOUT');
+const scraperExitStatus = result.status;
+const scraperSignal = result.signal || null;
+
+if (result.error && !scraperTimedOut) {
   console.error('Error running oddsharvester:', result.error);
-  process.exit(1);
+}
+if (scraperTimedOut) {
+  console.error('[!] OddsHarvester hit the partial-scan timeout. Parsing any files written so far.');
+} else if (scraperExitStatus && scraperExitStatus !== 0) {
+  console.error(`[!] OddsHarvester exited with status ${scraperExitStatus}. Parsing any files written so far.`);
 }
 
 function parseCsvLine(line) {
@@ -203,12 +218,16 @@ const summary = {
   date,
   leagues: leagues || null,
   threshold,
+  max_runtime_minutes: maxRuntimeMinutes || null,
+  scraper_timed_out: scraperTimedOut,
+  scraper_exit_status: scraperExitStatus,
+  scraper_signal: scraperSignal,
   raw_csv_files_scanned: files.length,
   rows_with_reconstructed_odds: rows.length,
   candidates_count: candidates.length,
   candidates,
   all_rows_top_50: rows.slice(0, 50),
-  warning: 'Read-only scan. This does not place bets. Confirm prices manually before any wager.',
+  warning: 'Read-only scan. This does not place bets. Confirm prices manually before any wager. If scraper_timed_out=true, this is partial output only.',
 };
 
 fs.writeFileSync(path.join(outDir, 'upcoming_firstset_summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
@@ -221,3 +240,7 @@ const csv = [headers.join(','), ...candidates.map((row) => headers.map((h) => cs
 fs.writeFileSync(path.join(outDir, 'upcoming_firstset_candidates.csv'), `${csv}\n`);
 
 console.log(JSON.stringify(summary, null, 2));
+
+// Always exit 0 so GitHub uploads partial artifacts even if the scraper timed out
+// or exited non-zero after writing some files.
+process.exit(0);
