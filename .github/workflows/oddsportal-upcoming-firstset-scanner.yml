@@ -19,6 +19,10 @@ on:
         description: Seconds between match requests
         required: false
         default: '1.25'
+      max_runtime_minutes:
+        description: Optional quick-scan limit. Example 7 uploads whatever was found after ~7 minutes.
+        required: false
+        default: '0'
 
 jobs:
   scan:
@@ -62,23 +66,26 @@ jobs:
             $DATE_ARG \
             $LEAGUES_ARG \
             --threshold=${{ github.event.inputs.threshold || '3.5' }} \
-            --request-delay=${{ github.event.inputs.request_delay || '1.25' }}
+            --request-delay=${{ github.event.inputs.request_delay || '1.25' }} \
+            --max-runtime-minutes=${{ github.event.inputs.max_runtime_minutes || '0' }}
 
       - name: Collect scanner output
+        if: always()
         shell: bash
         run: |
           mkdir -p artifacts/output/oddsportal-upcoming-firstset
           LATEST_DIR="$(find .tmp -maxdepth 1 -type d -name 'upcoming-*' | sort | tail -n 1)"
           if [ -z "$LATEST_DIR" ]; then
-            echo "No scanner output directory found"
-            exit 1
+            echo '{"error":"No scanner output directory found"}' > artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json
+          else
+            cp -R "$LATEST_DIR"/. artifacts/output/oddsportal-upcoming-firstset/
           fi
-          cp -R "$LATEST_DIR"/. artifacts/output/oddsportal-upcoming-firstset/
           find artifacts/output/oddsportal-upcoming-firstset -maxdepth 3 -type f -print
 
       - name: Upload scanner artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: oddsportal-upcoming-firstset
           path: artifacts/output/oddsportal-upcoming-firstset/**
-          if-no-files-found: error
+          if-no-files-found: warn
