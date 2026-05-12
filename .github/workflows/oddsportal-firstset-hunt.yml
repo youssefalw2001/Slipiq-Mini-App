@@ -1,0 +1,112 @@
+name: OddsPortal First-Set Correct Score Hunt
+
+on:
+  push:
+    paths:
+      - '.github/workflows/oddsportal-firstset-hunt.yml'
+      - 'scripts/analyze-oddsportal-firstset-hunt.mjs'
+  workflow_dispatch:
+    inputs:
+      leagues:
+        description: Comma-separated OddsHarvester tennis league slugs
+        required: true
+        default: 'atp-rome,wta-rome,atp-madrid,wta-madrid,atp-french-open,wta-french-open'
+      seasons:
+        description: Comma-separated seasons to test
+        required: true
+        default: '2025,2024'
+      max_pages:
+        description: Max result pages per league/season
+        required: true
+        default: '1'
+      request_delay:
+        description: Seconds between match requests
+        required: true
+        default: '2.5'
+
+jobs:
+  oddsportal-firstset-hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      LEAGUES: ${{ github.event.inputs.leagues || 'atp-rome,wta-rome,atp-madrid,wta-madrid,atp-french-open,wta-french-open' }}
+      SEASONS: ${{ github.event.inputs.seasons || '2025,2024' }}
+      MAX_PAGES: ${{ github.event.inputs.max_pages || '1' }}
+      REQUEST_DELAY: ${{ github.event.inputs.request_delay || '2.5' }}
+      OUT_ROOT: artifacts/output/oddsportal-firstset-hunt
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install OddsHarvester and Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install oddsharvester
+          python -m playwright install chromium --with-deps
+          oddsharvester --help
+
+      - name: Run OddsPortal tennis exact_score hunt
+        shell: bash
+        run: |
+          mkdir -p "$OUT_ROOT/raw" "$OUT_ROOT/logs"
+          IFS=',' read -ra LEAGUE_LIST <<< "$LEAGUES"
+          IFS=',' read -ra SEASON_LIST <<< "$SEASONS"
+          for league in "${LEAGUE_LIST[@]}"; do
+            league="$(echo "$league" | xargs)"
+            [ -z "$league" ] && continue
+            for season in "${SEASON_LIST[@]}"; do
+              season="$(echo "$season" | xargs)"
+              [ -z "$season" ] && continue
+              slug="${league}_${season}"
+              out="$OUT_ROOT/raw/$slug"
+              echo "::group::OddsHarvester $league $season exact_score"
+              mkdir -p "$out"
+              set +e
+              oddsharvester historic \
+                -s tennis \
+                -l "$league" \
+                --season "$season" \
+                -m exact_score \
+                --max-pages "$MAX_PAGES" \
+                -f csv \
+                -o "$out/exact_score" \
+                --headless \
+                --request-delay "$REQUEST_DELAY" \
+                --concurrency 1 \
+                > "$OUT_ROOT/logs/${slug}.log" 2>&1
+              code=$?
+              set -e
+              echo "exit_code=$code" | tee "$out/status.txt"
+              tail -n 120 "$OUT_ROOT/logs/${slug}.log" || true
+              echo "::endgroup::"
+            done
+          done
+          echo "Raw files:"
+          find "$OUT_ROOT" -maxdepth 4 -type f -print | sort
+
+      - name: Analyze OddsPortal output for 3-6 / 4-6 / 5-7
+        run: |
+          node scripts/analyze-oddsportal-firstset-hunt.mjs \
+            --input-dir "$OUT_ROOT/raw" \
+            --out-dir "$OUT_ROOT/analysis"
+
+      - name: Upload hunt artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-firstset-hunt
+          path: |
+            artifacts/output/oddsportal-firstset-hunt/raw/**
+            artifacts/output/oddsportal-firstset-hunt/logs/**
+            artifacts/output/oddsportal-firstset-hunt/analysis/**
+          if-no-files-found: error
