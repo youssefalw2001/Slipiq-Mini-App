@@ -15,6 +15,10 @@ on:
         description: Comma-separated seasons to test
         required: true
         default: '2025,2024'
+      markets:
+        description: Comma-separated concrete OddsHarvester tennis correct-score markets
+        required: true
+        default: 'correct_score_3_6,correct_score_4_6,correct_score_5_7'
       max_pages:
         description: Max result pages per league/season
         required: true
@@ -31,6 +35,7 @@ jobs:
     env:
       LEAGUES: ${{ github.event.inputs.leagues || 'atp-rome,wta-rome,atp-madrid,wta-madrid,atp-french-open,wta-french-open' }}
       SEASONS: ${{ github.event.inputs.seasons || '2025,2024' }}
+      MARKETS: ${{ github.event.inputs.markets || 'correct_score_3_6,correct_score_4_6,correct_score_5_7' }}
       MAX_PAGES: ${{ github.event.inputs.max_pages || '1' }}
       REQUEST_DELAY: ${{ github.event.inputs.request_delay || '2.5' }}
       OUT_ROOT: artifacts/output/oddsportal-firstset-hunt
@@ -56,7 +61,7 @@ jobs:
           python -m playwright install chromium --with-deps
           oddsharvester --help
 
-      - name: Run OddsPortal tennis exact_score hunt
+      - name: Run OddsPortal tennis concrete correct-score hunt
         shell: bash
         run: |
           mkdir -p "$OUT_ROOT/raw" "$OUT_ROOT/logs"
@@ -70,17 +75,17 @@ jobs:
               [ -z "$season" ] && continue
               slug="${league}_${season}"
               out="$OUT_ROOT/raw/$slug"
-              echo "::group::OddsHarvester $league $season exact_score"
+              echo "::group::OddsHarvester $league $season $MARKETS"
               mkdir -p "$out"
               set +e
               oddsharvester historic \
                 -s tennis \
                 -l "$league" \
                 --season "$season" \
-                -m exact_score \
+                -m "$MARKETS" \
                 --max-pages "$MAX_PAGES" \
                 -f csv \
-                -o "$out/exact_score" \
+                -o "$out/correct_score_3_6_4_6_5_7" \
                 --headless \
                 --request-delay "$REQUEST_DELAY" \
                 --concurrency 1 \
@@ -88,7 +93,7 @@ jobs:
               code=$?
               set -e
               echo "exit_code=$code" | tee "$out/status.txt"
-              tail -n 120 "$OUT_ROOT/logs/${slug}.log" || true
+              tail -n 160 "$OUT_ROOT/logs/${slug}.log" || true
               echo "::endgroup::"
             done
           done
