@@ -1,6 +1,10 @@
 name: Kaggle ATP 2024-2026 First-Set Scan
 
 on:
+  push:
+    paths:
+      - '.github/workflows/kaggle-atp-2024-2026-firstset-scan.yml'
+      - 'scripts/kaggle-atp-2024-2026-firstset-scan.mjs'
   workflow_dispatch:
     inputs:
       dataset:
@@ -24,6 +28,11 @@ jobs:
   kaggle-atp-firstset-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATASET: ${{ github.event.inputs.dataset || 'dissfya/atp-tennis-2000-2023daily-pull' }}
+      DATE_START: ${{ github.event.inputs.date_start || '2024-01-01' }}
+      DATE_STOP: ${{ github.event.inputs.date_stop || '2026-12-31' }}
+      MIN_ROWS: ${{ github.event.inputs.min_rows || '50' }}
 
     steps:
       - name: Checkout repo
@@ -52,15 +61,13 @@ jobs:
             exit 1
           fi
           mkdir -p ~/.kaggle
-          cat > ~/.kaggle/kaggle.json <<EOF
-          {"username":"$KAGGLE_USERNAME","key":"$KAGGLE_KEY"}
-          EOF
+          printf '{"username":"%s","key":"%s"}\n' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > ~/.kaggle/kaggle.json
           chmod 600 ~/.kaggle/kaggle.json
 
       - name: Download Kaggle ATP dataset
         run: |
           mkdir -p data/kaggle-atp
-          kaggle datasets download -d "${{ github.event.inputs.dataset }}" -p data/kaggle-atp --unzip
+          kaggle datasets download -d "$DATASET" -p data/kaggle-atp --unzip
           echo "Downloaded files:"
           find data/kaggle-atp -maxdepth 2 -type f -print
 
@@ -79,9 +86,9 @@ jobs:
         run: |
           node scripts/kaggle-atp-2024-2026-firstset-scan.mjs \
             --input "${{ steps.locate_csv.outputs.csv_path }}" \
-            --date-start "${{ github.event.inputs.date_start }}" \
-            --date-stop "${{ github.event.inputs.date_stop }}" \
-            --min-rows "${{ github.event.inputs.min_rows }}" \
+            --date-start "$DATE_START" \
+            --date-stop "$DATE_STOP" \
+            --min-rows "$MIN_ROWS" \
             --out-dir output/kaggle-atp-2024-2026
 
       - name: Upload 2024-2026 filtered ATP artifact
