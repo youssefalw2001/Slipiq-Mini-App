@@ -5,8 +5,13 @@ on:
     paths:
       - '.github/workflows/oddsportal-firstset-hunt.yml'
       - 'scripts/analyze-oddsportal-firstset-hunt.mjs'
+      - 'data/input/oddsportal-firstset-hunt/raw/**'
   workflow_dispatch:
     inputs:
+      use_repo_raw:
+        description: Analyze CSV/JSON files committed under data/input/oddsportal-firstset-hunt/raw instead of scraping
+        required: true
+        default: 'false'
       leagues:
         description: Comma-separated OddsHarvester tennis league slugs
         required: true
@@ -41,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
+      USE_REPO_RAW: ${{ github.event.inputs.use_repo_raw || 'false' }}
       LEAGUES: ${{ github.event.inputs.leagues || 'atp-rome' }}
       SEASONS: ${{ github.event.inputs.seasons || '2025' }}
       MARKETS: ${{ github.event.inputs.markets || 'correct_score_3_6,correct_score_4_6,correct_score_5_7' }}
@@ -48,32 +54,51 @@ jobs:
       MAX_PAGES: ${{ github.event.inputs.max_pages || '1' }}
       REQUEST_DELAY: ${{ github.event.inputs.request_delay || '1.25' }}
       FORCE_RESCRAPE: ${{ github.event.inputs.force_rescrape || 'false' }}
+      REPO_RAW_DIR: data/input/oddsportal-firstset-hunt/raw
       OUT_ROOT: artifacts/output/oddsportal-firstset-hunt
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Prepare repo-provided raw files
+        id: repo_raw
+        shell: bash
+        run: |
+          mkdir -p "$OUT_ROOT/raw" "$OUT_ROOT/logs"
+          if [ -d "$REPO_RAW_DIR" ] && find "$REPO_RAW_DIR" -type f \( -iname '*.csv' -o -iname '*.json' -o -iname '*.txt' -o -iname '*.log' \) | grep -q .; then
+            if [ "$USE_REPO_RAW" = "true" ] || [ "$GITHUB_EVENT_NAME" = "push" ]; then
+              mkdir -p "$OUT_ROOT/raw/repo_uploaded"
+              cp -R "$REPO_RAW_DIR"/. "$OUT_ROOT/raw/repo_uploaded/"
+              echo "Using repo-provided raw files from $REPO_RAW_DIR" | tee "$OUT_ROOT/logs/repo-raw-input.log"
+              find "$OUT_ROOT/raw/repo_uploaded" -type f -print | sort | tee -a "$OUT_ROOT/logs/repo-raw-input.log"
+              echo "has_repo_raw=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "has_repo_raw=false" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        if: steps.repo_raw.outputs.has_repo_raw != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Restore raw OddsPortal CSV cache
         id: raw_cache
-        if: env.FORCE_RESCRAPE != 'true'
+        if: steps.repo_raw.outputs.has_repo_raw != 'true' && env.FORCE_RESCRAPE != 'true'
         uses: actions/cache@v4
         with:
           path: artifacts/output/oddsportal-firstset-hunt/raw
           key: oddsportal-raw-v2-${{ env.LEAGUES }}-${{ env.SEASONS }}-${{ env.MARKETS }}-${{ env.PERIOD }}-pages-${{ env.MAX_PAGES }}
 
       - name: Install OddsHarvester and Playwright
-        if: steps.raw_cache.outputs.cache-hit != 'true' || env.FORCE_RESCRAPE == 'true'
+        if: steps.repo_raw.outputs.has_repo_raw != 'true' && (steps.raw_cache.outputs.cache-hit != 'true' || env.FORCE_RESCRAPE == 'true')
         run: |
           python -m pip install --upgrade pip
           python -m pip install oddsharvester
@@ -81,7 +106,7 @@ jobs:
           oddsharvester --help
 
       - name: Run OddsPortal tennis first-set correct-score hunt
-        if: steps.raw_cache.outputs.cache-hit != 'true' || env.FORCE_RESCRAPE == 'true'
+        if: steps.repo_raw.outputs.has_repo_raw != 'true' && (steps.raw_cache.outputs.cache-hit != 'true' || env.FORCE_RESCRAPE == 'true')
         shell: bash
         run: |
           mkdir -p "$OUT_ROOT/raw" "$OUT_ROOT/logs"
@@ -122,7 +147,7 @@ jobs:
           find "$OUT_ROOT" -maxdepth 4 -type f -print | sort
 
       - name: Note raw cache hit
-        if: steps.raw_cache.outputs.cache-hit == 'true' && env.FORCE_RESCRAPE != 'true'
+        if: steps.repo_raw.outputs.has_repo_raw != 'true' && steps.raw_cache.outputs.cache-hit == 'true' && env.FORCE_RESCRAPE != 'true'
         run: |
           mkdir -p "$OUT_ROOT/logs"
           echo "Using cached raw OddsPortal CSV output. Set force_rescrape=true to scrape again." | tee "$OUT_ROOT/logs/cache-hit.log"
