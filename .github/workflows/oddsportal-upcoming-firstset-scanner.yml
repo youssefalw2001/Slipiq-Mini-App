@@ -11,16 +11,20 @@ on:
         description: Optional comma-separated OddsPortal league slugs, e.g. atp-rome,wta-rome
         required: false
         default: ''
+      bookmaker:
+        description: Target bookmaker to extract from OddsPortal rows. Default bet365.
+        required: false
+        default: 'bet365'
       threshold:
         description: Minimum reconstructed grouped odds, decimal. Use 3.3 or 3.5.
         required: false
-        default: '3.5'
+        default: '3.3'
       request_delay:
         description: Seconds between match requests
         required: false
         default: '1.25'
       max_runtime_minutes:
-        description: Optional quick-scan limit. Example 7 uploads whatever was found after ~7 minutes.
+        description: Optional quick-scan limit. Example 12 uploads whatever was found after ~12 minutes.
         required: false
         default: '0'
 
@@ -65,7 +69,8 @@ jobs:
           node scripts/scan-oddsportal-upcoming-firstset.mjs \
             $DATE_ARG \
             $LEAGUES_ARG \
-            --threshold=${{ github.event.inputs.threshold || '3.5' }} \
+            --bookmaker=${{ github.event.inputs.bookmaker || 'bet365' }} \
+            --threshold=${{ github.event.inputs.threshold || '3.3' }} \
             --request-delay=${{ github.event.inputs.request_delay || '1.25' }} \
             --max-runtime-minutes=${{ github.event.inputs.max_runtime_minutes || '0' }}
 
