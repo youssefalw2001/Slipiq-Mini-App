@@ -1,0 +1,84 @@
+name: OddsPortal Upcoming First-Set Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Date to scan in YYYY-MM-DD. Leave blank for today.
+        required: false
+        default: ''
+      leagues:
+        description: Optional comma-separated OddsPortal league slugs, e.g. atp-rome,wta-rome
+        required: false
+        default: ''
+      threshold:
+        description: Minimum reconstructed grouped odds, decimal. Use 3.3 or 3.5.
+        required: false
+        default: '3.5'
+      request_delay:
+        description: Seconds between match requests
+        required: false
+        default: '1.25'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install OddsHarvester and Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install oddsharvester
+          python -m playwright install chromium --with-deps
+          oddsharvester --help
+
+      - name: Run read-only upcoming first-set scanner
+        shell: bash
+        run: |
+          set -e
+          DATE_ARG=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            DATE_ARG="--date=${{ github.event.inputs.date }}"
+          fi
+          LEAGUES_ARG=""
+          if [ -n "${{ github.event.inputs.leagues }}" ]; then
+            LEAGUES_ARG="--leagues=${{ github.event.inputs.leagues }}"
+          fi
+          node scripts/scan-oddsportal-upcoming-firstset.mjs \
+            $DATE_ARG \
+            $LEAGUES_ARG \
+            --threshold=${{ github.event.inputs.threshold || '3.5' }} \
+            --request-delay=${{ github.event.inputs.request_delay || '1.25' }}
+
+      - name: Collect scanner output
+        shell: bash
+        run: |
+          mkdir -p artifacts/output/oddsportal-upcoming-firstset
+          LATEST_DIR="$(find .tmp -maxdepth 1 -type d -name 'upcoming-*' | sort | tail -n 1)"
+          if [ -z "$LATEST_DIR" ]; then
+            echo "No scanner output directory found"
+            exit 1
+          fi
+          cp -R "$LATEST_DIR"/. artifacts/output/oddsportal-upcoming-firstset/
+          find artifacts/output/oddsportal-upcoming-firstset -maxdepth 3 -type f -print
+
+      - name: Upload scanner artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-upcoming-firstset
+          path: artifacts/output/oddsportal-upcoming-firstset/**
+          if-no-files-found: error
