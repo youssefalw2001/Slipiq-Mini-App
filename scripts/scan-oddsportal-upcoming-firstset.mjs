@@ -54,17 +54,41 @@ console.error(`[*] Leagues: ${leagues || 'all available for date'}`);
 console.error(`[*] Target bookmaker: ${targetBookmaker}`);
 console.error(`[*] Candidate threshold: ${threshold}`);
 console.error(`[*] Max runtime minutes: ${maxRuntimeMinutes > 0 ? maxRuntimeMinutes : 'none'}`);
+console.error(`[*] OddsHarvester command: oddsharvester ${cliArgs.join(' ')}`);
 
-const spawnOptions = { stdio: 'inherit', env: { ...process.env } };
+const spawnOptions = {
+  env: { ...process.env },
+  encoding: 'utf8',
+  maxBuffer: 50 * 1024 * 1024,
+};
 if (maxRuntimeMinutes > 0) {
   spawnOptions.timeout = Math.round(maxRuntimeMinutes * 60 * 1000);
   spawnOptions.killSignal = 'SIGTERM';
 }
 
 const result = spawnSync('oddsharvester', cliArgs, spawnOptions);
+const stdout = result.stdout || '';
+const stderr = result.stderr || '';
+if (stdout) process.stdout.write(stdout);
+if (stderr) process.stderr.write(stderr);
+
 const scraperTimedOut = Boolean(result.error && result.error.code === 'ETIMEDOUT');
 const scraperExitStatus = result.status;
 const scraperSignal = result.signal || null;
+const commandLog = [
+  `command=oddsharvester ${cliArgs.join(' ')}`,
+  `status=${scraperExitStatus}`,
+  `signal=${scraperSignal || ''}`,
+  `error=${result.error ? String(result.error.stack || result.error.message || result.error) : ''}`,
+  '',
+  '--- stdout ---',
+  stdout,
+  '',
+  '--- stderr ---',
+  stderr,
+].join('\n');
+fs.writeFileSync(path.join(outDir, 'oddsharvester_run.log'), commandLog);
+
 if (result.error && !scraperTimedOut) console.error('Error running oddsharvester:', result.error);
 if (scraperTimedOut) console.error('[!] Partial timeout hit. Parsing any files written so far.');
 else if (scraperExitStatus && scraperExitStatus !== 0) console.error(`[!] OddsHarvester exited ${scraperExitStatus}. Parsing partial files.`);
@@ -255,6 +279,8 @@ const summary = {
   scraper_timed_out: scraperTimedOut,
   scraper_exit_status: scraperExitStatus,
   scraper_signal: scraperSignal,
+  scraper_command: `oddsharvester ${cliArgs.join(' ')}`,
+  scraper_log_file: 'oddsharvester_run.log',
   raw_csv_files_scanned: files.length,
   target_bookmaker_rows_with_reconstructed_odds: rows.length,
   target_bookmaker_candidates_count: candidates.length,
