@@ -1,0 +1,112 @@
+name: V3 Blind Test Fast
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_date:
+        description: Earliest date for random window, YYYY-MM-DD
+        required: false
+        default: '2026-01-01'
+      max_date:
+        description: Latest date for random window, YYYY-MM-DD
+        required: false
+        default: '2026-05-12'
+      start_date:
+        description: Optional manual start date. Leave blank for random blind window.
+        required: false
+        default: ''
+      window_days:
+        description: Random blind window size in days
+        required: false
+        default: '7'
+      seed:
+        description: Optional seed. Leave blank to use current run id.
+        required: false
+        default: ''
+      leagues:
+        description: Optional comma-separated league slugs, e.g. atp-rome,wta-rome. Leave blank for all.
+        required: false
+        default: ''
+      bookmaker:
+        description: Target bookmaker
+        required: false
+        default: 'bet365'
+      threshold:
+        description: Minimum reconstructed grouped odds
+        required: false
+        default: '3.3'
+      target_threshold:
+        description: Target reconstructed grouped odds
+        required: false
+        default: '3.5'
+      per_day_runtime_minutes:
+        description: Fast mode cap per scanned day
+        required: false
+        default: '3'
+      sample_limit:
+        description: Max settled candidate rows to keep
+        required: false
+        default: '40'
+
+jobs:
+  blind-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install OddsHarvester and Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install oddsharvester
+          python -m playwright install chromium --with-deps
+          oddsharvester --help
+
+      - name: Run V3 fast blind test
+        shell: bash
+        run: |
+          set -e
+          SEED_INPUT="${{ github.event.inputs.seed }}"
+          if [ -z "$SEED_INPUT" ]; then
+            SEED_INPUT="${{ github.run_id }}-${{ github.run_attempt }}"
+          fi
+          START_ARG=""
+          if [ -n "${{ github.event.inputs.start_date }}" ]; then
+            START_ARG="--start_date=${{ github.event.inputs.start_date }}"
+          fi
+          LEAGUES_ARG=""
+          if [ -n "${{ github.event.inputs.leagues }}" ]; then
+            LEAGUES_ARG="--leagues=${{ github.event.inputs.leagues }}"
+          fi
+          node scripts/run-v3-blind-test-fast.mjs \
+            --min_date=${{ github.event.inputs.min_date || '2026-01-01' }} \
+            --max_date=${{ github.event.inputs.max_date || '2026-05-12' }} \
+            $START_ARG \
+            --window_days=${{ github.event.inputs.window_days || '7' }} \
+            --seed="$SEED_INPUT" \
+            $LEAGUES_ARG \
+            --bookmaker=${{ github.event.inputs.bookmaker || 'bet365' }} \
+            --threshold=${{ github.event.inputs.threshold || '3.3' }} \
+            --target_threshold=${{ github.event.inputs.target_threshold || '3.5' }} \
+            --per_day_runtime_minutes=${{ github.event.inputs.per_day_runtime_minutes || '3' }} \
+            --sample_limit=${{ github.event.inputs.sample_limit || '40' }}
+
+      - name: Upload blind test artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-blind-test-fast
+          path: artifacts/output/v3-blind-test-fast/**
+          if-no-files-found: warn
