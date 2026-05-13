@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import re
 import time
 from dataclasses import dataclass, asdict
@@ -83,7 +82,6 @@ def looks_like_match_url(url: str) -> bool:
 def discover_match_links(page, results_url: str, max_links: int) -> list[str]:
     page.goto(results_url, wait_until="domcontentloaded", timeout=45000)
     page.wait_for_timeout(5000)
-    # Load more when present, but do not get stuck.
     for _ in range(3):
         clicked = False
         for label in ["Show more matches", "Show more", "More"]:
@@ -112,7 +110,6 @@ def discover_match_links(page, results_url: str, max_links: int) -> list[str]:
 
 
 def parse_players_from_title(title: str) -> tuple[str | None, str | None]:
-    # OddsPortal titles often look like "Player A v Player B..."
     clean = re.sub(r"\s+", " ", title).strip()
     m = re.search(r"(.+?)\s+(?:v|vs|-)\s+(.+?)(?:\s+odds|\s+betting|\s+\||$)", clean, re.I)
     if not m:
@@ -128,35 +125,29 @@ def grouped_odds(values: list[float | None]) -> float | None:
 
 
 def find_first_set_score(text: str) -> str | None:
-    # Best effort. If not parsed, backtest can still join to external result data later.
     candidates = re.findall(r"\b([0-7])\s*[:\-]\s*([0-7])\b", text)
     for a, b in candidates[:20]:
         ai, bi = int(a), int(b)
-        if max(ai, bi) >= 6 and abs(ai - bi) >= 2 or {ai, bi} == {6, 7}:
+        if (max(ai, bi) >= 6 and abs(ai - bi) >= 2) or {ai, bi} == {6, 7}:
             return f"{ai}-{bi}"
     return None
 
 
 def extract_score_price(text: str, html: str, score: str, bookmaker: str) -> tuple[float | None, str]:
-    combined = f"{text}\n{BeautifulSoup(html, 'html.parser').get_text('\n')}"
-    low = combined.lower()
+    html_text = BeautifulSoup(html, "html.parser").get_text("\n")
+    combined = text + "\n" + html_text
     bookmaker_low = bookmaker.lower()
     best: float | None = None
     best_context = ""
 
-    # Prefer windows containing both score and bookmaker.
     for alias in TARGET_SCORE_ALIASES[score]:
         for m in re.finditer(re.escape(alias), combined, re.I):
             start = max(0, m.start() - 900)
             end = min(len(combined), m.end() + 900)
             ctx = combined[start:end]
-            if bookmaker_low not in ctx.lower():
-                # still keep as fallback, but lower confidence
-                pass
             odds = [float(x) for x in ODDS_RE.findall(ctx)]
             plausible = [o for o in odds if 1.01 <= o <= 101]
             if plausible:
-                # Usually the closest odds after score is the price. Prefer prices not tiny.
                 selected = plausible[0]
                 if bookmaker_low in ctx.lower():
                     selected = plausible[-1] if len(plausible) <= 4 else plausible[0]
@@ -190,7 +181,7 @@ def scrape_match(page, results_url: str, match_url: str, bookmaker: str, out_dir
     (out_dir / text_name).write_text(text[:250000], encoding="utf-8", errors="ignore")
     p1, p2 = parse_players_from_title(title)
     first_set = find_first_set_score(text)
-    found_b365 = bookmaker.lower() in f"{text}\n{html}".lower()
+    found_b365 = bookmaker.lower() in (text + "\n" + html).lower()
 
     prices = {}
     contexts = {}
@@ -288,6 +279,7 @@ def main() -> None:
 
     write_csv(out_dir / "master_odds_db.csv", rows)
     useful = [r for r in rows if r.grouped_p2_9_12]
+    quality_keys = sorted({r.extraction_quality for r in rows})
     summary = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "results_urls": results_urls,
@@ -295,7 +287,7 @@ def main() -> None:
         "scraped_matches": len(rows),
         "rows_with_grouped_odds": len(useful),
         "rows_with_bet365": sum(1 for r in rows if r.found_bet365),
-        "quality_counts": {q: sum(1 for r in rows if r.extraction_quality == q) for q in sorted({r.extraction_quality for r in rows})},
+        "quality_counts": {q: sum(1 for r in rows if r.extraction_quality == q) for q in quality_keys},
         "discovered": discovered,
         "next_step": "If rows_with_grouped_odds > 0, upload master_odds_db.csv for V3 reality backtest. If 0, inspect screenshots/debug JSON to adjust selectors.",
     }
