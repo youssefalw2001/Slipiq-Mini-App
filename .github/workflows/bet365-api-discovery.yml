@@ -1,0 +1,57 @@
+name: Bet365 API Discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Bet365 mobile/API URL to test. Leave blank for default inplaydiary schedule endpoint.
+        required: false
+        default: ''
+      keywords:
+        description: Comma-separated keywords to search for in returned data.
+        required: false
+        default: 'tennis,set,1st set,first set,correct score,3-6,4-6,5-7,6-3,6-4,7-5'
+      timeout_ms:
+        description: Request timeout in milliseconds.
+        required: false
+        default: '60000'
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Bet365 API discovery
+        shell: bash
+        env:
+          BET365_API_URL: ${{ github.event.inputs.api_url }}
+          BET365_COOKIE: ${{ secrets.BET365_COOKIE }}
+          BET365_USER_AGENT: ${{ secrets.BET365_USER_AGENT }}
+          BET365_EXTRA_HEADERS_JSON: ${{ secrets.BET365_EXTRA_HEADERS_JSON }}
+        run: |
+          set -e
+          URL_ARG=""
+          if [ -n "${{ github.event.inputs.api_url }}" ]; then
+            URL_ARG="--url=${{ github.event.inputs.api_url }}"
+          fi
+          node scripts/discover-bet365-api-v3.mjs \
+            $URL_ARG \
+            --keywords="${{ github.event.inputs.keywords }}" \
+            --timeout_ms=${{ github.event.inputs.timeout_ms }}
+
+      - name: Upload discovery artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bet365-api-discovery
+          path: artifacts/output/bet365-api-discovery/**
+          if-no-files-found: warn
