@@ -27,6 +27,10 @@ on:
         description: Optional quick-scan limit. Example 12 uploads whatever was found after ~12 minutes.
         required: false
         default: '0'
+      push_to_supabase:
+        description: Push fresh playable signals to Supabase and Telegram. Requires secrets.
+        required: false
+        default: 'true'
 
 jobs:
   scan:
@@ -86,6 +90,19 @@ jobs:
             cp -R "$LATEST_DIR"/. artifacts/output/oddsportal-upcoming-firstset/
           fi
           find artifacts/output/oddsportal-upcoming-firstset -maxdepth 3 -type f -print
+
+      - name: Push verified V3 signals to Supabase and Telegram
+        if: always() && github.event.inputs.push_to_supabase != 'false'
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          node scripts/push-v3-signals-to-supabase.mjs \
+            --input=artifacts/output/oddsportal-upcoming-firstset \
+            --summary=artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json
 
       - name: Upload scanner artifact
         if: always()
