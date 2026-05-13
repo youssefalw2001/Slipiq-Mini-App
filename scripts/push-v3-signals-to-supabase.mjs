@@ -60,18 +60,15 @@ function matchName(row) {
 
 function classifySignal(row) {
   const grouped = asNumber(row.estimated_player2_9_12_odds ?? row.reconstructed_p2_9_12_odds ?? row.direct_p2_9_12_odds);
-  const p64 = asNumber(row.odds_4_6_decimal ?? row.odds_p2_6_4);
   if (!grouped || grouped < 3.3) return 'REJECT';
 
-  // V3 strict/near trigger is the P2 6-4 score around 6.25-7.00 decimal.
-  const nearV3 = p64 !== null && p64 >= 6.25 && p64 <= 7.05;
-  if (nearV3 && grouped >= 3.5) return 'OFFICIAL_V3_TARGET';
-  if (nearV3 && grouped >= 3.3) return 'OFFICIAL_V3_PLAYABLE';
-
-  // If the full price is valid but 6-4 trigger is a little outside, keep it aggressive/watchlist.
-  if (grouped >= 3.5 && p64 !== null && p64 > 7.05 && p64 <= 9.0) return 'AGGRESSIVE_V3_TARGET';
-  if (grouped >= 5.0) return 'WATCHLIST_LONGSHOT';
-  return grouped >= 3.3 ? 'AGGRESSIVE_V3_TARGET' : 'REJECT';
+  // Final V3 operating bands:
+  // 3.30-3.49 = playable, 3.50-4.50 = official target,
+  // 4.50-6.99 = aggressive expansion, 7.00+ = longshot/watchlist.
+  if (grouped >= 7.0) return 'WATCHLIST_LONGSHOT';
+  if (grouped >= 4.5) return 'AGGRESSIVE_V3_TARGET';
+  if (grouped >= 3.5) return 'OFFICIAL_V3_TARGET';
+  return 'OFFICIAL_V3_PLAYABLE';
 }
 
 function playStatusFromClass(signalClass) {
