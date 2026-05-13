@@ -4,9 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       match_links:
-        description: Paste OddsPortal historical tennis match URLs. Separate with commas, pipes, or new lines.
+        description: Paste OddsPortal tournament/results pages OR exact historical match URLs. Separate with commas, pipes, or new lines.
         required: true
         default: ''
+      discover_match_links:
+        description: true = first discover exact match URLs from the pages you pasted, then probe those match pages.
+        required: false
+        default: 'true'
+      max_discovered_links:
+        description: Max exact match URLs to discover and probe.
+        required: false
+        default: '30'
       bookmaker:
         description: Target bookmaker text to search for.
         required: false
@@ -27,7 +35,7 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repo
@@ -45,6 +53,18 @@ jobs:
           npm install playwright
           npx playwright install --with-deps chromium
 
+      - name: Discover exact OddsPortal match links
+        if: ${{ github.event.inputs.discover_match_links == 'true' }}
+        shell: bash
+        env:
+          MATCH_LINKS: ${{ github.event.inputs.match_links }}
+          WAIT_MS: ${{ github.event.inputs.wait_ms }}
+          TIMEOUT_MS: ${{ github.event.inputs.timeout_ms }}
+          HEADLESS: ${{ github.event.inputs.headless }}
+          MAX_DISCOVERED_LINKS: ${{ github.event.inputs.max_discovered_links }}
+        run: |
+          node scripts/discover-oddsportal-match-links.mjs
+
       - name: Run OddsPortal historical V3 probe
         shell: bash
         env:
@@ -54,7 +74,12 @@ jobs:
           TIMEOUT_MS: ${{ github.event.inputs.timeout_ms }}
           HEADLESS: ${{ github.event.inputs.headless }}
         run: |
-          node scripts/probe-oddsportal-historical-v3.mjs
+          if [ "${{ github.event.inputs.discover_match_links }}" = "true" ] && [ -s artifacts/output/oddsportal-historical-v3-probe/discovered_match_links.txt ]; then
+            node scripts/probe-oddsportal-historical-v3.mjs \
+              --match-links-file=artifacts/output/oddsportal-historical-v3-probe/discovered_match_links.txt
+          else
+            node scripts/probe-oddsportal-historical-v3.mjs
+          fi
 
       - name: Upload probe artifact
         if: always()
