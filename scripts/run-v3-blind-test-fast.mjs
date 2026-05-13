@@ -2,10 +2,11 @@
 /*!
  * SlipIQ V3 fast blind test runner.
  *
- * Runs the existing read-only first-set scanner over a random historical window,
- * then settles Player 2 & 9-12 using actual first-set score.
+ * Uses OddsHarvester historic mode, filters a blind historical date window,
+ * reconstructs Player 2 & 9-12 from P2 3-6 / 4-6 / 5-7, then settles from
+ * actual first-set score.
  *
- * This does not log in and does not place bets.
+ * Read-only. This does not log in and does not place bets.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -19,22 +20,26 @@ const params = Object.fromEntries(
     .map((m) => [m[1], m[2]])
 );
 
-const MIN_DATE = params.min_date || '2026-01-01';
+const MIN_DATE = params.min_date || '2026-05-06';
 const MAX_DATE = params.max_date || '2026-05-12';
 const startDateInput = params.start_date || '';
 const endDateInput = params.end_date || '';
 const windowDays = Math.max(1, Number.parseInt(params.window_days || '7', 10));
 const seed = params.seed || `${Date.now()}`;
 const bookmaker = (params.bookmaker || 'bet365').toLowerCase();
-const leagues = params.leagues || '';
+const leagues = params.leagues || 'atp-rome,wta-rome';
+const season = params.season || 'current';
+const maxPages = Number.parseInt(params.max_pages || '3', 10);
 const threshold = Number.parseFloat(params.threshold || '3.3');
 const targetThreshold = Number.parseFloat(params.target_threshold || '3.5');
 const requestDelay = params.request_delay || params['request-delay'] || '1.25';
-const perDayRuntimeMinutes = Number.parseFloat(params.per_day_runtime_minutes || '3');
+const maxRuntimeMinutes = Number.parseFloat(params.max_runtime_minutes || params.per_day_runtime_minutes || '20');
 const sampleLimit = Number.parseInt(params.sample_limit || '40', 10);
 const outDir = params.out || 'artifacts/output/v3-blind-test-fast';
+const tmpDir = path.join('.tmp', `historic-blind-${Date.now()}`);
 
 fs.mkdirSync(outDir, { recursive: true });
+fs.mkdirSync(tmpDir, { recursive: true });
 
 function toDateOnly(d) {
   return d.toISOString().slice(0, 10);
@@ -92,13 +97,27 @@ function walk(dir) {
   return out;
 }
 
-function newestUpcomingDir() {
-  if (!fs.existsSync('.tmp')) return null;
-  const dirs = fs.readdirSync('.tmp', { withFileTypes: true })
-    .filter((d) => d.isDirectory() && d.name.startsWith('upcoming-'))
-    .map((d) => path.join('.tmp', d.name))
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-  return dirs[0] || null;
+function parseCsvLine(line) {
+  const out = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    const next = line[i + 1];
+    if (ch === '"' && inQuotes && next === '"') {
+      current += '"';
+      i += 1;
+    } else if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      out.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  out.push(current);
+  return out;
 }
 
 function csvEscape(value) {
@@ -109,6 +128,83 @@ function csvEscape(value) {
 function num(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function americanToDecimal(value) {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  if (!s || s === '[]') return null;
+  const n = Number(s.replace('+', '').replace(',', ''));
+  if (!Number.isFinite(n)) return null;
+  if (s.startsWith('+') || n >= 100) return 1 + n / 100;
+  if (s.startsWith('-') || n <= -100) return 1 + 100 / Math.abs(n);
+  return n > 1 ? n : null;
+}
+
+function decimalFromAny(value) {
+  const direct = num(value);
+  if (direct && direct > 1) return direct;
+  return americanToDecimal(value);
+}
+
+function parseMarketEntries(rawMarket) {
+  const s = String(rawMarket ?? '').trim();
+  if (!s || s === '[]') return [];
+  const entries = [];
+  const itemRegex = /correct_score['"]?\s*:\s*['"]([^'"]+)['"][\s\S]*?bookmaker_name['"]?\s*:\s*['"]([^'"]*)['"][\s\S]*?period['"]?\s*:\s*['"]([^'"]*)['"]/g;
+  let m;
+  while ((m = itemRegex.exec(s))) {
+    const decimal = decimalFromAny(m[1]);
+    if (decimal) entries.push({ american: m[1], decimal, bookmaker: m[2], period: m[3] });
+  }
+  if (!entries.length) {
+    // Fallback for simpler outputs containing a plain price.
+    const decimal = decimalFromAny(s);
+    if (decimal) entries.push({ american: s, decimal, bookmaker: 'unknown', period: '' });
+  }
+  return entries.sort((a, b) => b.decimal - a.decimal);
+}
+
+function pickBookmaker(rawMarket, target) {
+  const entries = parseMarketEntries(rawMarket);
+  const targetEntry = entries.find((e) => String(e.bookmaker || '').toLowerCase().includes(target));
+  return {
+    selected: targetEntry || null,
+    bestAny: entries[0] || null,
+    bookmakerCount: entries.length,
+  };
+}
+
+function groupedOdds(a, b, c) {
+  if (!a || !b || !c) return null;
+  const implied = 1 / a + 1 / b + 1 / c;
+  return implied > 0 ? 1 / implied : null;
+}
+
+function firstSetScore(row) {
+  const candidates = [row.partial_results, row.set_scores, row.score, row.result, row.full_time_score, row.match_result];
+  for (const raw of candidates) {
+    const s = String(raw ?? '').trim();
+    if (!s) continue;
+    const m = s.match(/(\d+)\s*[:\-]\s*(\d+)/);
+    if (m) return `${m[1]}-${m[2]}`;
+  }
+  return '';
+}
+
+function parseDateOnly(value) {
+  const s = String(value || '').trim();
+  if (!s) return '';
+  const d = new Date(s.replace(' UTC', 'Z'));
+  if (!Number.isNaN(d.getTime())) return toDateOnly(d);
+  const m = s.match(/(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  return '';
+}
+
+function inWindow(rowDate, window) {
+  const d = parseDateOnly(rowDate);
+  return d && d >= window.start && d <= window.end;
 }
 
 function classifySignal(row) {
@@ -137,7 +233,7 @@ function summarize(rows, filterFn = () => true) {
   const profit = plays.reduce((s, r) => s + profitFor(r), 0);
   let longestLosingStreak = 0;
   let current = 0;
-  for (const r of plays.sort((a, b) => String(a.match_date).localeCompare(String(b.match_date)))) {
+  for (const r of [...plays].sort((a, b) => String(a.match_date).localeCompare(String(b.match_date)))) {
     if (r.v3_result === 'LOSS') {
       current += 1;
       longestLosingStreak = Math.max(longestLosingStreak, current);
@@ -158,101 +254,131 @@ function summarize(rows, filterFn = () => true) {
   };
 }
 
+function column(row, ...names) {
+  for (const name of names) {
+    if (Object.prototype.hasOwnProperty.call(row, name)) return row[name];
+  }
+  return '';
+}
+
 const window = chooseWindow();
-const dates = [];
-for (let d = window.start; d <= window.end; d = addDays(d, 1)) dates.push(d);
 
-const allCandidates = [];
-const daySummaries = [];
-
-console.error('[*] SlipIQ V3 blind test fast mode');
+console.error('[*] SlipIQ V3 blind test fast mode - historic');
 console.error(`[*] Window mode: ${window.mode}`);
 console.error(`[*] Date window: ${window.start} to ${window.end}`);
 console.error(`[*] Seed: ${seed}`);
+console.error(`[*] Leagues: ${leagues}`);
+console.error(`[*] Season: ${season}`);
 console.error(`[*] Bookmaker: ${bookmaker}`);
 console.error(`[*] Threshold: ${threshold}`);
 console.error(`[*] Target threshold: ${targetThreshold}`);
-console.error(`[*] Per-day runtime cap: ${perDayRuntimeMinutes} minutes`);
+console.error(`[*] Runtime cap: ${maxRuntimeMinutes} minutes`);
 console.error(`[*] Sample limit: ${sampleLimit}`);
 
-for (const date of dates) {
-  if (sampleLimit > 0 && allCandidates.length >= sampleLimit) break;
+const markets = ['correct_score_3_6', 'correct_score_4_6', 'correct_score_5_7'];
+const cliArgs = [
+  'historic',
+  '-s', 'tennis',
+  '-l', leagues,
+  '--season', season,
+  '-m', markets.join(','),
+  '--period', '1st_set',
+  '-f', 'csv',
+  '-o', path.join(tmpDir, 'oddsportal_historic_firstset'),
+  '--headless',
+  '--request-delay', requestDelay,
+  '--concurrency', '1',
+  '--max-pages', String(maxPages),
+];
 
-  const args = [
-    'scripts/scan-oddsportal-upcoming-firstset.mjs',
-    `--date=${date}`,
-    `--bookmaker=${bookmaker}`,
-    `--threshold=${threshold}`,
-    `--request-delay=${requestDelay}`,
-    `--max-runtime-minutes=${perDayRuntimeMinutes}`,
-  ];
-  if (leagues) args.push(`--leagues=${leagues}`);
+const spawnOptions = { stdio: 'inherit', env: { ...process.env } };
+if (maxRuntimeMinutes > 0) {
+  spawnOptions.timeout = Math.round(maxRuntimeMinutes * 60 * 1000);
+  spawnOptions.killSignal = 'SIGTERM';
+}
+const result = spawnSync('oddsharvester', cliArgs, spawnOptions);
+const scraperTimedOut = Boolean(result.error && result.error.code === 'ETIMEDOUT');
 
-  console.error(`[*] Scanning blind date ${date}`);
-  const result = spawnSync('node', args, { stdio: 'ignore', env: { ...process.env } });
-  const latest = newestUpcomingDir();
-  const summaryPath = latest ? path.join(latest, 'upcoming_firstset_summary.json') : null;
+const files = walk(tmpDir).filter((file) => file.toLowerCase().endsWith('.csv'));
+const allRows = [];
+const skippedFiles = [];
 
-  if (!summaryPath || !fs.existsSync(summaryPath)) {
-    daySummaries.push({ date, status: 'NO_SUMMARY', exit_status: result.status, error: result.error?.message || null });
+for (const file of files) {
+  const text = fs.readFileSync(file, 'utf8');
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) continue;
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim());
+  const hasNeeded = headers.includes('correct_score_3_6_market') || headers.includes('correct_score_3_6');
+  if (!hasNeeded) {
+    skippedFiles.push({ file, reason: 'missing correct score columns', headers: headers.slice(0, 40) });
     continue;
   }
 
-  let summary;
-  try {
-    summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-  } catch (err) {
-    daySummaries.push({ date, status: 'BAD_SUMMARY', exit_status: result.status, error: String(err.message || err) });
-    continue;
+  for (let i = 1; i < lines.length; i += 1) {
+    const cells = parseCsvLine(lines[i]);
+    const row = Object.fromEntries(headers.map((h, j) => [h || `col_${j}`, cells[j] ?? '']));
+    const matchDate = column(row, 'match_date', 'date', 'event_date', 'start_time');
+    if (!inWindow(matchDate, window)) continue;
+
+    const p36 = pickBookmaker(column(row, 'correct_score_3_6_market', 'correct_score_3_6'), bookmaker);
+    const p46 = pickBookmaker(column(row, 'correct_score_4_6_market', 'correct_score_4_6'), bookmaker);
+    const p57 = pickBookmaker(column(row, 'correct_score_5_7_market', 'correct_score_5_7'), bookmaker);
+    const grouped = groupedOdds(p36.selected?.decimal, p46.selected?.decimal, p57.selected?.decimal);
+    const fsScore = firstSetScore(row);
+    if (!grouped || grouped < threshold || !fsScore) continue;
+
+    const parsed = {
+      scan_date: parseDateOnly(matchDate),
+      match_date: matchDate || '',
+      league_name: column(row, 'league_name', 'league', 'competition_name', 'tournament') || '',
+      home_team: column(row, 'home_team', 'home', 'player1', 'participant_1') || '',
+      away_team: column(row, 'away_team', 'away', 'player2', 'participant_2') || '',
+      first_set_score: fsScore,
+      v3_result: ['3-6', '4-6', '5-7'].includes(fsScore) ? 'WIN' : 'LOSS',
+      price_source: bookmaker,
+      odds_3_6_decimal: p36.selected.decimal,
+      odds_4_6_decimal: p46.selected.decimal,
+      odds_5_7_decimal: p57.selected.decimal,
+      estimated_player2_9_12_odds: grouped,
+      play_status: grouped >= targetThreshold ? 'TARGET_3_50_PLUS' : 'PLAYABLE_3_30_PLUS',
+      bookmaker_3_6: p36.selected.bookmaker,
+      bookmaker_4_6: p46.selected.bookmaker,
+      bookmaker_5_7: p57.selected.bookmaker,
+      match_link: column(row, 'match_link', 'url', 'event_url') || '',
+    };
+    parsed.signal_class = classifySignal(parsed);
+    allRows.push(parsed);
   }
-
-  const candidates = Array.isArray(summary.candidates) ? summary.candidates : [];
-  const settled = candidates
-    .filter((row) => row.first_set_score)
-    .map((row) => {
-      const resultWin = ['3-6', '4-6', '5-7'].includes(String(row.first_set_score));
-      return {
-        ...row,
-        scan_date: date,
-        v3_result: resultWin ? 'WIN' : 'LOSS',
-        signal_class: classifySignal(row),
-      };
-    });
-
-  allCandidates.push(...settled);
-  daySummaries.push({
-    date,
-    status: 'OK',
-    exit_status: result.status,
-    scraper_timed_out: summary.scraper_timed_out,
-    raw_csv_files_scanned: summary.raw_csv_files_scanned,
-    candidates_count: candidates.length,
-    settled_candidates_count: settled.length,
-  });
 }
 
-const trimmed = sampleLimit > 0 ? allCandidates.slice(0, sampleLimit) : allCandidates;
+allRows.sort((a, b) => String(a.match_date).localeCompare(String(b.match_date)));
+const trimmed = sampleLimit > 0 ? allRows.slice(0, sampleLimit) : allRows;
 const officialRows = trimmed.filter((r) => ['OFFICIAL_V3_TARGET', 'OFFICIAL_V3_PLAYABLE'].includes(r.signal_class));
 const targetRows = trimmed.filter((r) => (num(r.estimated_player2_9_12_odds) || 0) >= targetThreshold);
 
 const finalSummary = {
   generated_at: new Date().toISOString(),
-  test_type: 'FAST_BLIND_RANDOM_WINDOW',
+  test_type: 'FAST_BLIND_HISTORIC_RANDOM_WINDOW',
   window_mode: window.mode,
   seed,
   min_date: MIN_DATE,
   max_date: MAX_DATE,
   selected_start_date: window.start,
   selected_end_date: window.end,
-  dates_scanned: dates,
   bookmaker,
-  leagues: leagues || null,
+  leagues,
+  season,
+  max_pages: maxPages,
   threshold,
   target_threshold: targetThreshold,
   request_delay: requestDelay,
-  per_day_runtime_minutes: perDayRuntimeMinutes,
+  max_runtime_minutes: maxRuntimeMinutes,
   sample_limit: sampleLimit,
-  day_summaries: daySummaries,
+  scraper_timed_out: scraperTimedOut,
+  scraper_exit_status: result.status,
+  scraper_signal: result.signal || null,
+  raw_csv_files_scanned: files.length,
+  skipped_files: skippedFiles,
   all_playable_summary: summarize(trimmed),
   target_3_50_plus_summary: summarize(targetRows),
   official_v3_only_summary: summarize(officialRows),
@@ -277,6 +403,8 @@ fs.writeFileSync(path.join(outDir, 'v3_blind_test_fast_readme.txt'), [
   `Window: ${window.start} to ${window.end}`,
   `Seed: ${seed}`,
   `Bookmaker: ${bookmaker}`,
+  `Leagues: ${leagues}`,
+  `Season: ${season}`,
   `Threshold: ${threshold}`,
   '',
   'Main result is in v3_blind_test_fast_summary.json.',
