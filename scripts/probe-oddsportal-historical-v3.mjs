@@ -3,11 +3,9 @@
  * SlipIQ OddsPortal Historical V3 Probe
  *
  * Goal:
- * - Open historical OddsPortal tennis match pages.
- * - Check whether the page exposes the exact market we need:
+ * - Open historical OddsPortal tennis match/H2H pages.
+ * - Check whether the page or its first-party network responses expose:
  *   Tennis -> 1st Set Correct Score -> Bet365 -> 3-6 / 4-6 / 5-7.
- * - Save proof artifacts so we can decide if a full historical V3 ROI backtest
- *   is possible from OddsPortal.
  *
  * Safety:
  * - Read-only browser automation.
@@ -38,9 +36,7 @@ fs.mkdirSync(outDir, { recursive: true });
 
 function parseLinks() {
   const values = [];
-  if (matchLinksFile && fs.existsSync(matchLinksFile)) {
-    values.push(fs.readFileSync(matchLinksFile, 'utf8'));
-  }
+  if (matchLinksFile && fs.existsSync(matchLinksFile)) values.push(fs.readFileSync(matchLinksFile, 'utf8'));
   if (matchLinksInput) values.push(matchLinksInput);
   return values
     .join('\n')
@@ -54,19 +50,20 @@ function compactText(s, max = 1200) {
 }
 
 function textWindow(text, needle, radius = 700) {
-  const low = text.toLowerCase();
-  const idx = low.indexOf(String(needle).toLowerCase());
+  const low = String(text || '').toLowerCase();
+  const target = String(needle || '').toLowerCase();
+  const idx = low.indexOf(target);
   if (idx < 0) return null;
   const start = Math.max(0, idx - radius);
-  const end = Math.min(text.length, idx + String(needle).length + radius);
+  const end = Math.min(text.length, idx + target.length + radius);
   return compactText(text.slice(start, end), radius * 2);
 }
 
 function countMatches(text, patterns) {
   const out = {};
   for (const p of patterns) {
-    const re = new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    out[p] = [...String(text).matchAll(re)].length;
+    const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out[p] = [...String(text || '').matchAll(new RegExp(escaped, 'gi'))].length;
   }
   return out;
 }
@@ -74,6 +71,23 @@ function countMatches(text, patterns) {
 function hasAny(text, terms) {
   const low = String(text || '').toLowerCase();
   return terms.some((t) => low.includes(t.toLowerCase()));
+}
+
+function isFirstPartyUsefulResponse(url, contentType) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'oddsportal.com') return false;
+    if (/\.(png|jpg|jpeg|gif|svg|webp|ico|css|woff2?)$/i.test(u.pathname)) return false;
+    if (!/json|text|javascript|html/i.test(contentType || '')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function scoreCounts(text) {
+  return countMatches(text, ['3-6', '4-6', '5-7', '6-3', '6-4', '7-5']);
 }
 
 function oddsNearScores(text) {
@@ -88,55 +102,73 @@ function oddsNearScores(text) {
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i];
       if (!line.includes(score)) continue;
-      const context = lines.slice(Math.max(0, i - 3), Math.min(lines.length, i + 4)).join(' | ');
+      const context = lines.slice(Math.max(0, i - 4), Math.min(lines.length, i + 5)).join(' | ');
       const odds = [...context.matchAll(/\b(?:[1-9]\d?|\d)\.\d{2}\b/g)].map((m) => Number(m[0]));
-      matches.push({ line, context: compactText(context, 600), odds });
+      matches.push({ line, context: compactText(context, 700), odds });
     }
     result[score] = matches.slice(0, 10);
   }
   return result;
 }
 
-async function safeClickByText(page, patterns) {
+async function dismissCookieBanner(page) {
   const clicked = [];
-  for (const label of patterns) {
+  const selectors = [
+    '#onetrust-accept-btn-handler',
+    '#onetrust-reject-all-handler',
+    'button:has-text("Continue without Accepting")',
+    'button:has-text("Accept All")',
+    'button:has-text("Reject All")',
+    'button:has-text("Allow All")',
+  ];
+  for (const selector of selectors) {
     try {
-      const loc = page.getByText(label, { exact: false }).first();
+      const loc = page.locator(selector).first();
       if (await loc.count()) {
-        await loc.click({ timeout: 2500 });
-        clicked.push(label);
-        await page.waitForTimeout(1200);
+        await loc.click({ timeout: 1500 });
+        clicked.push(selector);
+        await page.waitForTimeout(800);
+        break;
       }
-    } catch (_) {
-      // Ignore: page layouts differ and many labels will not exist.
-    }
+    } catch (_) {}
   }
   return clicked;
 }
 
-async function probeOne(browser, url, index) {
-  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+async function probeOne(context, url, index) {
+  const page = await context.newPage();
   const networkHits = [];
+
   page.on('response', async (res) => {
     try {
       const ct = res.headers()['content-type'] || '';
       const u = res.url();
-      if (!/json|text|javascript/i.test(ct) && !/odds|event|coupon|match|bookmaker/i.test(u)) return;
+      if (!isFirstPartyUsefulResponse(u, ct)) return;
       const body = await res.text().catch(() => '');
       const low = body.toLowerCase();
-      if (low.includes('3-6') || low.includes('4-6') || low.includes('5-7') || low.includes(bookmaker) || low.includes('correct score')) {
-        networkHits.push({
-          url: u.slice(0, 500),
-          status: res.status(),
-          content_type: ct,
-          has_bookmaker: low.includes(bookmaker),
-          has_3_6: low.includes('3-6'),
-          has_4_6: low.includes('4-6'),
-          has_5_7: low.includes('5-7'),
-          has_correct_score: low.includes('correct score'),
-          sample: compactText(body, 1500),
-        });
-      }
+      const interesting = low.includes(bookmaker)
+        || low.includes('correct score')
+        || low.includes('correct_score')
+        || low.includes('1st set')
+        || low.includes('first set')
+        || low.includes('set 1')
+        || low.includes('3-6')
+        || low.includes('4-6')
+        || low.includes('5-7');
+      if (!interesting) return;
+      networkHits.push({
+        url: u.slice(0, 500),
+        status: res.status(),
+        content_type: ct,
+        has_bookmaker: low.includes(bookmaker),
+        has_3_6: low.includes('3-6'),
+        has_4_6: low.includes('4-6'),
+        has_5_7: low.includes('5-7'),
+        has_correct_score: low.includes('correct score') || low.includes('correct_score'),
+        has_first_set: low.includes('1st set') || low.includes('first set') || low.includes('set 1') || low.includes('1st_set'),
+        score_counts: scoreCounts(body),
+        sample: compactText(body, 1800),
+      });
     } catch (_) {}
   });
 
@@ -150,26 +182,17 @@ async function probeOne(browser, url, index) {
     loadError = String(err.message || err);
   }
 
-  const clicked = await safeClickByText(page, [
-    'Odds',
-    '1st Set',
-    '1st set',
-    'First Set',
-    'Set 1',
-    'Correct Score',
-    'Correct score',
-    'Set Correct Score',
-    'Bookmakers',
-    'Show more',
-    'More',
-  ]);
+  const cookie_clicks = await dismissCookieBanner(page);
+  await page.waitForTimeout(1200);
 
-  await page.waitForTimeout(1500);
+  // IMPORTANT: do not click generic text like "Bookmakers", "Odds", or "More".
+  // Those labels can navigate away from the match page and pollute the artifact.
   const finalUrl = page.url();
   const title = await page.title().catch(() => '');
   const text = await page.locator('body').innerText({ timeout: 5000 }).catch(() => '');
   const html = await page.content().catch(() => '');
-  const combined = `${text}\n${html}`;
+  const combined = `${text}\n${html}\n${networkHits.map((h) => h.sample).join('\n')}`;
+
   const screenshotPath = path.join(outDir, `probe_${String(index + 1).padStart(2, '0')}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => null);
   await page.close().catch(() => null);
@@ -182,6 +205,7 @@ async function probeOne(browser, url, index) {
     '1st Set',
     'First Set',
     'Set 1',
+    '1st_set',
     'Correct Score',
     'correct_score',
   ]);
@@ -192,20 +216,23 @@ async function probeOne(browser, url, index) {
     '5-7': textWindow(combined, '5-7'),
     bookmaker: textWindow(combined, bookmaker),
     correct_score: textWindow(combined, 'Correct Score') || textWindow(combined, 'correct_score'),
+    first_set: textWindow(combined, '1st Set') || textWindow(combined, 'First Set') || textWindow(combined, 'Set 1') || textWindow(combined, '1st_set'),
   };
 
   const foundTargetScores = Boolean(keywordCounts['3-6'] && keywordCounts['4-6'] && keywordCounts['5-7']);
   const foundMarketLanguage = hasAny(combined, ['Correct Score', 'correct_score']) && hasAny(combined, ['1st Set', 'First Set', 'Set 1', '1st_set']);
   const foundBookmaker = Boolean(keywordCounts[bookmaker]);
-  const oddsCandidates = oddsNearScores(text);
+  const pageStayedOnMatch = !finalUrl.includes('/bookmakers/');
 
   return {
     input_url: url,
     final_url: finalUrl,
+    page_stayed_on_match: pageStayedOnMatch,
     status,
     load_error: loadError,
     title,
-    clicked_labels: clicked,
+    cookie_clicks,
+    clicked_labels: [],
     screenshot_file: path.basename(screenshotPath),
     text_length: text.length,
     html_length: html.length,
@@ -213,10 +240,10 @@ async function probeOne(browser, url, index) {
     found_target_scores: foundTargetScores,
     found_market_language: foundMarketLanguage,
     found_bookmaker: foundBookmaker,
-    potentially_useful_for_v3: foundTargetScores && (foundMarketLanguage || networkHits.some((h) => h.has_correct_score)) && (foundBookmaker || networkHits.some((h) => h.has_bookmaker)),
-    odds_candidates_near_scores: oddsCandidates,
+    potentially_useful_for_v3: pageStayedOnMatch && foundTargetScores && foundMarketLanguage && foundBookmaker,
+    odds_candidates_near_scores: oddsNearScores(combined),
     score_windows: scoreWindows,
-    network_hits: networkHits.slice(0, 50),
+    network_hits: networkHits.slice(0, 80),
   };
 }
 
@@ -237,12 +264,24 @@ async function main() {
   }
 
   const browser = await chromium.launch({ headless });
+  const context = await browser.newContext({
+    viewport: { width: 1365, height: 900 },
+    locale: 'en-US',
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+    extraHTTPHeaders: {
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
+
   const details = [];
   for (let i = 0; i < links.length; i += 1) {
     console.error(`[*] Probing ${i + 1}/${links.length}: ${links[i]}`);
-    details.push(await probeOne(browser, links[i], i));
+    details.push(await probeOne(context, links[i], i));
   }
-  await browser.close();
+  await context.close().catch(() => null);
+  await browser.close().catch(() => null);
 
   const useful = details.filter((d) => d.potentially_useful_for_v3);
   const summary = {
@@ -251,6 +290,8 @@ async function main() {
     mode: 'oddsportal_historical_v3_probe',
     bookmaker,
     links_checked: links.length,
+    pages_stayed_on_match_count: details.filter((d) => d.page_stayed_on_match).length,
+    redirected_to_bookmakers_count: details.filter((d) => String(d.final_url || '').includes('/bookmakers/')).length,
     potentially_useful_count: useful.length,
     potentially_useful_urls: useful.map((d) => d.input_url),
     target_scores_found_count: details.filter((d) => d.found_target_scores).length,
@@ -258,7 +299,7 @@ async function main() {
     bookmaker_found_count: details.filter((d) => d.found_bookmaker).length,
     verdict: useful.length > 0
       ? 'OddsPortal historical pages appear to expose enough V3 market evidence for at least one tested match. Next step is a structured extractor/backtest.'
-      : 'No tested page proved the full V3 market yet. Try more historical match URLs or screenshots/manual page URLs where 1st Set Correct Score is visible.',
+      : 'No tested page proved the full V3 market yet. If pages stay on match URLs but market data is absent, OddsPortal public H2H pages likely do not expose historical 1st-set correct-score odds directly.',
     warning: 'Read-only probe. Confirm OddsPortal terms and manually verify extracted prices before using results.',
   };
 
@@ -266,12 +307,15 @@ async function main() {
   fs.writeFileSync(path.join(outDir, 'oddsportal_historical_v3_probe_details.json'), `${JSON.stringify(details, null, 2)}\n`);
   fs.writeFileSync(path.join(outDir, 'oddsportal_historical_v3_probe_samples.txt'), details.map((d, i) => [
     `# ${i + 1} ${d.input_url}`,
+    `final_url=${d.final_url}`,
+    `page_stayed_on_match=${d.page_stayed_on_match}`,
     `potentially_useful_for_v3=${d.potentially_useful_for_v3}`,
     `title=${d.title}`,
     `3-6=${d.score_windows['3-6'] || ''}`,
     `4-6=${d.score_windows['4-6'] || ''}`,
     `5-7=${d.score_windows['5-7'] || ''}`,
     `bookmaker=${d.score_windows.bookmaker || ''}`,
+    `first_set=${d.score_windows.first_set || ''}`,
     `correct_score=${d.score_windows.correct_score || ''}`,
   ].join('\n')).join('\n\n'));
 
