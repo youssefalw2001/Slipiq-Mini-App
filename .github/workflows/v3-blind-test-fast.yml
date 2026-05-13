@@ -6,7 +6,7 @@ on:
       min_date:
         description: Earliest date for random window, YYYY-MM-DD
         required: false
-        default: '2026-01-01'
+        default: '2026-05-06'
       max_date:
         description: Latest date for random window, YYYY-MM-DD
         required: false
@@ -18,15 +18,23 @@ on:
       window_days:
         description: Random blind window size in days
         required: false
-        default: '7'
+        default: '3'
       seed:
         description: Optional seed. Leave blank to use current run id.
         required: false
         default: ''
       leagues:
-        description: Optional comma-separated league slugs, e.g. atp-rome,wta-rome. Leave blank for all.
+        description: Comma-separated league slugs. Default scans Rome ATP/WTA.
         required: false
-        default: ''
+        default: 'atp-rome,wta-rome'
+      season:
+        description: OddsPortal season value for historic scan
+        required: false
+        default: 'current'
+      max_pages:
+        description: Historic pages to scan per league
+        required: false
+        default: '3'
       bookmaker:
         description: Target bookmaker
         required: false
@@ -39,10 +47,10 @@ on:
         description: Target reconstructed grouped odds
         required: false
         default: '3.5'
-      per_day_runtime_minutes:
-        description: Fast mode cap per scanned day
+      max_runtime_minutes:
+        description: Fast mode runtime cap
         required: false
-        default: '3'
+        default: '20'
       sample_limit:
         description: Max settled candidate rows to keep
         required: false
@@ -86,21 +94,19 @@ jobs:
           if [ -n "${{ github.event.inputs.start_date }}" ]; then
             START_ARG="--start_date=${{ github.event.inputs.start_date }}"
           fi
-          LEAGUES_ARG=""
-          if [ -n "${{ github.event.inputs.leagues }}" ]; then
-            LEAGUES_ARG="--leagues=${{ github.event.inputs.leagues }}"
-          fi
           node scripts/run-v3-blind-test-fast.mjs \
-            --min_date=${{ github.event.inputs.min_date || '2026-01-01' }} \
+            --min_date=${{ github.event.inputs.min_date || '2026-05-06' }} \
             --max_date=${{ github.event.inputs.max_date || '2026-05-12' }} \
             $START_ARG \
-            --window_days=${{ github.event.inputs.window_days || '7' }} \
+            --window_days=${{ github.event.inputs.window_days || '3' }} \
             --seed="$SEED_INPUT" \
-            $LEAGUES_ARG \
+            --leagues=${{ github.event.inputs.leagues || 'atp-rome,wta-rome' }} \
+            --season=${{ github.event.inputs.season || 'current' }} \
+            --max_pages=${{ github.event.inputs.max_pages || '3' }} \
             --bookmaker=${{ github.event.inputs.bookmaker || 'bet365' }} \
             --threshold=${{ github.event.inputs.threshold || '3.3' }} \
             --target_threshold=${{ github.event.inputs.target_threshold || '3.5' }} \
-            --per_day_runtime_minutes=${{ github.event.inputs.per_day_runtime_minutes || '3' }} \
+            --max_runtime_minutes=${{ github.event.inputs.max_runtime_minutes || '20' }} \
             --sample_limit=${{ github.event.inputs.sample_limit || '40' }}
 
       - name: Upload blind test artifact
