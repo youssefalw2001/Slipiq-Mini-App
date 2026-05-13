@@ -54,8 +54,10 @@ jobs:
       - name: Install OddsHarvester
         shell: bash
         run: |
+          set -e
           python -m pip install --upgrade pip
-          python -m pip install oddsharvester
+          python -m pip install oddsharvester || python -m pip install "git+https://github.com/jordantete/OddsHarvester.git"
+          python -m playwright install --with-deps chromium
           oddsharvester --help >/dev/null
 
       - name: Scan live first-set correct-score odds
