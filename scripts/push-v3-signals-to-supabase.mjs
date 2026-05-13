@@ -24,6 +24,11 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
+// Supabase REST exposes the public schema by default. These REST-facing tables
+// are protected with RLS and service_role-only policies.
+const SIGNAL_TABLE = 'private_v3_signal_log';
+const PRICE_CHECK_TABLE = 'private_v3_price_checks';
+
 function requiredEnvReady() {
   return Boolean(supabaseUrl && supabaseServiceRoleKey);
 }
@@ -139,7 +144,7 @@ function formatSignalMessage(row, signalClass, verifiedOdds) {
     `<b>P2 6-3:</b> ${p36 ?? 'n/a'}`,
     `<b>P2 6-4:</b> ${p46 ?? 'n/a'}`,
     `<b>P2 7-5:</b> ${p57 ?? 'n/a'}`,
-    `<b>Verified P2 & 9–12:</b> ${verifiedOdds?.toFixed ? verifiedOdds.toFixed(2) : verifiedOdds}`,
+    `<b>Verified P2 & 9-12:</b> ${verifiedOdds?.toFixed ? verifiedOdds.toFixed(2) : verifiedOdds}`,
     ``,
     `<b>System stake:</b> $${stake.toFixed(2)} paper/live unit at 0.25% of $5k`,
     `<b>Note:</b> scanner-confirmed only; no bet placed automatically.`,
@@ -234,26 +239,26 @@ async function main() {
 
     const inserted = await supabaseRequest(
       'POST',
-      'private.private_v3_signal_log?on_conflict=sportsbook,external_match_id,player2,starts_at',
+      `${SIGNAL_TABLE}?on_conflict=sportsbook,external_match_id,player2,starts_at`,
       [signalPayload]
     );
     const signal = Array.isArray(inserted) ? inserted[0] : inserted;
     if (!signal?.id) throw new Error('Supabase insert did not return signal id');
 
     const priceCheckPayload = buildPriceCheckPayload(row, summary, signal.id, signalClass, scannerRunId);
-    await supabaseRequest('POST', 'private.private_v3_price_checks', [priceCheckPayload]);
+    await supabaseRequest('POST', PRICE_CHECK_TABLE, [priceCheckPayload]);
 
     let telegram = { skipped: true };
     if (shouldAlert(signalClass) && !signal.telegram_alert_sent_at) {
       try {
         telegram = await sendTelegram(formatSignalMessage(row, signalClass, signalPayload.verified_grouped_odds));
-        await supabaseRequest('PATCH', `private.private_v3_signal_log?id=eq.${signal.id}`, {
+        await supabaseRequest('PATCH', `${SIGNAL_TABLE}?id=eq.${signal.id}`, {
           execution_status: 'alerted',
           telegram_alert_sent_at: new Date().toISOString(),
           last_alert_error: null,
         });
       } catch (err) {
-        await supabaseRequest('PATCH', `private.private_v3_signal_log?id=eq.${signal.id}`, {
+        await supabaseRequest('PATCH', `${SIGNAL_TABLE}?id=eq.${signal.id}`, {
           last_alert_error: String(err.message || err),
         });
         telegram = { error: String(err.message || err) };
