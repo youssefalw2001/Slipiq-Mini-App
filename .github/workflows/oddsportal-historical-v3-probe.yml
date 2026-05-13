@@ -1,0 +1,65 @@
+name: OddsPortal Historical V3 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      match_links:
+        description: Paste OddsPortal historical tennis match URLs. Separate with commas, pipes, or new lines.
+        required: true
+        default: ''
+      bookmaker:
+        description: Target bookmaker text to search for.
+        required: false
+        default: 'bet365'
+      wait_ms:
+        description: Milliseconds to wait after page load/clicks.
+        required: false
+        default: '6000'
+      timeout_ms:
+        description: Page load timeout milliseconds.
+        required: false
+        default: '45000'
+      headless:
+        description: true for CI. false only for local/manual debugging.
+        required: false
+        default: 'true'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm install playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run OddsPortal historical V3 probe
+        shell: bash
+        env:
+          MATCH_LINKS: ${{ github.event.inputs.match_links }}
+          BOOKMAKER: ${{ github.event.inputs.bookmaker }}
+          WAIT_MS: ${{ github.event.inputs.wait_ms }}
+          TIMEOUT_MS: ${{ github.event.inputs.timeout_ms }}
+          HEADLESS: ${{ github.event.inputs.headless }}
+        run: |
+          node scripts/probe-oddsportal-historical-v3.mjs
+
+      - name: Upload probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-historical-v3-probe
+          path: artifacts/output/oddsportal-historical-v3-probe/**
+          if-no-files-found: warn
