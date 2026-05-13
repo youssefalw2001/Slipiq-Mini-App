@@ -1,0 +1,111 @@
+name: V3 Ultra Signal Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Scan date YYYY-MM-DD. Leave blank for today UTC.
+        required: false
+        default: ''
+      leagues:
+        description: OddsPortal leagues, e.g. atp-rome,wta-rome. Leave blank for all available.
+        required: false
+        default: 'atp-rome,wta-rome'
+      threshold:
+        description: Minimum reconstructed P2 9-12 grouped odds to log.
+        required: false
+        default: '3.30'
+      bookmaker:
+        description: Target bookmaker.
+        required: false
+        default: 'bet365'
+      p2_match_odds_json:
+        description: Optional JSON map for Player 2 match odds, e.g. {"Darderi L.":1.42}. Leave blank to log but block official alerts.
+        required: false
+        default: ''
+      require_p2_match_odds_for_alert:
+        description: true = alert only when P2 match odds filter is present and passes.
+        required: false
+        default: 'true'
+      dry_run:
+        description: true = do not write to Supabase or Telegram.
+        required: false
+        default: 'false'
+
+jobs:
+  v3-ultra-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install OddsHarvester
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install oddsharvester
+          oddsharvester --help >/dev/null
+
+      - name: Scan live first-set correct-score odds
+        shell: bash
+        run: |
+          set -e
+          DATE_ARG=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            DATE_ARG="--date=${{ github.event.inputs.date }}"
+          fi
+          LEAGUES_ARG=""
+          if [ -n "${{ github.event.inputs.leagues }}" ]; then
+            LEAGUES_ARG="--leagues=${{ github.event.inputs.leagues }}"
+          fi
+          mkdir -p artifacts/output/oddsportal-upcoming-firstset
+          node scripts/scan-oddsportal-upcoming-firstset.mjs \
+            $DATE_ARG \
+            $LEAGUES_ARG \
+            --bookmaker=${{ github.event.inputs.bookmaker }} \
+            --threshold=${{ github.event.inputs.threshold }}
+          LATEST_DIR=$(ls -td .tmp/upcoming-* | head -1)
+          cp "$LATEST_DIR"/* artifacts/output/oddsportal-upcoming-firstset/
+
+      - name: Enrich with optional P2 match odds
+        shell: bash
+        env:
+          P2_MATCH_ODDS_JSON: ${{ github.event.inputs.p2_match_odds_json }}
+        run: |
+          node scripts/enrich-v3-summary-with-p2-odds.mjs \
+            --input=artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json \
+            --output=artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json
+
+      - name: Push filtered V3 signals to Supabase and Telegram
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REQUIRE_P2_MATCH_ODDS_FOR_ALERT: ${{ github.event.inputs.require_p2_match_odds_for_alert }}
+        run: |
+          node scripts/push-v3-signals-to-supabase.mjs \
+            --summary=artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json \
+            --dry-run=${{ github.event.inputs.dry_run }} \
+            --require-p2-match-odds=${{ github.event.inputs.require_p2_match_odds_for_alert }}
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-ultra-signal-scan
+          path: artifacts/output/oddsportal-upcoming-firstset/**
+          if-no-files-found: warn
