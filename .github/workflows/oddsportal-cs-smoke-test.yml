@@ -1,0 +1,54 @@
+name: OddsPortal CS Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      results_urls:
+        description: Paste OddsPortal results URLs, comma/newline separated.
+        required: true
+        default: 'https://www.oddsportal.com/tennis/italy/atp-rome-2024/results/'
+      max_matches:
+        description: Fast test = 5 or 10. Scale only after grouped odds are found.
+        required: false
+        default: '10'
+      bookmaker:
+        description: Bookmaker text to target.
+        required: false
+        default: 'bet365'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright beautifulsoup4
+          python -m playwright install --with-deps chromium
+
+      - name: Run OddsPortal CS smoke test
+        shell: bash
+        run: |
+          python scripts/slipiq_oddsportal_cs_scraper.py \
+            --results-urls='${{ github.event.inputs.results_urls }}' \
+            --max-matches='${{ github.event.inputs.max_matches }}' \
+            --bookmaker='${{ github.event.inputs.bookmaker }}'
+
+      - name: Upload scrape artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-cs-smoke-test
+          path: artifacts/output/oddsportal-cs-scrape/**
+          if-no-files-found: warn
