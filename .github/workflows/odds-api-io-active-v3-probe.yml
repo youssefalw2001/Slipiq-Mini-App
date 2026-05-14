@@ -1,0 +1,51 @@
+name: Odds API IO Active V3 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      bookmakers:
+        description: Free tier allows 2 selected bookmakers. Use exact Odds-API.io names.
+        required: false
+        default: Bet365,1xbet
+      max_events:
+        description: Number of live/pending tennis events to test.
+        required: false
+        default: '12'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Odds-API.io SDK
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install odds-api-io
+
+      - name: Run active tennis V3 probe
+        shell: bash
+        env:
+          ODDS_API_IO_KEY: ${{ secrets.ODDS_API_IO_KEY }}
+          ODDS_API_IO_BOOKMAKERS: ${{ github.event.inputs.bookmakers }}
+          ODDS_API_IO_MAX_EVENTS: ${{ github.event.inputs.max_events }}
+          OUT_DIR: artifacts/output/odds-api-io-active-v3-probe
+        run: |
+          python scripts/probe-odds-api-io-active-v3.py
+
+      - name: Upload active V3 probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odds-api-io-active-v3-probe
+          path: artifacts/output/odds-api-io-active-v3-probe/**
+          if-no-files-found: warn
