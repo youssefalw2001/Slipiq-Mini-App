@@ -6,7 +6,7 @@ on:
       mode:
         description: Label for this run.
         required: false
-        default: rapidapi-1xbet-match-market-periods
+        default: rapidapi-1xbet-first-set-markets
       rapidapi_host:
         description: Copy x-rapidapi-host from the RapidAPI code snippet. Do not include https://.
         required: true
@@ -14,11 +14,11 @@ on:
       endpoint:
         description: Copy endpoint path from the RapidAPI URL, for example /sports or /matches.
         required: true
-        default: /matches/720919071/markets/periods
+        default: /matches/720919071/markets
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
-        default: '{"mode":"line","lng":"en"}'
+        default: '{"mode":"line","lng":"en","period_id":"89469"}'
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
