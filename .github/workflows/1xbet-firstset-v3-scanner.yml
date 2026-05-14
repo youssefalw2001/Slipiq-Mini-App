@@ -1,0 +1,78 @@
+name: 1xBet First-Set V3 Read-Only Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: Optional comma-separated public 1xBet match URLs. Leave blank to use data/1xbet_firstset_urls.txt.
+        required: false
+        default: ''
+      threshold:
+        description: Minimum grouped P2 3:6/4:6/5:7 decimal odds.
+        required: false
+        default: '3.3'
+      wait_ms:
+        description: Browser wait after page load.
+        required: false
+        default: '5000'
+      pause_seconds:
+        description: Polite pause between match pages.
+        required: false
+        default: '1.25'
+      send_telegram:
+        description: Send playable candidates to Telegram. Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID secrets.
+        required: false
+        default: 'false'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        shell: bash
+        run: |
+          npm install playwright@1.56.1
+          npx playwright install chromium --with-deps
+
+      - name: Run read-only 1xBet first-set scanner
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -e
+          TELEGRAM_ARG=""
+          if [ "${{ github.event.inputs.send_telegram }}" = "true" ]; then
+            TELEGRAM_ARG="--telegram"
+          fi
+          URLS_ARG=""
+          if [ -n "${{ github.event.inputs.urls }}" ]; then
+            URLS_ARG="--urls=${{ github.event.inputs.urls }}"
+          fi
+          node scripts/scan-1xbet-firstset-v3.mjs \
+            $URLS_ARG \
+            --urls-file=data/1xbet_firstset_urls.txt \
+            --out=artifacts/output/1xbet-firstset-v3 \
+            --threshold=${{ github.event.inputs.threshold || '3.3' }} \
+            --wait-ms=${{ github.event.inputs.wait_ms || '5000' }} \
+            --pause-seconds=${{ github.event.inputs.pause_seconds || '1.25' }} \
+            --debug-every=1 \
+            $TELEGRAM_ARG
+
+      - name: Upload 1xBet scanner artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 1xbet-firstset-v3
+          path: artifacts/output/1xbet-firstset-v3/**
+          if-no-files-found: warn
