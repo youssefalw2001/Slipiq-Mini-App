@@ -172,13 +172,62 @@ Individual Total 2 Over = 11.5
 
 That is not first-set Total 2 Over 5.5.
 
-This means either:
+### 7. Get market v2
+
+Endpoint tested:
 
 ```txt
-period_id=89469 is ignored by /matches/{id}/markets
-or the correct first-set market endpoint/parameter is different
-or this API does not expose exact first-set score markets for this match
+GET /matches/720919071/markets_v2?mode=line&lng=en
 ```
+
+Result: HTTP 200, but it still returned match-level markets only.
+
+The returned `Correct Score` market was still set-result style:
+
+```txt
+0 - 2
+1 - 2
+2
+2 - 1
+```
+
+No V3 score rows were found.
+
+### 8. Get market v2 with first-set period
+
+Endpoint tested:
+
+```txt
+GET /matches/720919071/markets_v2?mode=line&lng=en&period_id=89469
+```
+
+Result: HTTP 200, but no V3 rows were found.
+
+The probe summary reported:
+
+```txt
+3:6 = null
+4:6 = null
+5:7 = null
+grouped odds = null
+candidate rows = 0
+```
+
+The raw market list still contained broad match markets only, including:
+
+```txt
+1x2
+Handicap
+Total
+Total 1
+Total 2
+Correct Score
+Tie-Break
+Set / Match
+Come From Behind And Win
+```
+
+The `Total 2` lines were still full-match individual totals around 9.5 to 11.5, not first-set Total 2 Over 5.5.
 
 ## V3 conclusion
 
@@ -204,31 +253,39 @@ ATP Rome league ID: PROVEN = 45687
 Match discovery: PROVEN
 Match detail endpoint: PROVEN
 1st set period ID: PROVEN = 89469
+markets endpoint: PROVEN but not V3
+markets_v2 endpoint: PROVEN but not V3
 V3 first-set correct score availability: NOT PROVEN
 ```
 
-## Next endpoint needed
+## Practical conclusion
 
-The next RapidAPI endpoint to test should be `Get market v2` from the matches section.
+For this match and this API mode, the `1xbet-api` RapidAPI source does not expose SlipIQ V3 first-set correct-score rows.
 
-We need its exact cURL/path from RapidAPI because the working v1 market endpoint may be ignoring `period_id`.
-
-Look for a URL like one of these, but use the exact RapidAPI docs value:
+Do not spend more requests on these exact endpoint patterns for V3:
 
 ```txt
-/matches/{id}/markets/v2
-/matches/{id}/markets-v2
-/matches/{id}/markets/{period_id}
+/matches/{id}
+/matches/{id}/markets
+/matches/{id}/markets?period_id=89469
+/matches/{id}/markets_v2
+/matches/{id}/markets_v2?period_id=89469
 ```
 
-The ideal next test should use:
+## Next possible test
+
+Only continue testing this API if the RapidAPI docs show a different endpoint for live/in-play event trees.
+
+Look for exact endpoint names like:
 
 ```txt
-match/event ID: 720919071
-1st set period ID: 89469
-mode: line
-lng: en
+Get list of event for a live/in-play match
+Get live match events
+Get event markets
+Get events for match
 ```
+
+If no such endpoint exists, this API can support generic match-level context only, not SlipIQ's flagship First Set Lab V3 signal.
 
 ## Do not do yet
 
@@ -236,9 +293,3 @@ Do not schedule scans.
 Do not push Telegram alerts from this API yet.
 Do not treat match-level `Correct Score` as V3 first-set correct score.
 Do not use `Total 2` full-match totals as first-set Total 2 Over 5.5.
-
-## Safe interpretation
-
-This API may still be useful if `Get market v2` exposes first-set submarkets.
-
-If not, it can support generic match-level context only, not SlipIQ's flagship First Set Lab V3 signal.
