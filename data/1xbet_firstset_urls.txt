@@ -1,0 +1,4 @@
+# Paste public 1xBet tennis match URLs here, one per line.
+# The scanner is read-only: no login, no betting, no credential storage.
+# Example format:
+# https://1xbet.com/en/line/tennis/...
