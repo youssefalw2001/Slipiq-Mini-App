@@ -6,7 +6,7 @@ on:
       mode:
         description: Label for this run.
         required: false
-        default: rapidapi-1xbet-atp-rome-match-detail
+        default: rapidapi-1xbet-match-market-periods
       rapidapi_host:
         description: Copy x-rapidapi-host from the RapidAPI code snippet. Do not include https://.
         required: true
@@ -14,7 +14,7 @@ on:
       endpoint:
         description: Copy endpoint path from the RapidAPI URL, for example /sports or /matches.
         required: true
-        default: /matches/720919071
+        default: /matches/720919071/markets/periods
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
