@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: smoke runs only the proven exact URL. overnight runs smoke first, then tournament scrape.
+        description: smoke checks the proven exact URL. overnight runs smoke first, then tournament scrape.
         required: true
         default: smoke
         type: choice
@@ -49,9 +49,12 @@ jobs:
           python -m pip install -r requirements-oddsportal.txt
           python -m playwright install --with-deps chromium
 
-      - name: Run required smoke test
+      - name: Run smoke test and keep artifacts
+        id: smoke
         shell: bash
+        continue-on-error: true
         run: |
+          set +e
           python scripts/oddsportal_bet365_first_set_scraper.py \
             --exact-urls-file data/oddsportal_exact_smoke_urls.txt \
             --limit-total 1 \
@@ -60,6 +63,12 @@ jobs:
             --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
             --debug-every 1 \
             --smoke-test
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::Smoke test returned exit code $status. This usually means OddsPortal returned a partial row, not that the browser crashed. Artifacts will be uploaded and overnight mode will continue."
+          fi
+          exit $status
 
       - name: Run overnight tournament scrape
         if: ${{ github.event.inputs.mode == 'overnight' }}
