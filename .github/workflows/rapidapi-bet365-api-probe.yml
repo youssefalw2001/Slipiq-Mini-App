@@ -6,15 +6,15 @@ on:
       mode:
         description: Label for this run.
         required: false
-        default: rapidapi-bet365-first-test
+        default: rapidapi-bet365-markets
       rapidapi_host:
         description: Copy x-rapidapi-host from the RapidAPI code snippet. Do not include https://.
         required: true
-        default: bet365-api.p.rapidapi.com
+        default: bet36528.p.rapidapi.com
       endpoint:
         description: Copy endpoint path from the RapidAPI URL, for example /sports or /odds/historical.
         required: true
-        default: ''
+        default: /markets
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
