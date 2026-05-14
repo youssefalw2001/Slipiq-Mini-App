@@ -99,6 +99,15 @@ startTime: 2026-05-14T17:00:00.000Z
 
 The safer test fixture was Ruud vs Darderi because it was pre-game.
 
+The proof-match fixture was also found:
+
+```txt
+fixtureId: id1200278171201168
+match: Sinner, Jannik vs Ofner, Sebastian
+status: Finished
+startTime: 2026-05-09T17:00:00.000Z
+```
+
 ## Odds by fixture test
 
 Endpoint:
@@ -158,50 +167,110 @@ grouped odds = null
 candidate rows = 0
 ```
 
+## Odds by tournament test
+
+Endpoint:
+
+```txt
+GET /odds-by-tournaments?tournamentIds=2781&verbosity=3&oddsFormat=decimal
+```
+
+Result: HTTP 200.
+
+It returned odds for only 2 ATP Rome fixtures and only basic markets. It did not include marketId 12404 or V3 outcomes.
+
+## Historical odds tests
+
+### Ruud vs Darderi with V3 outcome filter
+
+Endpoint:
+
+```txt
+GET /historical-odds?fixtureId=id1200278171201158&outcomeId=12414
+```
+
+Result: HTTP 404.
+
+Message:
+
+```txt
+No historical odds found for the specified filters.
+```
+
+### Ruud vs Darderi fixture only
+
+Endpoint:
+
+```txt
+GET /historical-odds?fixtureId=id1200278171201158
+```
+
+Result: HTTP 200.
+
+But it returned only the same 4 basic markets. It did not include marketId 12404.
+
+### Sinner vs Ofner proof fixture only
+
+Endpoint:
+
+```txt
+GET /historical-odds?fixtureId=id1200278171201168
+```
+
+Result: HTTP 200.
+
+But it returned only 3 basic markets:
+
+```txt
+121
+123
+1217
+```
+
+It did not include:
+
+```txt
+marketId 12404
+3:6 outcomeId 12414
+4:6 outcomeId 12415
+5:7 outcomeId 12416
+```
+
+This means the API could not reproduce the known OddsPortal/bet365 proof match V3 prices:
+
+```txt
+3:6 = 67.00
+4:6 = 19.00
+5:7 = 51.00
+```
+
 ## Interpretation
 
 The API market catalog confirms that `Correct Score First Set` exists globally.
 
-However, for the tested Ruud vs Darderi fixture, `/odds` did not return that market, even when `marketId=12404` was supplied.
+However, the odds and historical odds endpoints tested so far return only default/basic markets, even for a finished Sinner vs Ofner fixture.
 
 This means one of these is likely true:
 
 ```txt
-/odds ignores marketId and returns only default/basic markets
-or the fixture did not have first-set correct-score odds available at that time
-or a different endpoint is required for deep/special markets
-or a different fixture with richer markets is required
-```
-
-## Next endpoint to inspect in RapidAPI docs
-
-The next best endpoint is not plain `/odds` unless the docs show additional parameters.
-
-Look for exact cURL for:
-
-```txt
-Odds by Fixture
-Odds historical
-Odds by Tournaments
-```
-
-We need to know whether there are parameters such as:
-
-```txt
-marketIds
-market_id
-market
-markets
-includeMarkets
-fixtureIds
-sportId
-tournamentId
-bookmaker
-from/to/date
+/odds and /historical-odds expose only limited/basic markets on the free tier
+or the API stores the market catalog but does not serve deep tennis correct-score prices through these endpoints
+or a different undocumented endpoint/parameter is required for deep/special markets
+or this provider does not have historical V3 first-set correct-score odds even though it lists the market definition
 ```
 
 ## Current conclusion
 
-This bet365 API is still the best candidate because it has the exact market in `/markets`, but the usable odds endpoint for marketId 12404 is not proven yet.
+This bet365 API is useful for:
+
+```txt
+market catalog discovery
+sports/tournament/fixture discovery
+basic market odds/history
+```
+
+It is not yet proven useful for SlipIQ's flagship V3 odds, because the actual price endpoints have not returned marketId 12404.
 
 Do not schedule scans or burn requests until the exact endpoint/params for deep market odds are proven.
+
+For official historical V3, the best proven method remains the OddsPortal bet365 row-arrow scraper.
