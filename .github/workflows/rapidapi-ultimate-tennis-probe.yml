@@ -1,0 +1,102 @@
+name: RapidAPI Ultimate Tennis Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Label for this run.
+        required: false
+        default: rapidapi-ultimate-tennis-live-scores
+      rapidapi_host:
+        description: Copy x-rapidapi-host from RapidAPI. Do not include https://.
+        required: true
+        default: ultimate-tennis1.p.rapidapi.com
+      endpoint:
+        description: API endpoint path.
+        required: true
+        default: /live_scores
+      params:
+        description: Query params as JSON or key=value&key2=value2. Do not include any API key.
+        required: false
+        default: '{}'
+      bookmaker:
+        description: Target bookmaker/source name to search for in response.
+        required: false
+        default: 'ultimate-tennis'
+      grouped_threshold:
+        description: Minimum grouped V3 odds for actionable candidates.
+        required: false
+        default: '3.3'
+      max_requests:
+        description: Keep this at 1 while testing free APIs.
+        required: false
+        default: '1'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Refuse unsafe or wasteful inputs
+        shell: bash
+        run: |
+          set -e
+          INPUTS='${{ github.event.inputs.params }} ${{ github.event.inputs.rapidapi_host }} ${{ github.event.inputs.endpoint }}'
+          if echo "$INPUTS" | grep -Eiq 'rapidapi-key|x-rapidapi-key|msh'; then
+            echo "Do not paste API keys into workflow inputs. Store the key only as the RAPIDAPI_KEY GitHub secret."
+            exit 2
+          fi
+          if [ -z '${{ github.event.inputs.rapidapi_host }}' ] || [ -z '${{ github.event.inputs.endpoint }}' ]; then
+            echo "Missing rapidapi_host or endpoint."
+            exit 2
+          fi
+          if [ '${{ github.event.inputs.max_requests }}' != '1' ]; then
+            echo "Keep max_requests at 1 while testing."
+            exit 2
+          fi
+
+      - name: Run Ultimate Tennis RapidAPI probe
+        shell: bash
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: |
+          set -e
+          node scripts/rapidapi-oddsfeed-probe.mjs \
+            --mode='${{ github.event.inputs.mode }}' \
+            --host='${{ github.event.inputs.rapidapi_host }}' \
+            --endpoint='${{ github.event.inputs.endpoint }}' \
+            --params='${{ github.event.inputs.params }}' \
+            --bookmaker='${{ github.event.inputs.bookmaker }}' \
+            --max-requests='1' \
+            --out=artifacts/output/rapidapi-ultimate-tennis-probe
+
+      - name: Normalize output into SlipIQ V3 summary if possible
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          if [ -f artifacts/output/rapidapi-ultimate-tennis-probe/normalized_candidate_odds.csv ]; then
+            node scripts/normalize-rapidapi-v3-summary.mjs \
+              --input=artifacts/output/rapidapi-ultimate-tennis-probe \
+              --bookmaker='${{ github.event.inputs.bookmaker }}' \
+              --threshold='${{ github.event.inputs.grouped_threshold }}'
+          else
+            echo "normalized_candidate_odds.csv was not created; skipping V3 normalization."
+          fi
+
+      - name: Upload Ultimate Tennis probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapidapi-ultimate-tennis-probe-${{ github.event.inputs.mode }}
+          path: artifacts/output/rapidapi-ultimate-tennis-probe/**
+          if-no-files-found: warn
