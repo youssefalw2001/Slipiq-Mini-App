@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       bookmakers:
-        description: Free tier allows 2 selected bookmakers. Use comma-separated names.
+        description: Free tier allows 2 selected bookmakers. Use exact Odds-API.io names.
         required: false
-        default: bet365,1xbet
+        default: Bet365,1xbet
       max_events:
         description: Small number while testing. Do not waste requests.
         required: false
