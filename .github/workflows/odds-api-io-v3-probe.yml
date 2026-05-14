@@ -8,11 +8,11 @@ on:
         required: false
         default: Bet365,1xbet
       max_events:
-        description: Small number while testing. Do not waste requests.
+        description: Number of live/pending tennis events to test.
         required: false
-        default: '5'
+        default: '12'
       search_query:
-        description: Fallback event search query.
+        description: Kept for compatibility. Active probe prioritizes live/pending tennis events.
         required: false
         default: tennis
 
@@ -36,16 +36,15 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install odds-api-io
 
-      - name: Run Odds-API.io V3 market probe
+      - name: Run active tennis V3 probe
         shell: bash
         env:
           ODDS_API_IO_KEY: ${{ secrets.ODDS_API_IO_KEY }}
           ODDS_API_IO_BOOKMAKERS: ${{ github.event.inputs.bookmakers }}
           ODDS_API_IO_MAX_EVENTS: ${{ github.event.inputs.max_events }}
-          ODDS_API_IO_SEARCH_QUERY: ${{ github.event.inputs.search_query }}
           OUT_DIR: artifacts/output/odds-api-io-v3-probe
         run: |
-          python scripts/probe-odds-api-io-v3.py
+          python scripts/probe-odds-api-io-active-v3.py
 
       - name: Upload Odds-API.io probe artifact
         if: always()
