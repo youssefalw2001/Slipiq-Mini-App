@@ -1,0 +1,105 @@
+name: OddsPortal Bet365 Overnight Scrape
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: smoke runs only the proven exact URL. overnight runs smoke first, then tournament scrape.
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - overnight
+      limit_total:
+        description: Max market URLs to scrape in overnight mode.
+        required: false
+        default: '120'
+      max_matches_per_results:
+        description: Max match links discovered per tournament results page.
+        required: false
+        default: '25'
+      wait_ms:
+        description: Browser wait between page actions.
+        required: false
+        default: '4500'
+      pause_seconds:
+        description: Polite pause between market scrapes.
+        required: false
+        default: '1.2'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run required smoke test
+        shell: bash
+        run: |
+          python scripts/oddsportal_bet365_first_set_scraper.py \
+            --exact-urls-file data/oddsportal_exact_smoke_urls.txt \
+            --limit-total 1 \
+            --out artifacts/output/oddsportal-bet365-smoke \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
+            --debug-every 1 \
+            --smoke-test
+
+      - name: Run overnight tournament scrape
+        if: ${{ github.event.inputs.mode == 'overnight' }}
+        shell: bash
+        run: |
+          python scripts/oddsportal_bet365_first_set_scraper.py \
+            --results-urls-file data/oddsportal_major_results_urls.txt \
+            --limit-total '${{ github.event.inputs.limit_total }}' \
+            --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
+            --out artifacts/output/oddsportal-bet365-overnight \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
+            --debug-every 10
+
+      - name: Backtest smoke result
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/output/oddsportal-bet365-smoke/bet365_master_odds_db.csv ]; then
+            python scripts/backtest_bet365_v3_from_csv.py \
+              --csv artifacts/output/oddsportal-bet365-smoke/bet365_master_odds_db.csv \
+              --out artifacts/output/backtest-smoke \
+              --stake 100
+          fi
+
+      - name: Backtest overnight result
+        if: ${{ always() && github.event.inputs.mode == 'overnight' }}
+        shell: bash
+        run: |
+          if [ -f artifacts/output/oddsportal-bet365-overnight/bet365_master_odds_db.csv ]; then
+            python scripts/backtest_bet365_v3_from_csv.py \
+              --csv artifacts/output/oddsportal-bet365-overnight/bet365_master_odds_db.csv \
+              --out artifacts/output/backtest-overnight \
+              --stake 100
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-bet365-${{ github.event.inputs.mode }}
+          path: artifacts/output/**
+          if-no-files-found: warn
