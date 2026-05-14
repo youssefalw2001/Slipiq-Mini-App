@@ -27,15 +27,23 @@ on:
         description: Optional quick-scan limit. Example 12 uploads whatever was found after ~12 minutes.
         required: false
         default: '0'
+      max_confirm_candidates:
+        description: Max scanner candidates to confirm with strict bet365 row-arrow method.
+        required: false
+        default: '12'
+      confirm_wait_ms:
+        description: Browser wait for live bet365 row-arrow confirmation.
+        required: false
+        default: '3500'
       push_to_supabase:
-        description: Push fresh playable signals to Supabase and Telegram. Requires secrets.
+        description: Push fresh playable signals to Supabase and Telegram after strict live bet365 confirmation. Requires secrets.
         required: false
         default: 'true'
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repo
@@ -51,10 +59,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install OddsHarvester and Playwright
+      - name: Install OddsHarvester, Playwright, and confirmer deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install oddsharvester
+          python -m pip install oddsharvester beautifulsoup4
           python -m playwright install chromium --with-deps
           oddsharvester --help
 
@@ -91,7 +99,22 @@ jobs:
           fi
           find artifacts/output/oddsportal-upcoming-firstset -maxdepth 3 -type f -print
 
-      - name: Push verified V3 signals to Supabase and Telegram
+      - name: Strict-confirm live bet365 correct-score rows
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json ]; then
+            python scripts/confirm-live-bet365-correct-score.py \
+              --summary=artifacts/output/oddsportal-upcoming-firstset/upcoming_firstset_summary.json \
+              --out-dir=artifacts/output/oddsportal-upcoming-firstset \
+              --bookmaker=${{ github.event.inputs.bookmaker || 'bet365' }} \
+              --threshold=${{ github.event.inputs.threshold || '3.3' }} \
+              --max-candidates=${{ github.event.inputs.max_confirm_candidates || '12' }} \
+              --wait-ms=${{ github.event.inputs.confirm_wait_ms || '3500' }} \
+              --debug-every=5
+          fi
+
+      - name: Push row-arrow verified V3 signals to Supabase and Telegram
         if: always() && github.event.inputs.push_to_supabase != 'false'
         shell: bash
         env:
