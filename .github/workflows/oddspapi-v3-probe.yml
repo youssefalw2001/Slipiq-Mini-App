@@ -1,0 +1,86 @@
+name: OddsPapi V3 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Start with mapping. Then run live_small only if mapping finds First Set Correct Score.
+        required: true
+        default: mapping
+        type: choice
+        options:
+          - mapping
+          - live_small
+          - full_small
+      base_url:
+        description: OddsPapi base URL from docs.
+        required: false
+        default: https://v1.oddspapi.io/en
+      auth_mode:
+        description: Use auto unless OddsPapi docs specify bearer, x-api-key, api_key, apiKey, or token.
+        required: false
+        default: auto
+      bookmaker:
+        description: Target bookmaker.
+        required: false
+        default: bet365
+      max_fixtures:
+        description: Keep small on free trial.
+        required: false
+        default: '3'
+      fixtures_params:
+        description: Optional /fixtures params as JSON or query string. Do not include API key.
+        required: false
+        default: '{}'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests
+
+      - name: Refuse unsafe inputs
+        shell: bash
+        run: |
+          set -e
+          INPUTS='${{ github.event.inputs.base_url }} ${{ github.event.inputs.fixtures_params }} ${{ github.event.inputs.bookmaker }}'
+          if echo "$INPUTS" | grep -Eiq 'api[_-]?key|authorization|bearer|token=|key='; then
+            echo "Do not paste API keys or auth tokens into workflow inputs. Store the key only as the ODDSPAPI_KEY GitHub secret."
+            exit 2
+          fi
+
+      - name: Run OddsPapi V3 probe
+        shell: bash
+        env:
+          ODDSPAPI_KEY: ${{ secrets.ODDSPAPI_KEY }}
+          ODDSPAPI_BASE_URL: ${{ github.event.inputs.base_url }}
+          ODDSPAPI_AUTH_MODE: ${{ github.event.inputs.auth_mode }}
+          ODDSPAPI_MODE: ${{ github.event.inputs.mode }}
+          ODDSPAPI_BOOKMAKER: ${{ github.event.inputs.bookmaker }}
+          ODDSPAPI_MAX_FIXTURES: ${{ github.event.inputs.max_fixtures }}
+          ODDSPAPI_FIXTURES_PARAMS: ${{ github.event.inputs.fixtures_params }}
+          OUT_DIR: artifacts/output/oddspapi-v3-probe
+        run: |
+          python scripts/probe-oddspapi-v3.py
+
+      - name: Upload OddsPapi probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddspapi-v3-probe-${{ github.event.inputs.mode }}
+          path: artifacts/output/oddspapi-v3-probe/**
+          if-no-files-found: warn
