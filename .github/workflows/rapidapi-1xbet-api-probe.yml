@@ -6,7 +6,7 @@ on:
       mode:
         description: Label for this run.
         required: false
-        default: rapidapi-1xbet-atp-rome-matches
+        default: rapidapi-1xbet-atp-rome-match-detail
       rapidapi_host:
         description: Copy x-rapidapi-host from the RapidAPI code snippet. Do not include https://.
         required: true
@@ -14,11 +14,11 @@ on:
       endpoint:
         description: Copy endpoint path from the RapidAPI URL, for example /sports or /matches.
         required: true
-        default: /matches
+        default: /matches/720919071
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
-        default: '{"mode":"line","lng":"en","sport_id":"4","league_id":"45687"}'
+        default: '{"mode":"line","lng":"en"}'
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
