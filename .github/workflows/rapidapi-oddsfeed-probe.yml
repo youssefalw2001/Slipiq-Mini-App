@@ -4,19 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Label for this run, e.g. historical, live, events, odds.
+        description: Label for this run, e.g. smoke, live, historical, events, odds.
         required: false
-        default: probe
+        default: rapidapi-live-1x2-smoke
       rapidapi_host:
-        description: RapidAPI host, e.g. example.p.rapidapi.com. Do not include https://.
+        description: RapidAPI host. Do not include https://.
         required: true
+        default: odds-feed.p.rapidapi.com
       endpoint:
-        description: API endpoint path, e.g. /odds or /v1/odds.
+        description: API endpoint path.
         required: true
+        default: /api/v1/markets/feed
       params:
-        description: Query params as JSON or key=value&key2=value2. Example {"sport":"tennis","bookmaker":"1xbet"}
+        description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
-        default: '{"sport":"tennis","bookmaker":"1xbet"}'
+        default: '{"placing":"LIVE","market_name":"1X2","bet_type":"BACK","page":"0","event_ids":"845,123,435,22,842,844,845","period":"FULL_TIME_AND_OT"}'
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
