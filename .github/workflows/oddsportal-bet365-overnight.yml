@@ -32,6 +32,8 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    env:
+      PYTHONUNBUFFERED: '1'
 
     steps:
       - name: Checkout repo
@@ -55,7 +57,7 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          python scripts/oddsportal_bet365_first_set_scraper.py \
+          python -u scripts/oddsportal_bet365_first_set_scraper.py \
             --exact-urls-file data/oddsportal_exact_smoke_urls.txt \
             --limit-total 1 \
             --out artifacts/output/oddsportal-bet365-smoke \
@@ -74,21 +76,23 @@ jobs:
         if: ${{ github.event.inputs.mode == 'overnight' }}
         shell: bash
         run: |
-          python scripts/oddsportal_bet365_first_set_scraper.py \
+          echo "Starting overnight scrape at $(date -u). Progress logs print every scraped match."
+          python -u scripts/oddsportal_bet365_first_set_scraper.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --limit-total '${{ github.event.inputs.limit_total }}' \
             --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
             --out artifacts/output/oddsportal-bet365-overnight \
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
             --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
-            --debug-every 10
+            --debug-every 1
+          echo "Finished overnight scrape at $(date -u)."
 
       - name: Backtest smoke result
         if: always()
         shell: bash
         run: |
           if [ -f artifacts/output/oddsportal-bet365-smoke/bet365_master_odds_db.csv ]; then
-            python scripts/backtest_bet365_v3_from_csv.py \
+            python -u scripts/backtest_bet365_v3_from_csv.py \
               --csv artifacts/output/oddsportal-bet365-smoke/bet365_master_odds_db.csv \
               --out artifacts/output/backtest-smoke \
               --stake 100
@@ -99,7 +103,7 @@ jobs:
         shell: bash
         run: |
           if [ -f artifacts/output/oddsportal-bet365-overnight/bet365_master_odds_db.csv ]; then
-            python scripts/backtest_bet365_v3_from_csv.py \
+            python -u scripts/backtest_bet365_v3_from_csv.py \
               --csv artifacts/output/oddsportal-bet365-overnight/bet365_master_odds_db.csv \
               --out artifacts/output/backtest-overnight \
               --stake 100
