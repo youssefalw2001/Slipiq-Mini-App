@@ -1,0 +1,54 @@
+[
+  {
+    "placing": "LIVE",
+    "market_name": "1X2",
+    "bet_type": "BACK",
+    "page": "0",
+    "period": "FULL_TIME_AND_OT"
+  },
+  {
+    "placing": "PREMATCH",
+    "market_name": "1X2",
+    "bet_type": "BACK",
+    "page": "0",
+    "period": "FULL_TIME_AND_OT"
+  },
+  {
+    "placing": "LIVE",
+    "market_name": "CORRECT_SCORE",
+    "bet_type": "BACK",
+    "page": "0",
+    "period": "FIRST_SET"
+  },
+  {
+    "placing": "PREMATCH",
+    "market_name": "CORRECT_SCORE",
+    "bet_type": "BACK",
+    "page": "0",
+    "period": "FIRST_SET"
+  },
+  {
+    "placing": "LIVE",
+    "market_name": "1ST_SET_CORRECT_SCORE",
+    "bet_type": "BACK",
+    "page": "0"
+  },
+  {
+    "placing": "PREMATCH",
+    "market_name": "1ST_SET_CORRECT_SCORE",
+    "bet_type": "BACK",
+    "page": "0"
+  },
+  {
+    "placing": "LIVE",
+    "market_name": "SET_1_CORRECT_SCORE",
+    "bet_type": "BACK",
+    "page": "0"
+  },
+  {
+    "placing": "PREMATCH",
+    "market_name": "SET_1_CORRECT_SCORE",
+    "bet_type": "BACK",
+    "page": "0"
+  }
+]
