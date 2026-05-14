@@ -14,17 +14,54 @@ RAPIDAPI_KEY
 
 Do not paste the new key into chat, code, commits, workflow inputs, screenshots, or docs.
 
-## What this does
+## Current finding: `/api/v1/markets/feed` is not enough for V3
+
+The GitHub workflow and RapidAPI connection work.
+
+But the tested endpoint:
+
+```txt
+/api/v1/markets/feed
+```
+
+is not suitable for SlipIQ V3 first-set correct-score odds.
+
+The discovery artifact showed this endpoint only accepts these `market_name` values:
+
+```txt
+1X2
+OVER_UNDER
+ASIAN_HANDICAP
+HOME_AWAY
+BOTH_TEAMS_TO_SCORE
+```
+
+It rejected:
+
+```txt
+CORRECT_SCORE
+1ST_SET_CORRECT_SCORE
+SET_1_CORRECT_SCORE
+```
+
+It also rejected `FIRST_SET` as a period. Accepted periods were only:
+
+```txt
+FULL_TIME_AND_OT
+FULL_TIME
+```
+
+So do not waste more free-tier requests trying first-set correct-score names on `/api/v1/markets/feed`.
+
+## What this workflow still does
 
 The workflow is read-only.
 
 It can:
-- Call the RapidAPI Odds Feed API using the `RAPIDAPI_KEY` GitHub secret.
+- Call RapidAPI using the `RAPIDAPI_KEY` GitHub secret.
 - Save raw JSON responses as GitHub Actions artifacts.
-- Search the response for tennis / 1xBet / 1st Set Correct Score odds.
-- Try to find the V3 scores: `3:6`, `4:6`, `5:7`.
-- Calculate grouped V3 odds if all three scores are found.
-- Create a SlipIQ-compatible `upcoming_firstset_summary.json` for the existing Supabase pusher.
+- Normalize any detected V3 rows if a future endpoint exposes them.
+- Create `upcoming_firstset_summary.json` when usable rows exist.
 - Dry-run the Supabase pusher shape check.
 
 It does not:
@@ -50,68 +87,63 @@ RAPIDAPI_KEY
 6. Paste your RapidAPI key as the value.
 7. Save.
 
-## Current RapidAPI Odds Feed smoke endpoint
+## What to do next on RapidAPI mobile
 
-The current workflow defaults are already set from the RapidAPI curl example.
+Open the RapidAPI Odds Feed API page and look for another endpoint, not `/api/v1/markets/feed`.
 
-Use these defaults for the first smoke test:
+Look for endpoint names like:
 
 ```txt
-mode: rapidapi-live-1x2-smoke
+Events
+Fixtures
+Sports
+Leagues
+Markets
+Bookmaker Odds
+Event Odds
+Odds by Event
+Match Odds
+Historical Odds
+```
+
+We need an endpoint that can answer one of these:
+
+```txt
+List tennis events and event IDs
+List all available markets for one tennis event
+Return bookmaker odds for one event
+Return historical odds for one event
+```
+
+The best next screenshot to send is the RapidAPI endpoint list, with your API key hidden.
+
+## If you still run the current workflow
+
+The current workflow can still prove API connectivity, but it probably will not find V3.
+
+Default values:
+
+```txt
+mode: rapidapi-discovery-small
 rapidapi_host: odds-feed.p.rapidapi.com
 endpoint: /api/v1/markets/feed
-params: {"placing":"LIVE","market_name":"1X2","bet_type":"BACK","page":"0","event_ids":"845,123,435,22,842,844,845","period":"FULL_TIME_AND_OT"}
+params: leave blank
+params_file: data/rapidapi_oddsfeed_discovery_params.json
 bookmaker: 1xBet
 grouped_threshold: 3.3
-max_requests: 1
+max_requests: 8
 ```
 
-This first run is only a connectivity/schema smoke test. It uses `market_name=1X2`, so it will probably not find V3 first-set correct-score rows yet.
-
-A successful smoke test means:
+Expected result for `/api/v1/markets/feed`:
 
 ```txt
-The API key works.
-The host works.
-The endpoint works.
-Raw JSON artifacts are created.
+V3 rows: 0
+Reason: endpoint does not support first-set correct score
 ```
 
-After that, the next step is to discover the API's exact parameter name/value for tennis 1st-set correct score.
+## What a good future V3 result means
 
-## How to run on mobile
-
-1. Open the repo in GitHub.
-2. Tap `Actions`.
-3. Tap `RapidAPI Odds Feed Probe`.
-4. Tap `Run workflow`.
-5. Leave the defaults for the first smoke test.
-6. Tap the green `Run workflow` button.
-
-## What to check after it runs
-
-Open the completed workflow run and download the artifact named like:
-
-```txt
-rapidapi-oddsfeed-probe-rapidapi-live-1x2-smoke
-```
-
-Inside the artifact, look for:
-
-```txt
-summary.json
-normalized_candidate_odds.csv
-rapidapi_v3_summary.json
-upcoming_firstset_summary.json
-*.raw.json
-*.meta.json
-```
-
-The first smoke run may show zero V3 rows because it is using `1X2`, not first-set correct score. That is okay.
-
-## What a good V3 result means
-
-For a real V3 market test, a good result is:
+For a real V3 market endpoint, a good result is:
 
 ```txt
 exact_3_6_rows > 0
@@ -130,48 +162,6 @@ This means the API returned all three V3 legs and the grouped odds passed the th
 - `SKIP` = missing one of `3:6`, `4:6`, `5:7`, or grouped odds below threshold.
 
 RapidAPI 1xBet-only results should start as `WATCH`, not `OFFICIAL`.
-
-## First probing order after smoke test
-
-Run these in order until the API proves exact market availability.
-
-### 1. Tennis discovery
-
-Use the endpoint/params shown by RapidAPI for tennis events or market feeds. Keep the same host:
-
-```txt
-rapidapi_host: odds-feed.p.rapidapi.com
-```
-
-Goal: prove the API returns tennis events/markets.
-
-### 2. Correct-score market discovery
-
-Try only the market names shown by the RapidAPI docs or raw JSON. Possible names to test only if the API supports them:
-
-```json
-{"placing":"LIVE","market_name":"CORRECT_SCORE","bet_type":"BACK","page":"0","period":"FIRST_SET"}
-```
-
-```json
-{"placing":"LIVE","market_name":"1ST_SET_CORRECT_SCORE","bet_type":"BACK","page":"0"}
-```
-
-```json
-{"placing":"LIVE","market_name":"SET_1_CORRECT_SCORE","bet_type":"BACK","page":"0"}
-```
-
-Goal: find exact 1st Set Correct Score market naming.
-
-### 3. Event-specific odds
-
-After the raw JSON reveals a tennis event ID, use the endpoint and parameter names from RapidAPI docs, for example:
-
-```json
-{"placing":"LIVE","market_name":"CORRECT_SCORE","bet_type":"BACK","page":"0","event_ids":"PASTE_EVENT_ID_HERE","period":"FIRST_SET"}
-```
-
-Goal: pull one match's full market tree instead of wasting requests on the whole board.
 
 ## Important rules
 
