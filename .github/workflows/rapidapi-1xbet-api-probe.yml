@@ -6,19 +6,19 @@ on:
       mode:
         description: Label for this run.
         required: false
-        default: rapidapi-1xbet-api-probe
+        default: rapidapi-1xbet-list-sports
       rapidapi_host:
         description: Copy x-rapidapi-host from the RapidAPI code snippet. Do not include https://.
         required: true
-        default: ''
+        default: 1xbet-api.p.rapidapi.com
       endpoint:
-        description: Copy endpoint path from the RapidAPI URL, for example /api/v1/sports or /line.
+        description: Copy endpoint path from the RapidAPI URL, for example /sports or /matches.
         required: true
-        default: ''
+        default: /sports
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
-        default: '{}'
+        default: '{"mode":"line","lng":"en"}'
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
