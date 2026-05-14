@@ -1,6 +1,10 @@
 [
   {
-    "sport": "tennis",
-    "bookmaker": "1xbet"
+    "placing": "LIVE",
+    "market_name": "1X2",
+    "bet_type": "BACK",
+    "page": "0",
+    "event_ids": "845,123,435,22,842,844,845",
+    "period": "FULL_TIME_AND_OT"
   }
 ]
