@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Label for this run, e.g. smoke, live, historical, events, odds.
+        description: Label for this run, e.g. smoke, discovery, live, historical.
         required: false
-        default: rapidapi-live-1x2-smoke
+        default: rapidapi-discovery-small
       rapidapi_host:
         description: RapidAPI host. Do not include https://.
         required: true
@@ -16,9 +16,13 @@ on:
         required: true
         default: /api/v1/markets/feed
       params:
-        description: Query params as JSON or key=value&key2=value2. Do not include any API key.
+        description: Query params as JSON or key=value&key2=value2. Leave blank to use params_file.
         required: false
-        default: '{"placing":"LIVE","market_name":"1X2","bet_type":"BACK","page":"0","event_ids":"845,123,435,22,842,844,845","period":"FULL_TIME_AND_OT"}'
+        default: ''
+      params_file:
+        description: Optional repo JSON file with multiple parameter sets.
+        required: false
+        default: data/rapidapi_oddsfeed_discovery_params.json
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
@@ -28,9 +32,9 @@ on:
         required: false
         default: '3.3'
       max_requests:
-        description: Max requests if params-file contains multiple parameter sets.
+        description: Max requests if params_file contains multiple parameter sets. Keep small on free plan.
         required: false
-        default: '1'
+        default: '8'
 
 jobs:
   probe:
@@ -52,14 +56,21 @@ jobs:
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         run: |
           set -e
-          node scripts/rapidapi-oddsfeed-probe.mjs \
+          PARAM_ARGS=""
+          if [ -n '${{ github.event.inputs.params }}' ]; then
+            PARAM_ARGS="--params='${{ github.event.inputs.params }}'"
+          elif [ -n '${{ github.event.inputs.params_file }}' ]; then
+            PARAM_ARGS="--params-file='${{ github.event.inputs.params_file }}'"
+          fi
+
+          eval "node scripts/rapidapi-oddsfeed-probe.mjs \
             --mode='${{ github.event.inputs.mode }}' \
             --host='${{ github.event.inputs.rapidapi_host }}' \
             --endpoint='${{ github.event.inputs.endpoint }}' \
-            --params='${{ github.event.inputs.params }}' \
+            $PARAM_ARGS \
             --bookmaker='${{ github.event.inputs.bookmaker }}' \
             --max-requests='${{ github.event.inputs.max_requests }}' \
-            --out=artifacts/output/rapidapi-oddsfeed-probe
+            --out=artifacts/output/rapidapi-oddsfeed-probe"
 
       - name: Normalize RapidAPI output into SlipIQ V3 summary
         if: always()
