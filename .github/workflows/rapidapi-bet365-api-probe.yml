@@ -6,7 +6,7 @@ on:
       mode:
         description: Label for this run.
         required: false
-        default: rapidapi-bet365-historical-ruud-darderi-3-6
+        default: rapidapi-bet365-historical-ruud-darderi-fixture-only
       rapidapi_host:
         description: Copy x-rapidapi-host from the RapidAPI code snippet. Do not include https://.
         required: true
@@ -18,7 +18,7 @@ on:
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
-        default: '{"fixtureId":"id1200278171201158","outcomeId":"12414"}'
+        default: '{"fixtureId":"id1200278171201158"}'
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
