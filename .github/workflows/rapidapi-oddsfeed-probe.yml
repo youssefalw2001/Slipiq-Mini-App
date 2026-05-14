@@ -21,6 +21,10 @@ on:
         description: Target bookmaker name to search for in the response.
         required: false
         default: '1xBet'
+      grouped_threshold:
+        description: Minimum grouped V3 odds for actionable WATCH/OFFICIAL candidates.
+        required: false
+        default: '3.3'
       max_requests:
         description: Max requests if params-file contains multiple parameter sets.
         required: false
@@ -54,6 +58,37 @@ jobs:
             --bookmaker='${{ github.event.inputs.bookmaker }}' \
             --max-requests='${{ github.event.inputs.max_requests }}' \
             --out=artifacts/output/rapidapi-oddsfeed-probe
+
+      - name: Normalize RapidAPI output into SlipIQ V3 summary
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          if [ -f artifacts/output/rapidapi-oddsfeed-probe/normalized_candidate_odds.csv ]; then
+            node scripts/normalize-rapidapi-v3-summary.mjs \
+              --input=artifacts/output/rapidapi-oddsfeed-probe \
+              --bookmaker='${{ github.event.inputs.bookmaker }}' \
+              --threshold='${{ github.event.inputs.grouped_threshold }}'
+          else
+            echo "normalized_candidate_odds.csv was not created; skipping V3 normalization."
+          fi
+
+      - name: Dry-run Supabase pusher shape check
+        if: always()
+        shell: bash
+        env:
+          SUPABASE_URL: https://dry-run-only.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: dry-run-only
+        run: |
+          set -e
+          if [ -f artifacts/output/rapidapi-oddsfeed-probe/upcoming_firstset_summary.json ]; then
+            node scripts/push-v3-signals-to-supabase.mjs \
+              --summary=artifacts/output/rapidapi-oddsfeed-probe/upcoming_firstset_summary.json \
+              --dry-run=true \
+              --require-p2-match-odds=false
+          else
+            echo "upcoming_firstset_summary.json was not created; skipping Supabase pusher shape check."
+          fi
 
       - name: Upload RapidAPI probe artifact
         if: always()
