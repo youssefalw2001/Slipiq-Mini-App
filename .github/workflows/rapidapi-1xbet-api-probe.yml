@@ -18,7 +18,7 @@ on:
       params:
         description: Query params as JSON or key=value&key2=value2. Do not include any API key.
         required: false
-        default: '{"mode":"line","lng":"en","league_id":"45687"}'
+        default: '{"mode":"line","lng":"en","sport_id":"4","league_id":"45687"}'
       bookmaker:
         description: Target bookmaker name to search for in the response.
         required: false
