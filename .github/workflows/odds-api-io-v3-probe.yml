@@ -1,0 +1,56 @@
+name: Odds API IO V3 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      bookmakers:
+        description: Free tier allows 2 selected bookmakers. Use comma-separated names.
+        required: false
+        default: bet365,1xbet
+      max_events:
+        description: Small number while testing. Do not waste requests.
+        required: false
+        default: '5'
+      search_query:
+        description: Fallback event search query.
+        required: false
+        default: tennis
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Odds-API.io SDK
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install odds-api-io
+
+      - name: Run Odds-API.io V3 market probe
+        shell: bash
+        env:
+          ODDS_API_IO_KEY: ${{ secrets.ODDS_API_IO_KEY }}
+          ODDS_API_IO_BOOKMAKERS: ${{ github.event.inputs.bookmakers }}
+          ODDS_API_IO_MAX_EVENTS: ${{ github.event.inputs.max_events }}
+          ODDS_API_IO_SEARCH_QUERY: ${{ github.event.inputs.search_query }}
+          OUT_DIR: artifacts/output/odds-api-io-v3-probe
+        run: |
+          python scripts/probe-odds-api-io-v3.py
+
+      - name: Upload Odds-API.io probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odds-api-io-v3-probe
+          path: artifacts/output/odds-api-io-v3-probe/**
+          if-no-files-found: warn
