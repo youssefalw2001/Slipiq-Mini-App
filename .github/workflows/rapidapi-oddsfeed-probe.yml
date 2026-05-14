@@ -1,0 +1,64 @@
+name: RapidAPI Odds Feed Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Label for this run, e.g. historical, live, events, odds.
+        required: false
+        default: probe
+      rapidapi_host:
+        description: RapidAPI host, e.g. example.p.rapidapi.com. Do not include https://.
+        required: true
+      endpoint:
+        description: API endpoint path, e.g. /odds or /v1/odds.
+        required: true
+      params:
+        description: Query params as JSON or key=value&key2=value2. Example {"sport":"tennis","bookmaker":"1xbet"}
+        required: false
+        default: '{"sport":"tennis","bookmaker":"1xbet"}'
+      bookmaker:
+        description: Target bookmaker name to search for in the response.
+        required: false
+        default: '1xBet'
+      max_requests:
+        description: Max requests if params-file contains multiple parameter sets.
+        required: false
+        default: '1'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run RapidAPI odds feed probe
+        shell: bash
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: |
+          set -e
+          node scripts/rapidapi-oddsfeed-probe.mjs \
+            --mode='${{ github.event.inputs.mode }}' \
+            --host='${{ github.event.inputs.rapidapi_host }}' \
+            --endpoint='${{ github.event.inputs.endpoint }}' \
+            --params='${{ github.event.inputs.params }}' \
+            --bookmaker='${{ github.event.inputs.bookmaker }}' \
+            --max-requests='${{ github.event.inputs.max_requests }}' \
+            --out=artifacts/output/rapidapi-oddsfeed-probe
+
+      - name: Upload RapidAPI probe artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapidapi-oddsfeed-probe-${{ github.event.inputs.mode }}
+          path: artifacts/output/rapidapi-oddsfeed-probe/**
+          if-no-files-found: warn
