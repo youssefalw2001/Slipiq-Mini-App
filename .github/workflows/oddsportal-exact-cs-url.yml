@@ -1,0 +1,49 @@
+name: OddsPortal Exact CS URL Scrape
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: Paste exact OddsPortal 1st Set Correct Score URLs, comma/newline separated.
+        required: true
+        default: 'https://www.oddsportal.com/tennis/h2h/ofner-sebastian-h6vs3iR2/sinner-jannik-6HdC3z4H/#xhTpdK0l:cs;12'
+      bookmaker:
+        description: Bookmaker text to target.
+        required: false
+        default: 'bet365'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright beautifulsoup4
+          python -m playwright install --with-deps chromium
+
+      - name: Run exact OddsPortal CS scraper
+        shell: bash
+        run: |
+          python scripts/scrape-oddsportal-exact-cs-url.py \
+            --urls='${{ github.event.inputs.urls }}' \
+            --bookmaker='${{ github.event.inputs.bookmaker }}'
+
+      - name: Upload exact CS artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-exact-cs-url
+          path: artifacts/output/oddsportal-exact-cs/**
+          if-no-files-found: warn
