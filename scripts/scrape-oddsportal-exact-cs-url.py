@@ -21,7 +21,8 @@ from typing import Optional
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
-ODDS_RE = re.compile(r"(?<!\d)(?:[1-9]\d?|\d)\.\d{2}(?!\d)")
+DECIMAL_ODDS_RE = re.compile(r"(?<!\d)(?:[1-9]\d?|\d)\.\d{2}(?!\d)")
+AMERICAN_ODDS_RE = re.compile(r"(?<![\w.])([+-](?:[1-9]\d{2,5}))(?![\w.])")
 SCORE_ALIASES = {
     "3-6": ["3-6", "3:6", "3 - 6", "3 : 6"],
     "4-6": ["4-6", "4:6", "4 - 6", "4 : 6"],
@@ -47,10 +48,28 @@ class Row:
     odds_p1_6_4: Optional[float]
     odds_p1_7_5: Optional[float]
     grouped_p1_9_12: Optional[float]
+    raw_p2_3_6: str
+    raw_p2_4_6: str
+    raw_p2_5_7: str
+    raw_p1_6_3: str
+    raw_p1_6_4: str
+    raw_p1_7_5: str
     extraction_quality: str
     screenshot_file: str
     text_file: str
     debug_file: str
+
+
+def american_to_decimal(value: str) -> Optional[float]:
+    try:
+        n = int(str(value).replace("+", ""))
+    except Exception:
+        return None
+    if n > 0:
+        return round(1 + n / 100, 4)
+    if n < 0:
+        return round(1 + 100 / abs(n), 4)
+    return None
 
 
 def grouped(vals):
@@ -63,21 +82,38 @@ def compact(s: str, max_len: int = 1400) -> str:
     return re.sub(r"\s+", " ", s or "").strip()[:max_len]
 
 
+def odds_tokens_after_score(ctx_after_score: str):
+    """Return odds tokens in the text after a score. Prefer American odds because OddsPortal often renders +6600."""
+    out = []
+    for m in AMERICAN_ODDS_RE.finditer(ctx_after_score):
+        dec = american_to_decimal(m.group(1))
+        if dec and 1.01 <= dec <= 1001:
+            out.append({"raw": m.group(1), "decimal": dec, "pos": m.start(), "kind": "american"})
+    for m in DECIMAL_ODDS_RE.finditer(ctx_after_score):
+        dec = float(m.group(0))
+        if 1.01 <= dec <= 1001:
+            out.append({"raw": m.group(0), "decimal": dec, "pos": m.start(), "kind": "decimal"})
+    return sorted(out, key=lambda x: x["pos"])
+
+
 def extract_price_near_score(combined: str, score: str, bookmaker: str):
     bookmaker_low = bookmaker.lower()
     best = None
+    best_raw = ""
     best_ctx = ""
     best_quality = 0
 
     for alias in SCORE_ALIASES[score]:
         for m in re.finditer(re.escape(alias), combined, re.I):
-            start = max(0, m.start() - 1200)
-            end = min(len(combined), m.end() + 1200)
+            start = max(0, m.start() - 900)
+            end = min(len(combined), m.end() + 900)
             ctx = combined[start:end]
             ctx_low = ctx.lower()
-            odds = [float(x) for x in ODDS_RE.findall(ctx)]
-            odds = [o for o in odds if 1.01 <= o <= 101]
-            if not odds:
+            after = combined[m.end(): min(len(combined), m.end() + 160)]
+            tokens = odds_tokens_after_score(after)
+            if not tokens:
+                tokens = odds_tokens_after_score(ctx)
+            if not tokens:
                 continue
 
             quality = 1
@@ -85,18 +121,16 @@ def extract_price_near_score(combined: str, score: str, bookmaker: str):
                 quality += 3
             if "correct score" in ctx_low or "1st set" in ctx_low or "1st set correct score" in ctx_low:
                 quality += 1
+            if tokens[0]["kind"] == "american":
+                quality += 1
 
-            # With OddsPortal tables, the odds closest to the score line are often the first or last decimal in the window.
-            # Store a context in the debug output so we can verify manually.
-            selected = odds[0]
-            if bookmaker_low in ctx_low and len(odds) <= 8:
-                selected = odds[-1]
-
+            selected = tokens[0]
             if quality > best_quality:
-                best = selected
+                best = selected["decimal"]
+                best_raw = selected["raw"]
                 best_ctx = compact(ctx)
                 best_quality = quality
-    return best, best_ctx, best_quality
+    return best, best_raw, best_ctx, best_quality
 
 
 def maybe_click_accept(page):
@@ -137,7 +171,7 @@ def scrape_one(page, url: str, bookmaker: str, out_dir: Path, idx: int) -> Row:
                 return
             body = res.text()
             low = body.lower()
-            if bookmaker.lower() in low or "correct score" in low or "3-6" in low or "4-6" in low or "5-7" in low or "6:3" in low:
+            if bookmaker.lower() in low or "correct score" in low or "3-6" in low or "4-6" in low or "5-7" in low or "3:6" in low or "4:6" in low or "5:7" in low or "6:3" in low:
                 responses.append({"url": u[:500], "status": res.status, "content_type": ct, "sample": compact(body, 4000)})
         except Exception:
             pass
@@ -164,11 +198,13 @@ def scrape_one(page, url: str, bookmaker: str, out_dir: Path, idx: int) -> Row:
     found_correct = any(x in combined.lower() for x in ["correct score", "correct_score", "1st set", "1st set correct score"])
 
     prices = {}
+    raw_prices = {}
     contexts = {}
     qualities = {}
     for score in SCORE_ALIASES:
-        price, ctx, q = extract_price_near_score(combined, score, bookmaker)
+        price, raw, ctx, q = extract_price_near_score(combined, score, bookmaker)
         prices[score] = price
+        raw_prices[score] = raw
         contexts[score] = ctx
         qualities[score] = q
 
@@ -176,9 +212,13 @@ def scrape_one(page, url: str, bookmaker: str, out_dir: Path, idx: int) -> Row:
     g_p1 = grouped([prices["6-3"], prices["6-4"], prices["7-5"]])
 
     if g_p2 and found_bookmaker:
-        quality = "p2_grouped_found"
+        quality = "bookmaker_p2_grouped_found"
+    elif g_p2:
+        quality = "visible_p2_grouped_found_bookmaker_unverified"
     elif g_p1 and found_bookmaker:
-        quality = "p1_grouped_found"
+        quality = "bookmaker_p1_grouped_found"
+    elif g_p1:
+        quality = "visible_p1_grouped_found_bookmaker_unverified"
     elif any(prices.values()):
         quality = "partial_scores_found"
     elif found_bookmaker:
@@ -192,10 +232,12 @@ def scrape_one(page, url: str, bookmaker: str, out_dir: Path, idx: int) -> Row:
         "title": title,
         "found_bookmaker": found_bookmaker,
         "found_correct_score_language": found_correct,
-        "prices": prices,
+        "prices_decimal": prices,
+        "prices_raw": raw_prices,
         "qualities": qualities,
         "contexts": contexts,
         "responses": responses[:30],
+        "warning": "If found_bookmaker=false, odds are visible OddsPortal market prices but not confirmed as bet365 row. Verify screenshot before using as bet365 data.",
     }
     (out_dir / debug_file).write_text(json.dumps(debug, indent=2), encoding="utf-8")
 
@@ -215,6 +257,12 @@ def scrape_one(page, url: str, bookmaker: str, out_dir: Path, idx: int) -> Row:
         odds_p1_6_4=prices["6-4"],
         odds_p1_7_5=prices["7-5"],
         grouped_p1_9_12=g_p1,
+        raw_p2_3_6=raw_prices["3-6"],
+        raw_p2_4_6=raw_prices["4-6"],
+        raw_p2_5_7=raw_prices["5-7"],
+        raw_p1_6_3=raw_prices["6-3"],
+        raw_p1_6_4=raw_prices["6-4"],
+        raw_p1_7_5=raw_prices["7-5"],
         extraction_quality=quality,
         screenshot_file=screenshot,
         text_file=text_file,
@@ -264,7 +312,7 @@ def main():
         "rows_with_bookmaker": sum(1 for r in rows if r.found_bookmaker),
         "quality_counts": {q: sum(1 for r in rows if r.extraction_quality == q) for q in sorted({r.extraction_quality for r in rows})},
         "output_csv": str(csv_path),
-        "note": "P2 grouped uses 3-6/4-6/5-7. P1 grouped uses 6-3/6-4/7-5. Verify screenshot/debug context before trusting prices.",
+        "note": "P2 grouped uses 3-6/4-6/5-7. P1 grouped uses 6-3/6-4/7-5. American odds are converted to decimal. If bookmaker is not found, verify screenshot before treating values as bet365.",
     }
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
