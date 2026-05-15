@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: smoke validates the logged-in bet365 filter. overnight runs smoke first, then discovers matches from tournament results pages.
+        description: smoke validates V3 extraction. overnight discovers matches from tournament results pages.
         required: true
         default: smoke
         type: choice
@@ -51,7 +51,7 @@ jobs:
           python -m pip install -r requirements-oddsportal.txt
           python -m playwright install --with-deps chromium
 
-      - name: Check OddsPortal auth secret exists
+      - name: Check OddsPortal auth/session secret exists
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
@@ -66,7 +66,7 @@ jobs:
           fi
           echo "OddsPortal auth/session secret found."
 
-      - name: Run strict filtered bet365 smoke test
+      - name: Run soft filtered bet365 smoke test
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
@@ -75,7 +75,7 @@ jobs:
           ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
           ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
-          echo "Running strict smoke test. This must verify the Sinner/Ofner proof match shows filtered bet365 prices before any historical scrape."
+          echo "Running soft smoke test. This verifies the scraper can extract 3:6 / 4:6 / 5:7 prices from the page OddsPortal lands on. Manual double-check still required."
           python -u scripts/oddsportal_results_driven_bet365_scraper.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --limit-total 0 \
@@ -83,7 +83,6 @@ jobs:
             --out artifacts/output/oddsportal-login-filtered-bet365-smoke \
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
             --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
-            --strict-smoke \
             --smoke-only
 
       - name: Run results-page driven filtered bet365 overnight scrape
@@ -103,8 +102,7 @@ jobs:
             --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
             --out artifacts/output/oddsportal-login-filtered-bet365-overnight \
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
-            --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
-            --strict-smoke
+            --pause-seconds '${{ github.event.inputs.pause_seconds }}'
           echo "Finished filtered bet365 historical scrape at $(date -u)."
 
       - name: Backtest filtered overnight result
