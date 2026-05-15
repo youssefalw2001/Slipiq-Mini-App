@@ -56,7 +56,7 @@ VALID_SET_SCORES = {
 P2_HIT_SCORES = {"3:6", "4:6", "5:7"}
 P1_HIT_SCORES = {"6:3", "6:4", "7:5"}
 FINISHED_MARKERS = {"finished", "ended", "completed", "final", "after penalties"}
-BAD_RESULT_MARKERS = {"retired", "walkover", "abandoned", "cancelled", "canceled", "postponed", "scheduled"}
+BAD_RESULT_MARKERS = {"retired", "walkover", "abandoned", "cancelled", "canceled", "postponed", "scheduled", "1st set", "2nd set", "3rd set", "live"}
 
 
 def now_iso() -> str:
@@ -69,6 +69,52 @@ def ensure_dir(path: Path) -> None:
 
 def clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def infer_event_status_from_raw(raw_text: Any) -> str:
+    """Recover archive event status from raw decoded row text.
+
+    Earlier parser versions saved status as empty, but raw_text still contains
+    fields like:
+      "event-stage-name": "Finished"
+      "status-id": 3
+      "event-stage-id": 3
+    This lets the bridge filter finished historical rows without rerunning a
+    separate parser first.
+    """
+    raw = clean_text(raw_text)
+    if not raw:
+        return ""
+    name_match = re.search(
+        r'"(?:event-stage-name|eventStageName|status-name|statusName|status|state)"\s*:\s*"([^"\\]+)"',
+        raw,
+        re.I,
+    )
+    if name_match:
+        return clean_text(name_match.group(1))
+    id_match = re.search(
+        r'"(?:event-stage-id|eventStageId|status-id|statusId)"\s*:\s*"?(\d+)"?',
+        raw,
+        re.I,
+    )
+    if id_match:
+        status_id = id_match.group(1)
+        if status_id == "3":
+            return "Finished"
+        if status_id == "1":
+            return "Scheduled"
+        return f"status-id:{status_id}"
+    # Last-ditch text markers inside compact raw row.
+    lower = raw.lower()
+    if '"event-stage-name":"finished"' in lower or 'event-stage-name finished' in lower:
+        return "Finished"
+    if '"event-stage-name":"scheduled"' in lower:
+        return "Scheduled"
+    if "walkover" in lower:
+        return "Walkover"
+    if "retired" in lower:
+        return "Retired"
+    return ""
 
 
 def extract_url_hash(url: str) -> str:
@@ -139,16 +185,21 @@ def append_csv(path: Path, row: dict[str, Any], fields: list[str]) -> None:
 
 
 def event_is_finished(row: dict[str, Any]) -> bool:
-    status = clean_text(row.get("status") or row.get("archive_status")).lower()
-    if any(bad in status for bad in BAD_RESULT_MARKERS):
+    status = clean_text(row.get("status") or row.get("archive_status") or infer_event_status_from_raw(row.get("raw_text"))).lower()
+    raw = clean_text(row.get("raw_text", "")).lower()
+    combined = f"{status} {raw}"
+    if any(bad in combined for bad in BAD_RESULT_MARKERS):
         return False
-    if any(marker in status for marker in FINISHED_MARKERS):
+    if any(marker in combined for marker in FINISHED_MARKERS):
         return True
-    # Historical archive rows sometimes have empty/compact statuses. Keep only if not clearly scheduled? Conservative default false.
+    if re.search(r'"(?:event-stage-id|eventStageId|status-id|statusId)"\s*:\s*"?3"?', raw, re.I):
+        return True
     return False
 
 
 def normalize_event_row(row: dict[str, Any]) -> dict[str, Any]:
+    raw_text = clean_text(row.get("raw_text", ""))[:1000]
+    status = clean_text(row.get("status", "")) or infer_event_status_from_raw(raw_text)
     return {
         "source_type": row.get("source_type", ""),
         "source_endpoint": row.get("source_endpoint", ""),
@@ -160,10 +211,10 @@ def normalize_event_row(row: dict[str, Any]) -> dict[str, Any]:
         "player2": clean_text(row.get("player2", "")),
         "match_name": clean_text(row.get("match_name", "")) or f"{clean_text(row.get('player1'))} - {clean_text(row.get('player2'))}",
         "match_date": clean_text(row.get("match_date", "")),
-        "status": clean_text(row.get("status", "")),
+        "status": status,
         "match_url": clean_text(row.get("match_url", "")),
         "confidence": clean_text(row.get("confidence", "")),
-        "raw_text": clean_text(row.get("raw_text", ""))[:1000],
+        "raw_text": raw_text,
     }
 
 
@@ -312,7 +363,6 @@ def scrape_event(context: BrowserContext, page: Page, event: dict[str, Any], wai
     if not decoded_rows:
         return build_output_row(event, None, "", first_set, page.url, "no_decoded_match_event", "No matching decoded /match-event/.dat response captured.")
     candidate_rows = [build_output_row(event, decoded, endpoint_url, first_set, page.url, "ok", "") for decoded, endpoint_url in decoded_rows]
-    # Prefer row with V3 prices, then any ok row.
     candidate_rows.sort(key=lambda r: 0 if r.get("p2_grouped_9_12") else 1)
     return candidate_rows[0]
 
