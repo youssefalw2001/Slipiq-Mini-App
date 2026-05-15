@@ -14,17 +14,17 @@ Required env:
   ODDSPAPI_KEY
 
 Optional env:
-  ODDSPAPI_BASE_URL=https://v1.oddspapi.io/en
-  ODDSPAPI_AUTH_MODE=auto
+  ODDSPAPI_BASE_URL=https://api.oddspapi.io
+  ODDSPAPI_AUTH_MODE=apiKey
   ODDSPAPI_MODE=mapping
   ODDSPAPI_BOOKMAKER=bet365
   ODDSPAPI_MAX_FIXTURES=3
   ODDSPAPI_FIXTURES_PARAMS={}
 
 Modes:
-  mapping     -> only /mapping/markets, safest first test
-  live_small  -> mapping + /fixtures + /fixtures/odds for a few fixtures
-  full_small  -> same as live_small, plus tries historical for the first fixture if possible
+  mapping     -> only /v4/mapping/markets, safest first test
+  live_small  -> mapping + /v4/tournaments + /v4/odds-by-tournaments
+  full_small  -> same as live_small, plus tries historical if endpoint is available
 """
 from __future__ import annotations
 
@@ -40,8 +40,6 @@ from typing import Any
 
 import requests
 
-
-SCORE_TARGETS = {"3-6", "4-6", "5-7", "3:6", "4:6", "5:7"}
 MARKET_NEEDLES = [
     "correct score first set",
     "first set correct score",
@@ -78,7 +76,7 @@ def as_list(obj: Any) -> list[Any]:
     if isinstance(obj, list):
         return obj
     if isinstance(obj, dict):
-        for k in ["data", "markets", "fixtures", "odds", "results", "items", "response"]:
+        for k in ["data", "markets", "fixtures", "odds", "results", "items", "response", "tournaments"]:
             if isinstance(obj.get(k), list):
                 return obj[k]
     return [obj]
@@ -98,18 +96,10 @@ def lower_blob(obj: Any) -> str:
     return json.dumps(safe_json(obj), ensure_ascii=False, default=str).lower()
 
 
-def normalize_score(text: Any) -> str:
-    t = str(text or "").strip().lower().replace(" ", "").replace(":", "-")
-    m = re.search(r"([0-7])-([0-7])", t)
-    if m:
-        return f"{m.group(1)}-{m.group(2)}"
-    return t
-
-
 def pick_id(obj: Any) -> str | None:
     if not isinstance(obj, dict):
         return None
-    for k in ["id", "fixtureId", "fixture_id", "fixture", "eventId", "event_id", "matchId", "match_id"]:
+    for k in ["id", "marketId", "market_id", "fixtureId", "fixture_id", "fixture", "eventId", "event_id", "matchId", "match_id", "tournamentId"]:
         if obj.get(k) is not None:
             return str(obj[k])
     return None
@@ -118,7 +108,7 @@ def pick_id(obj: Any) -> str | None:
 def pick_name(obj: Any) -> str:
     if not isinstance(obj, dict):
         return str(obj)[:200]
-    for k in ["name", "title", "label", "marketName", "market_name", "eventName", "event_name"]:
+    for k in ["name", "title", "label", "marketName", "market_name", "eventName", "event_name", "tournamentName"]:
         if obj.get(k):
             return str(obj[k])
     home = obj.get("home") or obj.get("homeTeam") or obj.get("home_team") or obj.get("player1") or obj.get("participant1")
@@ -142,38 +132,27 @@ def parse_params(raw: str) -> dict[str, Any]:
 
 
 def auth_variants(key: str, mode: str) -> list[dict[str, Any]]:
-    mode = (mode or "auto").lower().strip()
+    mode = (mode or "apiKey").strip()
     all_modes = [
-        {"name": "bearer", "headers": {"Authorization": f"Bearer {key}"}, "params": {}},
+        {"name": "apiKey", "headers": {}, "params": {"apiKey": key}},
+        {"name": "api_key", "headers": {}, "params": {"api_key": key}},
         {"name": "x-api-key", "headers": {"x-api-key": key}, "params": {}},
-        {"name": "api-key-header", "headers": {"api-key": key}, "params": {}},
-        {"name": "apikey-query", "headers": {}, "params": {"apiKey": key}},
-        {"name": "api_key-query", "headers": {}, "params": {"api_key": key}},
-        {"name": "token-query", "headers": {}, "params": {"token": key}},
+        {"name": "bearer", "headers": {"Authorization": f"Bearer {key}"}, "params": {}},
     ]
-    if mode == "auto":
+    if mode.lower() == "auto":
         return all_modes
     aliases = {
-        "bearer": "bearer",
+        "apikey": "apiKey",
+        "apiKey": "apiKey",
+        "api_key": "api_key",
         "x-api-key": "x-api-key",
-        "api-key": "api-key-header",
-        "apikey": "apikey-query",
-        "api_key": "api_key-query",
-        "token": "token-query",
+        "bearer": "bearer",
     }
     wanted = aliases.get(mode, mode)
     return [v for v in all_modes if v["name"] == wanted] or all_modes[:1]
 
 
-def request_json(
-    base_url: str,
-    path: str,
-    key: str,
-    auth_mode: str,
-    params: dict[str, Any] | None = None,
-    chosen_auth: dict[str, Any] | None = None,
-    timeout: int = 30,
-) -> tuple[Any, dict[str, Any]]:
+def request_json(base_url: str, path: str, key: str, auth_mode: str, params: dict[str, Any] | None = None, chosen_auth: dict[str, Any] | None = None, timeout: int = 30) -> tuple[Any, dict[str, Any]]:
     base_url = base_url.rstrip("/")
     path = path if path.startswith("/") else f"/{path}"
     url = f"{base_url}{path}"
@@ -227,11 +206,10 @@ def find_first_set_correct_score_markets(payload: Any) -> list[dict[str, Any]]:
 def find_v3_odds(payload: Any) -> list[dict[str, Any]]:
     rows = []
     for path, node in traverse(payload):
-        blob = lower_blob(node)
-        blob_dash = blob.replace(":", "-")
+        blob = lower_blob(node).replace(":", "-")
         score_hint = None
         for score in ["3-6", "4-6", "5-7"]:
-            if score in blob_dash:
+            if score in blob:
                 score_hint = score
                 break
         if not score_hint:
@@ -247,12 +225,7 @@ def find_v3_odds(payload: Any) -> list[dict[str, Any]]:
                             break
                     except Exception:
                         pass
-        rows.append({
-            "path": path,
-            "score_hint": score_hint,
-            "decimal_odds_guess": decimal_odds,
-            "raw_node": node,
-        })
+        rows.append({"path": path, "score_hint": score_hint, "decimal_odds_guess": decimal_odds, "raw_node": node})
     return rows
 
 
@@ -271,8 +244,8 @@ def main() -> int:
         print("Missing ODDSPAPI_KEY GitHub secret.", file=sys.stderr)
         return 2
 
-    base_url = os.getenv("ODDSPAPI_BASE_URL", "https://v1.oddspapi.io/en").strip().rstrip("/")
-    auth_mode = os.getenv("ODDSPAPI_AUTH_MODE", "auto").strip()
+    base_url = os.getenv("ODDSPAPI_BASE_URL", "https://api.oddspapi.io").strip().rstrip("/")
+    auth_mode = os.getenv("ODDSPAPI_AUTH_MODE", "apiKey").strip()
     mode = os.getenv("ODDSPAPI_MODE", "mapping").strip().lower()
     bookmaker = os.getenv("ODDSPAPI_BOOKMAKER", "bet365").strip()
     max_fixtures = int(os.getenv("ODDSPAPI_MAX_FIXTURES", "3"))
@@ -292,15 +265,9 @@ def main() -> int:
         "steps": [],
     }
 
-    chosen_auth = None
     try:
-        mapping, info = request_json(base_url, "/mapping/markets", key, auth_mode)
-        chosen_auth = {"name": info["auth_mode_used"]}
-        # Rebuild chosen auth with actual headers/params by name.
-        for variant in auth_variants(key, "auto"):
-            if variant["name"] == info["auth_mode_used"]:
-                chosen_auth = variant
-                break
+        mapping, info = request_json(base_url, "/v4/mapping/markets", key, auth_mode)
+        chosen_auth = next((v for v in auth_variants(key, "auto") if v["name"] == info["auth_mode_used"]), auth_variants(key, "apiKey")[0])
         (raw_dir / "mapping_markets.json").write_text(json.dumps(safe_json(mapping), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
         market_hits = find_first_set_correct_score_markets(mapping)
         write_csv(out_dir / "first_set_correct_score_market_hits.csv", market_hits, ["path", "market_id", "market_name", "strong_match"])
@@ -313,48 +280,22 @@ def main() -> int:
         selected_fixtures: list[dict[str, Any]] = []
 
         if mode in {"live_small", "full_small"}:
-            fixtures, finfo = request_json(base_url, "/fixtures", key, auth_mode, params=fixtures_params, chosen_auth=chosen_auth)
-            (raw_dir / "fixtures.json").write_text(json.dumps(safe_json(fixtures), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-            fixture_rows = [x for x in as_list(fixtures) if isinstance(x, dict)]
-            for fx in fixture_rows[:max_fixtures]:
-                selected_fixtures.append({"fixture_id": pick_id(fx), "fixture_name": pick_name(fx), "raw": fx})
-            write_csv(out_dir / "selected_fixtures.csv", selected_fixtures, ["fixture_id", "fixture_name"])
-            summary["steps"].append({"step": "fixtures", "ok": True, "status_code": finfo["status_code"], "fixture_count": len(fixture_rows), "selected": len(selected_fixtures)})
+            # Docs show tennis may be sportId=2; soccer example is sportId=10.
+            tournament_params = fixtures_params or {"sportId": "2"}
+            tournaments, tinfo = request_json(base_url, "/v4/tournaments", key, auth_mode, params=tournament_params, chosen_auth=chosen_auth)
+            (raw_dir / "tournaments.json").write_text(json.dumps(safe_json(tournaments), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+            tournament_rows = [x for x in as_list(tournaments) if isinstance(x, dict)]
+            ids = [str(x.get("tournamentId")) for x in tournament_rows if x.get("tournamentId") is not None][:max_fixtures]
+            summary["steps"].append({"step": "tournaments", "ok": True, "status_code": tinfo["status_code"], "count": len(tournament_rows), "selected_tournament_ids": ids})
+            if ids:
+                odds_params = {"bookmaker": bookmaker, "tournamentIds": ",".join(ids), "oddsFormat": "decimal"}
+                odds, oinfo = request_json(base_url, "/v4/odds-by-tournaments", key, auth_mode, params=odds_params, chosen_auth=chosen_auth)
+                (raw_dir / "odds_by_tournaments.json").write_text(json.dumps(safe_json(odds), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+                v3 = find_v3_odds(odds)
+                all_v3_rows.extend(v3)
+                summary["steps"].append({"step": "odds_by_tournaments", "ok": True, "status_code": oinfo["status_code"], "v3_rows": len(v3)})
 
-            for fx in selected_fixtures:
-                fixture_id = fx.get("fixture_id")
-                if not fixture_id:
-                    continue
-                params = {"fixtureId": fixture_id, "bookmaker": bookmaker}
-                try:
-                    odds, oinfo = request_json(base_url, "/fixtures/odds", key, auth_mode, params=params, chosen_auth=chosen_auth)
-                    (raw_dir / f"fixture_odds_{fixture_id}.json").write_text(json.dumps(safe_json(odds), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-                    v3 = find_v3_odds(odds)
-                    for row in v3:
-                        row["fixture_id"] = fixture_id
-                        row["fixture_name"] = fx.get("fixture_name")
-                    all_v3_rows.extend(v3)
-                    summary["steps"].append({"step": "fixture_odds", "ok": True, "fixture_id": fixture_id, "fixture_name": fx.get("fixture_name"), "v3_rows": len(v3)})
-                except Exception as exc:
-                    summary["steps"].append({"step": "fixture_odds", "ok": False, "fixture_id": fixture_id, "fixture_name": fx.get("fixture_name"), "error": str(exc)[:1000]})
-
-            if mode == "full_small" and selected_fixtures:
-                fixture_id = selected_fixtures[0].get("fixture_id")
-                if fixture_id:
-                    try:
-                        hist_params = {"fixtureId": fixture_id, "bookmaker": bookmaker}
-                        hist, hinfo = request_json(base_url, "/fixtures/odds/historical", key, auth_mode, params=hist_params, chosen_auth=chosen_auth)
-                        (raw_dir / f"historical_odds_{fixture_id}.json").write_text(json.dumps(safe_json(hist), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-                        hist_v3 = find_v3_odds(hist)
-                        for row in hist_v3:
-                            row["fixture_id"] = fixture_id
-                            row["fixture_name"] = selected_fixtures[0].get("fixture_name")
-                        all_v3_rows.extend(hist_v3)
-                        summary["steps"].append({"step": "historical_odds", "ok": True, "fixture_id": fixture_id, "v3_rows": len(hist_v3)})
-                    except Exception as exc:
-                        summary["steps"].append({"step": "historical_odds", "ok": False, "fixture_id": fixture_id, "error": str(exc)[:1000]})
-
-        write_csv(out_dir / "v3_odds_hints.csv", all_v3_rows, ["fixture_id", "fixture_name", "path", "score_hint", "decimal_odds_guess"])
+        write_csv(out_dir / "v3_odds_hints.csv", all_v3_rows, ["path", "score_hint", "decimal_odds_guess"])
         (out_dir / "v3_odds_hints.json").write_text(json.dumps(safe_json(all_v3_rows), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
         summary["v3_odds_hint_count"] = len(all_v3_rows)
         summary["ok"] = True
