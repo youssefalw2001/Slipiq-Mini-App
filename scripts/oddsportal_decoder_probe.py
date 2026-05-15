@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
-from playwright.sync_api import BrowserContext, Page, Response, sync_playwright
+from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 import oddsportal_login_filtered_bet365_scraper as base
 from oddsportal_cookie_json_guarded import create_cookie_context, has_cookie_secret, clear_oddsportal_route_memory
@@ -117,7 +117,11 @@ def fetch_asset(context: BrowserContext, url: str, timeout_ms: int = 30000) -> t
     try:
         resp = context.request.get(url, timeout=timeout_ms)
         content_type = resp.headers.get("content-type", "")
-        text = resp.text(errors="replace")
+        try:
+            raw = resp.body()
+            text = raw.decode("utf-8", errors="replace")
+        except Exception:
+            text = resp.text()
         return resp.status, content_type, text
     except Exception as exc:
         return 0, "", f"FETCH_ERROR: {exc}"
@@ -126,15 +130,25 @@ def fetch_asset(context: BrowserContext, url: str, timeout_ms: int = 30000) -> t
 def extract_page_vars(html: str) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for name in ["pageVar", "pageOutrightsVar"]:
-        m = re.search(rf"var\s+{name}\s*=\s*'(.+?)';", html, re.S)
-        if m:
+        # OddsPortal may serialize pageVar as either a quoted escaped JSON string or object literal.
+        patterns = [
+            rf"var\s+{name}\s*=\s*'(.+?)';",
+            rf"window\.{name}\s*=\s*'(.+?)';",
+            rf"{name}\s*=\s*'(.+?)';",
+            rf"var\s+{name}\s*=\s*(\{{.+?\}});",
+            rf"window\.{name}\s*=\s*(\{{.+?\}});",
+        ]
+        for pat in patterns:
+            m = re.search(pat, html, re.S)
+            if not m:
+                continue
             raw = m.group(1)
             out[name + "_raw_length"] = len(raw)
-            for key in ["requestPreMatch", "requestBaseOddsHistory", "updateScoreRequest", "h2hEncodedEventId", "h2hEventHash"]:
+            for key in ["requestPreMatch", "requestBaseOddsHistory", "updateScoreRequest", "h2hEncodedEventId", "h2hEventHash", "match-event", "match-event-history"]:
                 if key in raw:
                     out.setdefault("found_keys", []).append(key)
                     out[f"snippet_{key}"] = snippet(raw, key, 500)
-        # data attributes may include escaped JSON too
+            break
     return out
 
 
