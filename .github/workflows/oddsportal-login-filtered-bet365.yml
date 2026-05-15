@@ -57,25 +57,29 @@ jobs:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
           ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
           ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
-          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
-            echo "Set either ODDSPORTAL_STORAGE_STATE_B64 or both ODDSPORTAL_USERNAME and ODDSPORTAL_PASSWORD as repository secrets."
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set ODDSPORTAL_COOKIES_JSON, ODDSPORTAL_COOKIES_JSON_B64, ODDSPORTAL_STORAGE_STATE_B64, or both ODDSPORTAL_USERNAME and ODDSPORTAL_PASSWORD as repository secrets."
             exit 2
           fi
-          echo "OddsPortal auth secrets found."
+          echo "OddsPortal auth/session secret found."
 
-      - name: Run guarded filtered bet365 smoke/scrape
+      - name: Run cookie/guarded filtered bet365 smoke/scrape
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
           ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
           ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
           EXTRA_FLAGS=""
           if [ "${{ github.event.inputs.mode }}" = "smoke" ]; then
             EXTRA_FLAGS="--smoke-only"
           fi
-          python -u scripts/oddsportal_login_filtered_bet365_guarded.py \
+          python -u scripts/oddsportal_cookie_json_guarded.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --limit-total '${{ github.event.inputs.limit_total }}' \
             --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
