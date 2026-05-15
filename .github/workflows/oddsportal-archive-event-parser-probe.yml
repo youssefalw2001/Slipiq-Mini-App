@@ -1,0 +1,65 @@
+name: OddsPortal Archive Event Parser Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit_pages:
+        description: Number of tournament results pages to inspect.
+        required: false
+        default: '5'
+      wait_ms:
+        description: Browser wait between page actions.
+        required: false
+        default: '4500'
+      max_body_bytes:
+        description: Max bytes read per captured endpoint body.
+        required: false
+        default: '2000000'
+
+jobs:
+  archive-event-parser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run archive event parser probe
+        shell: bash
+        run: |
+          python -u scripts/oddsportal_archive_event_parser_probe.py \
+            --results-urls-file data/oddsportal_major_results_urls.txt \
+            --out artifacts/output/oddsportal-archive-event-parser-probe \
+            --limit-pages '${{ github.event.inputs.limit_pages }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --max-body-bytes '${{ github.event.inputs.max_body_bytes }}'
+
+      - name: Upload safe archive event parser artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-archive-event-parser-probe-safe
+          path: |
+            artifacts/output/oddsportal-archive-event-parser-probe/run_summary.json
+            artifacts/output/oddsportal-archive-event-parser-probe/event_parser_summary.json
+            artifacts/output/oddsportal-archive-event-parser-probe/event_parser_report.md
+            artifacts/output/oddsportal-archive-event-parser-probe/page_stats.csv
+            artifacts/output/oddsportal-archive-event-parser-probe/endpoint_parse_inventory.csv
+            artifacts/output/oddsportal-archive-event-parser-probe/parsed_real_events.csv
+            artifacts/output/oddsportal-archive-event-parser-probe/high_confidence_events.csv
+          if-no-files-found: warn
