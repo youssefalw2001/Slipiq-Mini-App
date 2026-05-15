@@ -1,0 +1,66 @@
+name: OddsPapi Market Inventory
+
+on:
+  workflow_dispatch:
+    inputs:
+      bookmaker:
+        description: Target bookmaker.
+        required: false
+        default: bet365
+      sport_id:
+        description: Tennis is sportId 12 from OddsPapi discovery.
+        required: false
+        default: '12'
+      max_chunks:
+        description: Number of small tournament chunks to inspect. Keep low on free trial.
+        required: false
+        default: '4'
+      chunk_size:
+        description: Tournaments per odds request.
+        required: false
+        default: '3'
+      base_url:
+        description: OddsPapi base URL.
+        required: false
+        default: https://api.oddspapi.io
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests
+
+      - name: Run OddsPapi market inventory
+        shell: bash
+        env:
+          ODDSPAPI_KEY: ${{ secrets.ODDSPAPI_KEY }}
+          ODDSPAPI_BASE_URL: ${{ github.event.inputs.base_url }}
+          ODDSPAPI_BOOKMAKER: ${{ github.event.inputs.bookmaker }}
+          ODDSPAPI_SPORT_ID: ${{ github.event.inputs.sport_id }}
+          ODDSPAPI_MAX_CHUNKS: ${{ github.event.inputs.max_chunks }}
+          ODDSPAPI_CHUNK_SIZE: ${{ github.event.inputs.chunk_size }}
+          OUT_DIR: artifacts/output/oddspapi-market-inventory
+        run: |
+          python scripts/inspect-oddspapi-markets.py
+
+      - name: Upload market inventory artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddspapi-market-inventory-${{ github.event.inputs.bookmaker }}
+          path: artifacts/output/oddspapi-market-inventory/**
+          if-no-files-found: warn
