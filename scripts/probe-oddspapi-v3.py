@@ -10,12 +10,14 @@ The public v4 docs currently show these endpoints:
 
 This probe selects tennis tournaments with future/upcoming/live fixtures first, then tries
 small tournament chunks until odds are found or the free-trial-safe limit is reached.
+It handles OddsPapi short rate limits by sleeping and retrying once.
 """
 from __future__ import annotations
 
 import csv
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -80,34 +82,66 @@ def parse_params(raw: str) -> dict[str, Any]:
     return dict(urllib.parse.parse_qsl(raw, keep_blank_values=True))
 
 
+def rate_limit_sleep_seconds(resp: requests.Response) -> float:
+    try:
+        data = resp.json()
+        err = data.get("error", {}) if isinstance(data, dict) else {}
+        retry_ms = err.get("retryMs")
+        if retry_ms is not None:
+            return max(1.0, float(retry_ms) / 1000.0 + 0.5)
+        retry_after = str(err.get("retryAfter") or "")
+        m = re.search(r"([0-9]+(?:\.[0-9]+)?)", retry_after)
+        if m:
+            return max(1.0, float(m.group(1)) + 0.5)
+    except Exception:
+        pass
+    return 2.0
+
+
 def request_json(base_url: str, path: str, key: str, params: dict[str, Any] | None = None, timeout: int = 30) -> tuple[Any, dict[str, Any]]:
     url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
     q = dict(params or {})
     q["apiKey"] = key
-    resp = requests.get(url, headers={"Accept": "application/json"}, params=q, timeout=timeout)
-    info = {"url": redact(resp.url, key), "status_code": resp.status_code, "content_type": resp.headers.get("content-type")}
-    if resp.status_code >= 400:
-        raise RuntimeError(json.dumps({**info, "body_preview": redact(resp.text[:1500], key)}, indent=2))
-    try:
-        return resp.json(), info
-    except Exception:
-        return {"raw_text": resp.text[:5000]}, info
+    last_info: dict[str, Any] | None = None
+    for attempt in range(2):
+        resp = requests.get(url, headers={"Accept": "application/json"}, params=q, timeout=timeout)
+        info = {"url": redact(resp.url, key), "status_code": resp.status_code, "content_type": resp.headers.get("content-type"), "attempt": attempt + 1}
+        last_info = info
+        if resp.status_code == 429 and attempt == 0:
+            wait_s = rate_limit_sleep_seconds(resp)
+            time.sleep(wait_s)
+            continue
+        if resp.status_code >= 400:
+            raise RuntimeError(json.dumps({**info, "body_preview": redact(resp.text[:1500], key)}, indent=2))
+        try:
+            return resp.json(), info
+        except Exception:
+            return {"raw_text": resp.text[:5000]}, info
+    raise RuntimeError(json.dumps({**(last_info or {}), "body_preview": "request failed"}, indent=2))
 
 
 def request_json_allow_404(base_url: str, path: str, key: str, params: dict[str, Any] | None = None, timeout: int = 30) -> tuple[Any | None, dict[str, Any]]:
     url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
     q = dict(params or {})
     q["apiKey"] = key
-    resp = requests.get(url, headers={"Accept": "application/json"}, params=q, timeout=timeout)
-    info = {"url": redact(resp.url, key), "status_code": resp.status_code, "content_type": resp.headers.get("content-type")}
-    if resp.status_code == 404:
-        return None, {**info, "not_found": True, "body_preview": redact(resp.text[:500], key)}
-    if resp.status_code >= 400:
-        raise RuntimeError(json.dumps({**info, "body_preview": redact(resp.text[:1500], key)}, indent=2))
-    try:
-        return resp.json(), info
-    except Exception:
-        return {"raw_text": resp.text[:5000]}, info
+    last_info: dict[str, Any] | None = None
+    for attempt in range(2):
+        resp = requests.get(url, headers={"Accept": "application/json"}, params=q, timeout=timeout)
+        info = {"url": redact(resp.url, key), "status_code": resp.status_code, "content_type": resp.headers.get("content-type"), "attempt": attempt + 1}
+        last_info = info
+        if resp.status_code == 429 and attempt == 0:
+            wait_s = rate_limit_sleep_seconds(resp)
+            time.sleep(wait_s)
+            continue
+        if resp.status_code == 404:
+            return None, {**info, "not_found": True, "body_preview": redact(resp.text[:500], key)}
+        if resp.status_code >= 400:
+            raise RuntimeError(json.dumps({**info, "body_preview": redact(resp.text[:1500], key)}, indent=2))
+        try:
+            return resp.json(), info
+        except Exception:
+            return {"raw_text": resp.text[:5000]}, info
+    raise RuntimeError(json.dumps({**(last_info or {}), "body_preview": "request failed"}, indent=2))
 
 
 def fixture_count_score(t: dict[str, Any]) -> int:
@@ -193,15 +227,7 @@ def main() -> int:
     raw_dir = out_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    summary: dict[str, Any] = {
-        "generated_at": now_iso(),
-        "ok": False,
-        "base_url": base_url,
-        "mode": mode,
-        "bookmaker": bookmaker,
-        "max_fixtures": max_fixtures,
-        "steps": [],
-    }
+    summary: dict[str, Any] = {"generated_at": now_iso(), "ok": False, "base_url": base_url, "mode": mode, "bookmaker": bookmaker, "max_fixtures": max_fixtures, "steps": []}
 
     try:
         all_v3_rows: list[dict[str, Any]] = []
@@ -215,17 +241,7 @@ def main() -> int:
         active_rows = [x for x in tournament_rows if fixture_count_score(x) > 0]
         active_rows = sorted(active_rows, key=tournament_sort_key)
         selected = active_rows[: max(max_fixtures * 5, max_fixtures)]
-        selected_out = [
-            {
-                "tournamentId": x.get("tournamentId"),
-                "tournamentName": x.get("tournamentName"),
-                "categoryName": x.get("categoryName"),
-                "liveFixtures": x.get("liveFixtures"),
-                "upcomingFixtures": x.get("upcomingFixtures"),
-                "futureFixtures": x.get("futureFixtures"),
-            }
-            for x in selected
-        ]
+        selected_out = [{"tournamentId": x.get("tournamentId"), "tournamentName": x.get("tournamentName"), "categoryName": x.get("categoryName"), "liveFixtures": x.get("liveFixtures"), "upcomingFixtures": x.get("upcomingFixtures"), "futureFixtures": x.get("futureFixtures")} for x in selected]
         write_csv(out_dir / "selected_tournaments.csv", selected_out, ["tournamentId", "tournamentName", "categoryName", "liveFixtures", "upcomingFixtures", "futureFixtures"])
         summary["steps"].append({"step": "tournaments", "ok": True, "status_code": tinfo["status_code"], "count": len(tournament_rows), "active_count": len(active_rows)})
 
@@ -241,8 +257,9 @@ def main() -> int:
                 chunk = ids[idx : idx + chunk_size]
                 odds_params = {"bookmaker": bookmaker, "tournamentIds": ",".join(chunk), "oddsFormat": "decimal"}
                 odds, oinfo = request_json_allow_404(base_url, "/v4/odds-by-tournaments", key, params=odds_params)
-                attempted = {"tournament_ids": chunk, "status_code": oinfo.get("status_code"), "not_found": bool(oinfo.get("not_found"))}
+                attempted = {"tournament_ids": chunk, "status_code": oinfo.get("status_code"), "attempt": oinfo.get("attempt"), "not_found": bool(oinfo.get("not_found"))}
                 attempted_chunks.append(attempted)
+                time.sleep(1.1)
                 if odds is None:
                     continue
                 (raw_dir / f"odds_by_tournaments_{len(attempted_chunks)}.json").write_text(json.dumps(safe_json(odds), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
@@ -253,7 +270,6 @@ def main() -> int:
                 attempted["fixture_count"] = len(as_list(odds))
                 attempted["v3_rows"] = len(v3)
                 attempted["market_mentions"] = len(mentions)
-                # Stop early if we find actual V3 hints.
                 if v3:
                     break
 
