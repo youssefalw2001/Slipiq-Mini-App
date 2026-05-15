@@ -10,6 +10,7 @@ Key discovery:
 - Decoded archive rows contain a field like:
     partialresult: "6:3, 7:6<div><sup>4</sup></div>, 6:3"
 - The first comma-separated set score is the real first-set score.
+- Tiebreak superscripts must be removed completely, not converted into score digits.
 
 This script does NOT scrape odds and does NOT backtest.
 It creates a clean first_set_results.csv that can be joined with bet365 V3 odds rows by event_id/event_hash.
@@ -144,18 +145,19 @@ def row_is_finished(row: dict[str, Any]) -> bool:
 
 
 def strip_score_html(value: Any) -> str:
-    text = clean_text(value)
-    text = re.sub(r"<[^>]+>", "", text)
-    return clean_text(text)
+    raw = html.unescape(str(value or ""))
+    # Remove tiebreak superscript content entirely. Examples:
+    # 7:6<div><sup>4</sup></div> -> 7:6
+    # 6<div><sup>4</sup></div>:7 -> 6:7
+    raw = re.sub(r"<sup[^>]*>.*?</sup>", "", raw, flags=re.I | re.S)
+    raw = re.sub(r"<[^>]+>", "", raw)
+    return clean_text(raw)
 
 
 def first_set_from_partialresult(value: Any) -> tuple[str, str]:
     text = strip_score_html(value)
     if not text:
         return "", ""
-    # Examples:
-    # "6:3, 7:6<div><sup>4</sup></div>, 6:3"
-    # "3:6, 6:3, 6:4"
     first_part = text.split(",", 1)[0].strip()
     m = re.search(r"\b([0-7])\s*[:\-]\s*([0-7])\b", first_part)
     if not m:
