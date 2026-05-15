@@ -64,7 +64,7 @@ jobs:
           fi
           echo "OddsPortal auth secrets found."
 
-      - name: Run filtered bet365 smoke/scrape
+      - name: Run guarded filtered bet365 smoke/scrape
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
@@ -75,7 +75,7 @@ jobs:
           if [ "${{ github.event.inputs.mode }}" = "smoke" ]; then
             EXTRA_FLAGS="--smoke-only"
           fi
-          python -u scripts/oddsportal_login_filtered_bet365_scraper.py \
+          python -u scripts/oddsportal_login_filtered_bet365_guarded.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --limit-total '${{ github.event.inputs.limit_total }}' \
             --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
