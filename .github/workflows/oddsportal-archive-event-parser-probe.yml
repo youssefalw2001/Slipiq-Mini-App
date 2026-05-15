@@ -62,4 +62,5 @@ jobs:
             artifacts/output/oddsportal-archive-event-parser-probe/endpoint_parse_inventory.csv
             artifacts/output/oddsportal-archive-event-parser-probe/parsed_real_events.csv
             artifacts/output/oddsportal-archive-event-parser-probe/high_confidence_events.csv
+            artifacts/output/oddsportal-archive-event-parser-probe/endpoint_bodies/**
           if-no-files-found: warn
