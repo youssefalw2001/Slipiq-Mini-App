@@ -15,11 +15,11 @@ on:
       base_url:
         description: OddsPapi base URL from docs.
         required: false
-        default: https://v1.oddspapi.io/en
+        default: https://api.oddspapi.io
       auth_mode:
-        description: Use auto unless OddsPapi docs specify bearer, x-api-key, api_key, apiKey, or token.
+        description: OddsPapi docs use apiKey query parameter.
         required: false
-        default: auto
+        default: apiKey
       bookmaker:
         description: Target bookmaker.
         required: false
@@ -29,7 +29,7 @@ on:
         required: false
         default: '3'
       fixtures_params:
-        description: Optional /fixtures params as JSON or query string. Do not include API key.
+        description: Optional params as JSON or query string. Default assumes tennis sportId=2.
         required: false
         default: '{}'
 
