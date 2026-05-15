@@ -8,9 +8,8 @@ The public v4 docs currently show these endpoints:
 - /v4/tournaments?sportId=...
 - /v4/odds-by-tournaments?bookmaker=...&tournamentIds=...
 
-The earlier PDF mentioned /mapping/markets, but the real v4 API returned 404 for that endpoint.
-This probe therefore uses documented endpoints first and searches returned odds payloads for
-SlipIQ V3 markets/outcomes: 3:6 / 4:6 / 5:7.
+This probe selects tennis tournaments with future/upcoming/live fixtures first, then tries
+small tournament chunks until odds are found or the free-trial-safe limit is reached.
 """
 from __future__ import annotations
 
@@ -86,17 +85,49 @@ def request_json(base_url: str, path: str, key: str, params: dict[str, Any] | No
     q = dict(params or {})
     q["apiKey"] = key
     resp = requests.get(url, headers={"Accept": "application/json"}, params=q, timeout=timeout)
-    info = {
-        "url": redact(resp.url, key),
-        "status_code": resp.status_code,
-        "content_type": resp.headers.get("content-type"),
-    }
+    info = {"url": redact(resp.url, key), "status_code": resp.status_code, "content_type": resp.headers.get("content-type")}
     if resp.status_code >= 400:
         raise RuntimeError(json.dumps({**info, "body_preview": redact(resp.text[:1500], key)}, indent=2))
     try:
         return resp.json(), info
     except Exception:
         return {"raw_text": resp.text[:5000]}, info
+
+
+def request_json_allow_404(base_url: str, path: str, key: str, params: dict[str, Any] | None = None, timeout: int = 30) -> tuple[Any | None, dict[str, Any]]:
+    url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+    q = dict(params or {})
+    q["apiKey"] = key
+    resp = requests.get(url, headers={"Accept": "application/json"}, params=q, timeout=timeout)
+    info = {"url": redact(resp.url, key), "status_code": resp.status_code, "content_type": resp.headers.get("content-type")}
+    if resp.status_code == 404:
+        return None, {**info, "not_found": True, "body_preview": redact(resp.text[:500], key)}
+    if resp.status_code >= 400:
+        raise RuntimeError(json.dumps({**info, "body_preview": redact(resp.text[:1500], key)}, indent=2))
+    try:
+        return resp.json(), info
+    except Exception:
+        return {"raw_text": resp.text[:5000]}, info
+
+
+def fixture_count_score(t: dict[str, Any]) -> int:
+    total = 0
+    for k in ["liveFixtures", "upcomingFixtures", "futureFixtures"]:
+        try:
+            total += int(t.get(k) or 0)
+        except Exception:
+            pass
+    return total
+
+
+def tournament_sort_key(t: dict[str, Any]) -> tuple[int, str]:
+    try:
+        live = int(t.get("liveFixtures") or 0)
+        upcoming = int(t.get("upcomingFixtures") or 0)
+        future = int(t.get("futureFixtures") or 0)
+    except Exception:
+        live = upcoming = future = 0
+    return (-(live * 100000 + upcoming * 1000 + future), str(t.get("tournamentName") or ""))
 
 
 def find_market_mentions(payload: Any) -> list[dict[str, Any]]:
@@ -175,39 +206,64 @@ def main() -> int:
     try:
         all_v3_rows: list[dict[str, Any]] = []
         all_market_mentions: list[dict[str, Any]] = []
+        attempted_chunks: list[dict[str, Any]] = []
+
+        tournament_params = fixtures_params or {"sportId": "12"}
+        tournaments, tinfo = request_json(base_url, "/v4/tournaments", key, params=tournament_params)
+        (raw_dir / "tournaments.json").write_text(json.dumps(safe_json(tournaments), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        tournament_rows = [x for x in as_list(tournaments) if isinstance(x, dict)]
+        active_rows = [x for x in tournament_rows if fixture_count_score(x) > 0]
+        active_rows = sorted(active_rows, key=tournament_sort_key)
+        selected = active_rows[: max(max_fixtures * 5, max_fixtures)]
+        selected_out = [
+            {
+                "tournamentId": x.get("tournamentId"),
+                "tournamentName": x.get("tournamentName"),
+                "categoryName": x.get("categoryName"),
+                "liveFixtures": x.get("liveFixtures"),
+                "upcomingFixtures": x.get("upcomingFixtures"),
+                "futureFixtures": x.get("futureFixtures"),
+            }
+            for x in selected
+        ]
+        write_csv(out_dir / "selected_tournaments.csv", selected_out, ["tournamentId", "tournamentName", "categoryName", "liveFixtures", "upcomingFixtures", "futureFixtures"])
+        summary["steps"].append({"step": "tournaments", "ok": True, "status_code": tinfo["status_code"], "count": len(tournament_rows), "active_count": len(active_rows)})
 
         if mode == "mapping":
-            # The real v4 API returned 404 for mapping. In mapping mode now, we verify docs endpoint access via tournaments.
-            tournament_params = fixtures_params or {"sportId": "2"}
-            tournaments, tinfo = request_json(base_url, "/v4/tournaments", key, params=tournament_params)
-            (raw_dir / "tournaments.json").write_text(json.dumps(safe_json(tournaments), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-            rows = [x for x in as_list(tournaments) if isinstance(x, dict)]
-            summary["steps"].append({"step": "tournaments", "ok": True, "status_code": tinfo["status_code"], "count": len(rows)})
-            summary["final_verdict"] = "API_KEY_AND_TOURNAMENTS_WORK_NEXT_RUN_LIVE_SMALL"
+            summary["final_verdict"] = "API_KEY_AND_TENNIS_TOURNAMENTS_WORK_NEXT_RUN_LIVE_SMALL"
         else:
-            tournament_params = fixtures_params or {"sportId": "2"}
-            tournaments, tinfo = request_json(base_url, "/v4/tournaments", key, params=tournament_params)
-            (raw_dir / "tournaments.json").write_text(json.dumps(safe_json(tournaments), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-            tournament_rows = [x for x in as_list(tournaments) if isinstance(x, dict)]
-            ids = [str(x.get("tournamentId")) for x in tournament_rows if x.get("tournamentId") is not None][:max_fixtures]
-            write_csv(out_dir / "selected_tournaments.csv", [{"tournament_id": i} for i in ids], ["tournament_id"])
-            summary["steps"].append({"step": "tournaments", "ok": True, "status_code": tinfo["status_code"], "count": len(tournament_rows), "selected_tournament_ids": ids})
+            ids = [str(x.get("tournamentId")) for x in selected if x.get("tournamentId") is not None]
+            chunk_size = max(1, min(3, max_fixtures))
+            max_chunks = max(1, max_fixtures)
+            for idx in range(0, len(ids), chunk_size):
+                if len(attempted_chunks) >= max_chunks:
+                    break
+                chunk = ids[idx : idx + chunk_size]
+                odds_params = {"bookmaker": bookmaker, "tournamentIds": ",".join(chunk), "oddsFormat": "decimal"}
+                odds, oinfo = request_json_allow_404(base_url, "/v4/odds-by-tournaments", key, params=odds_params)
+                attempted = {"tournament_ids": chunk, "status_code": oinfo.get("status_code"), "not_found": bool(oinfo.get("not_found"))}
+                attempted_chunks.append(attempted)
+                if odds is None:
+                    continue
+                (raw_dir / f"odds_by_tournaments_{len(attempted_chunks)}.json").write_text(json.dumps(safe_json(odds), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+                v3 = find_v3_odds(odds)
+                mentions = find_market_mentions(odds)
+                all_v3_rows.extend(v3)
+                all_market_mentions.extend(mentions)
+                attempted["fixture_count"] = len(as_list(odds))
+                attempted["v3_rows"] = len(v3)
+                attempted["market_mentions"] = len(mentions)
+                # Stop early if we find actual V3 hints.
+                if v3:
+                    break
 
-            if ids:
-                odds_params = {"bookmaker": bookmaker, "tournamentIds": ",".join(ids), "oddsFormat": "decimal"}
-                odds, oinfo = request_json(base_url, "/v4/odds-by-tournaments", key, params=odds_params)
-                (raw_dir / "odds_by_tournaments.json").write_text(json.dumps(safe_json(odds), indent=2, ensure_ascii=False, default=str), encoding="utf-8")
-                all_v3_rows.extend(find_v3_odds(odds))
-                all_market_mentions.extend(find_market_mentions(odds))
-                fixture_count = len(as_list(odds))
-                summary["steps"].append({"step": "odds_by_tournaments", "ok": True, "status_code": oinfo["status_code"], "fixture_count": fixture_count, "v3_rows": len(all_v3_rows), "market_mentions": len(all_market_mentions)})
-
+            summary["steps"].append({"step": "odds_by_tournaments_chunks", "ok": True, "attempted_chunks": attempted_chunks})
             if len(all_v3_rows) > 0:
                 summary["final_verdict"] = "V3_SCORE_HINTS_FOUND_IN_ODDS"
             elif len(all_market_mentions) > 0:
                 summary["final_verdict"] = "MARKET_HINTS_FOUND_BUT_NO_3_6_4_6_5_7"
             else:
-                summary["final_verdict"] = "NO_V3_MARKET_FOUND_IN_TESTED_TOURNAMENTS"
+                summary["final_verdict"] = "NO_V3_MARKET_FOUND_IN_TESTED_ACTIVE_TOURNAMENTS"
 
         write_csv(out_dir / "v3_odds_hints.csv", all_v3_rows, ["path", "score_hint", "decimal_odds_guess"])
         write_csv(out_dir / "market_mentions.csv", all_market_mentions, ["path", "correct_score_hint", "first_set_hint"])
