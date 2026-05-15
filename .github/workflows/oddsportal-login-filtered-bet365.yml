@@ -1,0 +1,104 @@
+name: OddsPortal Login Filtered Bet365 Scrape
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: smoke only validates filtered bet365 proof URL. scrape runs smoke then harvest.
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - scrape
+      limit_total:
+        description: Max market URLs to scrape in scrape mode.
+        required: false
+        default: '40'
+      max_matches_per_results:
+        description: Max match links discovered per tournament results page.
+        required: false
+        default: '10'
+      wait_ms:
+        description: Browser wait between page actions.
+        required: false
+        default: '4500'
+      pause_seconds:
+        description: Polite pause between match pages.
+        required: false
+        default: '1.5'
+
+jobs:
+  filtered-scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Check OddsPortal auth secret exists
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+        run: |
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set either ODDSPORTAL_STORAGE_STATE_B64 or both ODDSPORTAL_USERNAME and ODDSPORTAL_PASSWORD as repository secrets."
+            exit 2
+          fi
+          echo "OddsPortal auth secrets found."
+
+      - name: Run filtered bet365 smoke/scrape
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+        run: |
+          EXTRA_FLAGS=""
+          if [ "${{ github.event.inputs.mode }}" = "smoke" ]; then
+            EXTRA_FLAGS="--smoke-only"
+          fi
+          python -u scripts/oddsportal_login_filtered_bet365_scraper.py \
+            --results-urls-file data/oddsportal_major_results_urls.txt \
+            --limit-total '${{ github.event.inputs.limit_total }}' \
+            --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
+            --out artifacts/output/oddsportal-login-filtered-bet365 \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
+            $EXTRA_FLAGS
+
+      - name: Backtest filtered scrape result
+        if: ${{ always() && github.event.inputs.mode == 'scrape' }}
+        shell: bash
+        run: |
+          if [ -f artifacts/output/oddsportal-login-filtered-bet365/bet365_master_odds_db.csv ]; then
+            python -u scripts/backtest_bet365_v3_from_csv.py \
+              --csv artifacts/output/oddsportal-login-filtered-bet365/bet365_master_odds_db.csv \
+              --out artifacts/output/backtest-login-filtered-bet365 \
+              --stake 100
+          fi
+
+      - name: Upload filtered scrape artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-login-filtered-bet365-${{ github.event.inputs.mode }}
+          path: artifacts/output/**
+          if-no-files-found: warn
