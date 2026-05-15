@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from playwright.sync_api import Browser, BrowserContext, sync_playwright
+from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
 import oddsportal_login_filtered_bet365_scraper as base
 from oddsportal_login_filtered_bet365_guarded import proof_match_ok, smoke_check_row
@@ -135,6 +135,51 @@ def has_cookie_secret() -> bool:
     return bool(os.getenv("ODDSPORTAL_COOKIES_JSON", "").strip() or os.getenv("ODDSPORTAL_COOKIES_JSON_B64", "").strip() or os.getenv("ODDSPORTAL_STORAGE_STATE_B64", "").strip())
 
 
+def clear_oddsportal_route_memory(context: BrowserContext, page: Page, wait_ms: int) -> None:
+    """Clear route-memory cookies without clearing login/session cookies.
+
+    Cookie Editor screenshots showed _sg_b_p storing a previous tennis path. OddsPortal's SPA can
+    reopen that stored match instead of the proof URL. We only remove these route-ish cookies and
+    matching local/session storage keys; we do not clear all cookies.
+    """
+    names = ["_sg_b_p", "_sg_b_v", "_sg_b_n"]
+    for name in names:
+        try:
+            context.clear_cookies(name=name)
+            base.log(f"Cleared route-memory cookie {name} via browser context.")
+        except Exception:
+            pass
+    try:
+        base.goto(page, base.ODDSPORTAL_HOME, wait_ms)
+        page.evaluate(
+            """
+            (names) => {
+              const domains = ['www.oddsportal.com', '.oddsportal.com', 'oddsportal.com'];
+              for (const name of names) {
+                for (const domain of domains) {
+                  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${domain}`;
+                }
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+              }
+              for (const store of [localStorage, sessionStorage]) {
+                for (const key of Object.keys(store)) {
+                  const k = key.toLowerCase();
+                  if (k.includes('_sg_b') || k.includes('lastpath') || k.includes('last_path') || k.includes('lasturl') || k.includes('last_url')) {
+                    store.removeItem(key);
+                  }
+                }
+              }
+            }
+            """,
+            names,
+        )
+        page.goto("about:blank", wait_until="domcontentloaded", timeout=10000)
+        page.wait_for_timeout(500)
+        base.log("Cleared OddsPortal route memory before proof URL smoke.")
+    except Exception as exc:
+        base.log(f"Route-memory cleanup was best-effort and hit: {exc}")
+
+
 def append_row_csv(path: Path, row: dict[str, str]) -> None:
     base.append_row_csv(path, row)
 
@@ -162,6 +207,7 @@ def main() -> int:
         "cookie_secret_present": has_cookie_secret(),
         "login_ok": False,
         "login_check_skipped_for_cookie_secret": False,
+        "route_memory_cleared": False,
         "proof_match_ok": False,
         "smoke_ok": False,
     }
@@ -174,9 +220,6 @@ def main() -> int:
             if has_cookie_secret():
                 base.log("Using cookie/storage secret; skipping username/password login.")
                 base.goto(page, base.ODDSPORTAL_HOME, args.wait_ms)
-                # Do not block on text-based login detection here. OddsPortal may be localized
-                # or mobile-shaped, and Safari Cookie Editor may not expose a clear profile/logout
-                # string. The guarded smoke test is the real source of truth.
                 login_ok = True
                 meta["login_check_skipped_for_cookie_secret"] = True
             else:
@@ -190,6 +233,9 @@ def main() -> int:
                 return 3
 
             base.apply_bet365_filter(page, out_dir, args.wait_ms)
+            clear_oddsportal_route_memory(context, page, args.wait_ms)
+            meta["route_memory_cleared"] = True
+
             base.log("Running cookie guarded filtered bet365 smoke test on Sinner/Ofner proof URL.")
             row = base.scrape_market_page(page, base.PROOF_URL, out_dir, args.wait_ms)
             (out_dir / "smoke_row.json").write_text(json.dumps(row, indent=2), encoding="utf-8")
