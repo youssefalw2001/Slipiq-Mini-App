@@ -1,0 +1,76 @@
+name: OddsPortal Decoded V3 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      match_url:
+        description: Match Correct Score 1st Set URL to decode/extract V3 prices from.
+        required: false
+        default: 'https://www.oddsportal.com/tennis/h2h/ofner-sebastian-h6vs3iR2/sinner-jannik-6HdC3z4H/#xhTpdK0l:cs;12'
+      wait_ms:
+        description: Browser wait between page actions.
+        required: false
+        default: '4500'
+
+jobs:
+  decoded-v3-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Check OddsPortal auth/session secret exists
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+        run: |
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set ODDSPORTAL_COOKIES_JSON, ODDSPORTAL_COOKIES_JSON_B64, ODDSPORTAL_STORAGE_STATE_B64, or both ODDSPORTAL_USERNAME and ODDSPORTAL_PASSWORD as repository secrets."
+            exit 2
+          fi
+          echo "OddsPortal auth/session secret found."
+
+      - name: Run decoded V3 endpoint probe
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+        run: |
+          python -u scripts/oddsportal_decoded_v3_probe.py \
+            --match-url '${{ github.event.inputs.match_url }}' \
+            --out artifacts/output/oddsportal-decoded-v3-probe \
+            --wait-ms '${{ github.event.inputs.wait_ms }}'
+
+      - name: Upload safe decoded V3 artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-decoded-v3-probe-safe
+          path: |
+            artifacts/output/oddsportal-decoded-v3-probe/run_summary.json
+            artifacts/output/oddsportal-decoded-v3-probe/decoded_v3_summary.json
+            artifacts/output/oddsportal-decoded-v3-probe/decoded_v3_prices.csv
+          if-no-files-found: warn
