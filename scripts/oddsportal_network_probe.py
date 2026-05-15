@@ -21,7 +21,6 @@ import argparse
 import csv
 import hashlib
 import json
-import os
 import re
 import time
 from pathlib import Path
@@ -55,11 +54,6 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def safe_name(value: str, max_len: int = 120) -> str:
-    clean = re.sub(r"[^A-Za-z0-9._-]+", "_", value)[:max_len].strip("_")
-    return clean or "item"
-
-
 def redact_url(url: str) -> str:
     parsed = urlparse(url)
     if not parsed.query:
@@ -69,13 +63,12 @@ def redact_url(url: str) -> str:
         if "=" not in kv:
             parts.append(kv)
             continue
-        k, v = kv.split("=", 1)
+        k, _ = kv.split("=", 1)
         if any(s in k.lower() for s in SENSITIVE_QUERY_KEYS):
             parts.append(f"{k}=***REDACTED***")
         else:
             parts.append(kv)
-    rebuilt = parsed._replace(query="&".join(parts)).geturl()
-    return rebuilt
+    return parsed._replace(query="&".join(parts)).geturl()
 
 
 def is_interesting_response(resp: Response) -> bool:
@@ -113,11 +106,11 @@ def try_decode_body(resp: Response, max_bytes: int) -> tuple[str, bytes | None, 
     if body is None:
         return "", None, "empty_body"
     truncated = body[:max_bytes]
-    text = ""
     decode_status = "ok"
     try:
         text = truncated.decode("utf-8", errors="replace")
     except Exception as exc:
+        text = ""
         decode_status = f"decode_error:{exc}"
     if len(body) > max_bytes:
         decode_status += f";truncated_from_{len(body)}"
@@ -130,7 +123,7 @@ def save_response(out_dir: Path, phase: str, resp: Response, idx: int, max_body_
     url = resp.url
     content_type = resp.headers.get("content-type") or ""
     status = resp.status
-    text, raw, decode_status = try_decode_body(resp, max_body_bytes=max_body_bytes)
+    text, raw, decode_status = try_decode_body(resp, max_body_bytes)
     summary = summarize_text(text)
     url_hash = hashlib.sha1(url.encode("utf-8", errors="ignore")).hexdigest()[:12]
     ext = "json" if "json" in content_type.lower() else "txt"
@@ -140,7 +133,7 @@ def save_response(out_dir: Path, phase: str, resp: Response, idx: int, max_body_
     body_path = phase_dir / body_filename
     if raw is not None:
         body_path.write_bytes(raw)
-    row = {
+    return {
         "phase": phase,
         "idx": idx,
         "url": redact_url(url),
@@ -148,11 +141,10 @@ def save_response(out_dir: Path, phase: str, resp: Response, idx: int, max_body_
         "resource_type": resp.request.resource_type,
         "status": status,
         "content_type": content_type,
-        "body_file": str(body_path.relative_to(out_dir)),
+        "body_file": str(body_path.relative_to(out_dir)) if raw is not None else "",
         "decode_status": decode_status,
         **summary,
     }
-    return row
 
 
 def attach_capture(page: Page, out_dir: Path, phase: str, rows: list[dict[str, Any]], max_body_bytes: int) -> None:
@@ -213,7 +205,6 @@ def scroll_and_wait(page: Page, wait_ms: int, rounds: int = 4) -> None:
 
 
 def click_possible_market_controls(page: Page, wait_ms: int) -> None:
-    # Best-effort only. Does not fail if localized labels differ.
     patterns = ["Correct Score", "1st Set", "First Set", "Set 1", "Dokładny wynik", "1. set", "1 set"]
     for pat in patterns:
         try:
@@ -243,11 +234,13 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 def write_interest_report(out_dir: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
     interesting = [r for r in rows if r.get("found_terms") or r.get("has_bet365") or r.get("scores_found")]
     jsonish = [r for r in rows if "json" in str(r.get("content_type", "")).lower()]
+    body_errors = [r for r in rows if "error" in str(r.get("decode_status", "")).lower()]
     report = {
         "generated_at": now_iso(),
         "total_captured": len(rows),
         "jsonish_count": len(jsonish),
         "interesting_count": len(interesting),
+        "body_error_count": len(body_errors),
         "top_interesting": interesting[:50],
         "recommendation": "Inspect network_requests.csv and responses/* files. If score odds/bookmaker data appears in JSON, build JSON scraper next. If only HTML has it, keep DOM scraper fallback.",
     }
@@ -259,6 +252,7 @@ def write_interest_report(out_dir: Path, rows: list[dict[str, Any]]) -> dict[str
         f"Total captured responses: {len(rows)}",
         f"JSON-ish responses: {len(jsonish)}",
         f"Interesting responses: {len(interesting)}",
+        f"Body read/save errors: {len(body_errors)}",
         "",
         "## Top interesting responses",
         "",
@@ -333,6 +327,7 @@ def main() -> int:
                 "captured_responses": len(rows),
                 "interesting_count": report.get("interesting_count"),
                 "jsonish_count": report.get("jsonish_count"),
+                "body_error_count": report.get("body_error_count"),
             })
             (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
             return 0
