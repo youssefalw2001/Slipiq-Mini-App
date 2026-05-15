@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: smoke only validates filtered bet365 proof URL. scrape runs smoke then harvest.
+        description: smoke validates extraction. scrape discovers matches from tournament result pages.
         required: true
         default: smoke
         type: choice
@@ -12,13 +12,13 @@ on:
           - smoke
           - scrape
       limit_total:
-        description: Max market URLs to scrape in scrape mode.
+        description: Max match URLs to scrape in scrape mode. Use 0 for no total cap.
         required: false
-        default: '40'
+        default: '0'
       max_matches_per_results:
-        description: Max match links discovered per tournament results page.
+        description: Max match links discovered per tournament results page. Use 0 for all discovered.
         required: false
-        default: '10'
+        default: '0'
       wait_ms:
         description: Browser wait between page actions.
         required: false
@@ -66,7 +66,7 @@ jobs:
           fi
           echo "OddsPortal auth/session secret found."
 
-      - name: Run cookie/guarded filtered bet365 smoke/scrape
+      - name: Run results-page driven filtered bet365 smoke/scrape
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
@@ -79,7 +79,7 @@ jobs:
           if [ "${{ github.event.inputs.mode }}" = "smoke" ]; then
             EXTRA_FLAGS="--smoke-only"
           fi
-          python -u scripts/oddsportal_cookie_json_guarded.py \
+          python -u scripts/oddsportal_results_driven_bet365_scraper.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --limit-total '${{ github.event.inputs.limit_total }}' \
             --max-matches-per-results '${{ github.event.inputs.max_matches_per_results }}' \
