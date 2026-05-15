@@ -3,11 +3,12 @@
 
 Safety guards:
 - only status=ok rows are eligible
+- if odds_status/result_status columns exist, both must be ok
 - duplicate market_url rows are ignored
 - missing/non-standard first-set score rows are ignored
 - missing grouped odds are ignored
 
-This prevents route-memory scrape failures from producing fake-perfect results.
+This prevents route-memory or odds-only rows from producing fake results.
 """
 from __future__ import annotations
 
@@ -73,6 +74,12 @@ def is_row_eligible(row: dict[str, str], side: str, min_confirmed: int, seen_url
     status = str(row.get("status") or "").strip().lower()
     if status != "ok":
         return False, f"bad_status:{status or 'missing'}"
+    odds_status = str(row.get("odds_status") or "").strip().lower()
+    result_status = str(row.get("result_status") or "").strip().lower()
+    if odds_status and odds_status != "ok":
+        return False, f"bad_odds_status:{odds_status}"
+    if result_status and result_status != "ok":
+        return False, f"bad_result_status:{result_status}"
     market_url = row.get("market_url") or row.get("input_url") or ""
     if not market_url:
         return False, "missing_market_url"
@@ -132,6 +139,8 @@ def trade_rows(rows: list[dict[str, str]], side: str, stake: float, min_confirme
                 "equity": equity,
                 "bet365_confirmed_count": int(to_float(row.get("bet365_confirmed_count")) or 0),
                 "status": row.get("status") or "",
+                "odds_status": row.get("odds_status") or "",
+                "result_status": row.get("result_status") or "",
             }
         )
     return trades, skip_counts
@@ -201,7 +210,7 @@ def main() -> int:
         "input_csv": str(in_path),
         "stake": args.stake,
         "source_rows": len(rows),
-        "eligible_rows_note": "Eligibility requires status=ok, unique market_url, standard first_set_score, confirmed prices, and grouped odds.",
+        "eligible_rows_note": "Eligibility requires status=ok, odds_status ok if present, result_status ok if present, unique market_url, standard first_set_score, confirmed prices, and grouped odds.",
         "p2": summarize(p2_trades, args.stake),
         "p2_skip_counts": p2_skips,
         "p1": summarize(p1_trades, args.stake),
@@ -209,13 +218,13 @@ def main() -> int:
         "notes": [
             "P2 uses 3:6, 4:6, 5:7 grouped odds and requires min-confirmed-p2 score rows.",
             "P1 uses 6:3, 6:4, 7:5 grouped odds and defaults to all 6 scores confirmed.",
-            "Duplicate market URLs and non-ok statuses are ignored to prevent route-memory artifacts from faking results.",
+            "Odds-only rows and result-needs rows are ignored to prevent fake settlement.",
             "This is a historical-pricing backtest, not betting advice.",
         ],
     }
 
     trades_path = out_dir / "backtest_trades.csv"
-    fields = ["trade_id", "side", "match_name", "market_url", "first_set_score", "odds", "tier", "stake", "hit", "profit", "equity", "bet365_confirmed_count", "status"]
+    fields = ["trade_id", "side", "match_name", "market_url", "first_set_score", "odds", "tier", "stake", "hit", "profit", "equity", "bet365_confirmed_count", "status", "odds_status", "result_status"]
     with trades_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
