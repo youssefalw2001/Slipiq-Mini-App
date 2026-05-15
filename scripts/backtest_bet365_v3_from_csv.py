@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Backtest SlipIQ V3 from confirmed bet365 OddsPortal scraper CSV."""
+"""Backtest SlipIQ V3 from confirmed bet365 OddsPortal scraper CSV.
+
+Safety guards:
+- only status=ok rows are eligible
+- duplicate market_url rows are ignored
+- missing/non-standard first-set score rows are ignored
+- missing grouped odds are ignored
+
+This prevents route-memory scrape failures from producing fake-perfect results.
+"""
 from __future__ import annotations
 
 import argparse
@@ -10,6 +19,13 @@ import statistics
 import time
 from pathlib import Path
 from typing import Any
+
+VALID_V3_P2 = {"3:6", "4:6", "5:7"}
+VALID_V3_P1 = {"6:3", "6:4", "7:5"}
+VALID_SET_SCORES = {
+    "6:0", "6:1", "6:2", "6:3", "6:4", "7:5", "7:6",
+    "0:6", "1:6", "2:6", "3:6", "4:6", "5:7", "6:7",
+}
 
 
 def now_iso() -> str:
@@ -28,8 +44,8 @@ def to_float(value: Any) -> float | None:
         return None
 
 
-def to_bool(value: Any) -> bool:
-    return str(value).strip().lower() in ("true", "1", "yes", "y")
+def normalize_score(value: Any) -> str:
+    return str(value or "").strip().replace("-", ":").replace(" ", "")
 
 
 def calc_drawdown(equity_points: list[float]) -> float:
@@ -41,43 +57,84 @@ def calc_drawdown(equity_points: list[float]) -> float:
     return round(max_dd, 2)
 
 
-def trade_rows(rows: list[dict[str, str]], side: str, stake: float, min_confirmed: int) -> list[dict[str, Any]]:
+def tier_for_odds(odds: float | None) -> str:
+    if odds is None:
+        return "NO_ODDS"
+    if odds >= 4.0:
+        return "S"
+    if odds >= 3.5:
+        return "A"
+    if odds >= 3.3:
+        return "B_WATCH"
+    return "C_SKIP"
+
+
+def is_row_eligible(row: dict[str, str], side: str, min_confirmed: int, seen_urls: set[str]) -> tuple[bool, str]:
+    status = str(row.get("status") or "").strip().lower()
+    if status != "ok":
+        return False, f"bad_status:{status or 'missing'}"
+    market_url = row.get("market_url") or row.get("input_url") or ""
+    if not market_url:
+        return False, "missing_market_url"
+    if market_url in seen_urls:
+        return False, "duplicate_market_url"
+    first_set_score = normalize_score(row.get("first_set_score"))
+    if first_set_score not in VALID_SET_SCORES:
+        return False, "missing_or_nonstandard_first_set_score"
+    confirmed = int(to_float(row.get("bet365_confirmed_count")) or 0)
+    if confirmed < min_confirmed:
+        return False, "not_enough_confirmed_prices"
+    odds_key = "p2_grouped_9_12" if side == "p2" else "p1_grouped_9_12"
+    odds = to_float(row.get(odds_key))
+    if odds is None or odds <= 1:
+        return False, "missing_grouped_odds"
+    return True, "eligible"
+
+
+def trade_rows(rows: list[dict[str, str]], side: str, stake: float, min_confirmed: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if side == "p2":
         odds_key = "p2_grouped_9_12"
-        hit_key = "p2_v3_hit"
+        win_scores = VALID_V3_P2
     elif side == "p1":
         odds_key = "p1_grouped_9_12"
-        hit_key = "p1_hit"
+        win_scores = VALID_V3_P1
     else:
         raise ValueError("side must be p1 or p2")
 
     trades: list[dict[str, Any]] = []
+    skip_counts: dict[str, int] = {}
     equity = 0.0
-    for i, row in enumerate(rows, start=1):
-        confirmed = int(to_float(row.get("bet365_confirmed_count")) or 0)
-        odds = to_float(row.get(odds_key))
-        if confirmed < min_confirmed or odds is None or odds <= 1:
+    seen_urls: set[str] = set()
+    for row in rows:
+        eligible, reason = is_row_eligible(row, side, min_confirmed, seen_urls)
+        if not eligible:
+            skip_counts[reason] = skip_counts.get(reason, 0) + 1
             continue
-        hit = to_bool(row.get(hit_key))
-        profit = round(stake * (odds - 1), 2) if hit else -stake
+        market_url = row.get("market_url") or row.get("input_url") or ""
+        seen_urls.add(market_url)
+        odds = to_float(row.get(odds_key))
+        first_set_score = normalize_score(row.get("first_set_score"))
+        hit = first_set_score in win_scores
+        profit = round(stake * (float(odds) - 1), 2) if hit else -stake
         equity = round(equity + profit, 2)
         trades.append(
             {
                 "trade_id": len(trades) + 1,
                 "side": side,
                 "match_name": row.get("match_name") or row.get("title") or "",
-                "market_url": row.get("market_url") or row.get("input_url") or "",
-                "first_set_score": row.get("first_set_score") or "",
+                "market_url": market_url,
+                "first_set_score": first_set_score,
                 "odds": odds,
+                "tier": tier_for_odds(odds),
                 "stake": stake,
                 "hit": hit,
                 "profit": profit,
                 "equity": equity,
-                "bet365_confirmed_count": confirmed,
+                "bet365_confirmed_count": int(to_float(row.get("bet365_confirmed_count")) or 0),
                 "status": row.get("status") or "",
             }
         )
-    return trades
+    return trades, skip_counts
 
 
 def summarize(trades: list[dict[str, Any]], stake: float) -> dict[str, Any]:
@@ -88,26 +145,34 @@ def summarize(trades: list[dict[str, Any]], stake: float) -> dict[str, Any]:
             "losses": 0,
             "hit_rate": None,
             "avg_odds": None,
+            "break_even_hit_rate": None,
             "total_staked": 0,
             "profit": 0,
             "roi": None,
             "max_drawdown": 0,
+            "tier_counts": {},
         }
     bets = len(trades)
     wins = sum(1 for t in trades if t["hit"])
     profit = round(sum(float(t["profit"]) for t in trades), 2)
     total_staked = round(bets * stake, 2)
+    avg_odds = statistics.mean(float(t["odds"]) for t in trades)
     equity_points = [float(t["equity"]) for t in trades]
+    tier_counts: dict[str, int] = {}
+    for t in trades:
+        tier_counts[t["tier"]] = tier_counts.get(t["tier"], 0) + 1
     return {
         "bets": bets,
         "wins": wins,
         "losses": bets - wins,
         "hit_rate": round(wins / bets, 4),
-        "avg_odds": round(statistics.mean(float(t["odds"]) for t in trades), 4),
+        "avg_odds": round(avg_odds, 4),
+        "break_even_hit_rate": round(1 / avg_odds, 4) if avg_odds > 0 else None,
         "total_staked": total_staked,
         "profit": profit,
         "roi": round(profit / total_staked, 4) if total_staked else None,
         "max_drawdown": calc_drawdown(equity_points),
+        "tier_counts": tier_counts,
     }
 
 
@@ -124,12 +189,11 @@ def main() -> int:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    rows: list[dict[str, str]] = []
     with in_path.open("r", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
 
-    p2_trades = trade_rows(rows, "p2", args.stake, args.min_confirmed_p2)
-    p1_trades = trade_rows(rows, "p1", args.stake, args.min_confirmed_p1)
+    p2_trades, p2_skips = trade_rows(rows, "p2", args.stake, args.min_confirmed_p2)
+    p1_trades, p1_skips = trade_rows(rows, "p1", args.stake, args.min_confirmed_p1)
     all_trades = p2_trades + p1_trades
 
     summary = {
@@ -137,24 +201,26 @@ def main() -> int:
         "input_csv": str(in_path),
         "stake": args.stake,
         "source_rows": len(rows),
+        "eligible_rows_note": "Eligibility requires status=ok, unique market_url, standard first_set_score, confirmed prices, and grouped odds.",
         "p2": summarize(p2_trades, args.stake),
+        "p2_skip_counts": p2_skips,
         "p1": summarize(p1_trades, args.stake),
+        "p1_skip_counts": p1_skips,
         "notes": [
             "P2 uses 3:6, 4:6, 5:7 grouped odds and requires min-confirmed-p2 score rows.",
             "P1 uses 6:3, 6:4, 7:5 grouped odds and defaults to all 6 scores confirmed.",
+            "Duplicate market URLs and non-ok statuses are ignored to prevent route-memory artifacts from faking results.",
             "This is a historical-pricing backtest, not betting advice.",
         ],
     }
 
     trades_path = out_dir / "backtest_trades.csv"
-    if all_trades:
-        with trades_path.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(all_trades[0].keys()))
-            writer.writeheader()
-            writer.writerows(all_trades)
-    else:
-        with trades_path.open("w", newline="", encoding="utf-8") as f:
-            f.write("trade_id,side,match_name,market_url,first_set_score,odds,stake,hit,profit,equity,bet365_confirmed_count,status\n")
+    fields = ["trade_id", "side", "match_name", "market_url", "first_set_score", "odds", "tier", "stake", "hit", "profit", "equity", "bet365_confirmed_count", "status"]
+    with trades_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for trade in all_trades:
+            writer.writerow({k: trade.get(k, "") for k in fields})
 
     summary_path = out_dir / "backtest_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
