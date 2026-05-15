@@ -3,20 +3,9 @@
 SlipIQ OddsPortal match discovery probe.
 
 Purpose:
-- Diagnose why tournament results pages are not producing enough real match links.
-- Do NOT decode odds.
-- Do NOT run a backtest.
-- Save safe artifacts only.
-
-Input:
-- one or more tournament results URLs from data/oddsportal_major_results_urls.txt
-
-Output:
-- discovery_summary.json
-- discovery_report.md
-- discovered_match_urls.csv
-- link_inventory.csv
-- page body text samples
+- Diagnose whether tournament results pages produce enough real match links.
+- Discovery only: no bet365 filter, no odds decode, no backtest.
+- Reject bad landed pages such as /bookmakers/ before counting links.
 
 Read-only. No betting. No sportsbook login. No captcha bypass.
 """
@@ -42,6 +31,7 @@ BAD_PATH_PARTS = [
     "/teams", "/outrights", "/bookmakers", "/bonus", "/predictions", "/calendar",
     "/settings", "/my-leagues",
 ]
+BAD_LANDED_PARTS = ["/bookmakers/", "/bookmakers"]
 CATEGORY_TEXT_RE = re.compile(
     r"\b(atp|wta|challenger|itf|doubles|singles|wimbledon|open|masters|rome|madrid|miami|paris|basel|rotterdam|halle|queens|washington|vienna|tokyo|beijing|dubai|acapulco|barcelona|australian|french|us open)\b",
     re.I,
@@ -64,6 +54,12 @@ def clean_text(value: str) -> str:
 
 def strip_hash(url: str) -> str:
     return urldefrag(url)[0].rstrip("/") + "/"
+
+
+def is_bad_landed_url(url: str) -> bool:
+    parsed = urlparse(url)
+    path = parsed.path.lower().rstrip("/") + "/"
+    return any(path.startswith(p.rstrip("/") + "/") for p in BAD_LANDED_PARTS) or "/tennis/" not in path or "/results/" not in path
 
 
 def extract_hash_from_url(url: str) -> str:
@@ -150,10 +146,7 @@ def classify_link(href: str, text: str, current_url: str) -> dict[str, str]:
 
 
 def click_show_more(page: Page, wait_ms: int, max_clicks: int = 25) -> int:
-    labels = [
-        "show more matches", "show more", "load more", "more matches", "next",
-        "pokaż więcej", "pokaz wiecej", "więcej", "wiecej", "zobacz więcej", "zobacz wiecej",
-    ]
+    labels = ["show more matches", "show more", "load more", "more matches", "next", "pokaż więcej", "pokaz wiecej", "więcej", "wiecej", "zobacz więcej", "zobacz wiecej"]
     clicked = 0
     for _ in range(max_clicks):
         try:
@@ -195,7 +188,7 @@ def scroll_page(page: Page, wait_ms: int, rounds: int = 6) -> None:
 
 
 def collect_links(page: Page, results_url: str, wait_ms: int, out_dir: Path, page_index: int) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    base.log(f"Discovery probe opening: {results_url}")
+    base.log(f"Discovery probe opening without bookmaker filter: {results_url}")
     base.goto(page, results_url, wait_ms)
     page.wait_for_timeout(wait_ms)
     title = ""
@@ -209,11 +202,16 @@ def collect_links(page: Page, results_url: str, wait_ms: int, out_dir: Path, pag
     except Exception:
         body_text = ""
 
-    scroll_page(page, wait_ms, rounds=4)
-    clicked = click_show_more(page, wait_ms, max_clicks=25)
-    scroll_page(page, wait_ms, rounds=3)
+    bad_landed = is_bad_landed_url(page.url)
+    if not bad_landed:
+        scroll_page(page, wait_ms, rounds=4)
+        clicked = click_show_more(page, wait_ms, max_clicks=25)
+        scroll_page(page, wait_ms, rounds=3)
+    else:
+        clicked = 0
+        base.log(f"BAD_LANDED_URL for {results_url}: landed on {page.url}")
 
-    links = page.eval_on_selector_all(
+    links = [] if bad_landed else page.eval_on_selector_all(
         "a[href]",
         "els => els.map(a => ({ href: a.href || a.getAttribute('href') || '', text: (a.innerText || a.textContent || '').trim().replace(/\\s+/g, ' ') }))",
     )
@@ -234,6 +232,7 @@ def collect_links(page: Page, results_url: str, wait_ms: int, out_dir: Path, pag
         "results_url": results_url,
         "landed_url": page.url,
         "title": title,
+        "bad_landed_url": str(bad_landed).lower(),
         "show_more_clicks": clicked,
         "total_links": len(inventory),
         "oddsportal_links": sum(1 for r in inventory if r["is_oddsportal"] == "true"),
@@ -274,14 +273,7 @@ def main() -> int:
     if args.limit_pages and args.limit_pages > 0:
         results_urls = results_urls[: args.limit_pages]
 
-    meta: dict[str, Any] = {
-        "generated_at": now_iso(),
-        "args": vars(args),
-        "results_url_count": len(results_urls),
-        "cookie_secret_present": has_cookie_secret(),
-        "login_ok": False,
-    }
-
+    meta: dict[str, Any] = {"generated_at": now_iso(), "args": vars(args), "results_url_count": len(results_urls), "cookie_secret_present": has_cookie_secret(), "login_ok": False, "bookmaker_filter_applied": False}
     all_inventory: list[dict[str, str]] = []
     page_stats: list[dict[str, Any]] = []
     discovered: list[dict[str, str]] = []
@@ -304,8 +296,7 @@ def main() -> int:
                 (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
                 return 3
 
-            base.apply_bet365_filter(page, out_dir, args.wait_ms)
-
+            # IMPORTANT: do not apply bet365 filter during discovery. It can redirect to /bookmakers/.
             for idx, results_url in enumerate(results_urls, start=1):
                 clear_oddsportal_route_memory(context, page, args.wait_ms)
                 try:
@@ -313,7 +304,7 @@ def main() -> int:
                 except Exception as exc:
                     base.log(f"Discovery probe error on {results_url}: {exc}")
                     inventory = []
-                    stats = {"results_url": results_url, "error": str(exc), "real_match_links": 0}
+                    stats = {"results_url": results_url, "error": str(exc), "real_match_links": 0, "bad_landed_url": "unknown"}
                 all_inventory.extend(inventory)
                 page_stats.append(stats)
                 for row in inventory:
@@ -323,58 +314,23 @@ def main() -> int:
                     if not match_url or match_url in seen_match_urls:
                         continue
                     seen_match_urls.add(match_url)
-                    discovered.append({
-                        "results_url": row.get("results_url", ""),
-                        "landed_url": row.get("landed_url", ""),
-                        "match_url": match_url,
-                        "link_text": row.get("text", ""),
-                        "reason": row.get("reason", ""),
-                    })
+                    discovered.append({"results_url": row.get("results_url", ""), "landed_url": row.get("landed_url", ""), "match_url": match_url, "link_text": row.get("text", ""), "reason": row.get("reason", "")})
 
-            link_fields = [
-                "results_url", "landed_url", "page_title", "absolute_url", "path", "text", "is_oddsportal", "is_tennis",
-                "has_hash", "has_h2h", "has_player_text", "has_score_text", "looks_category", "match_url", "is_real_match", "reason",
-            ]
+            link_fields = ["results_url", "landed_url", "page_title", "absolute_url", "path", "text", "is_oddsportal", "is_tennis", "has_hash", "has_h2h", "has_player_text", "has_score_text", "looks_category", "match_url", "is_real_match", "reason"]
             write_csv(out_dir / "link_inventory.csv", all_inventory, link_fields)
             write_csv(out_dir / "discovered_match_urls.csv", discovered, ["results_url", "landed_url", "match_url", "link_text", "reason"])
-            write_csv(out_dir / "page_stats.csv", page_stats, [
-                "results_url", "landed_url", "title", "show_more_clicks", "total_links", "oddsportal_links", "tennis_links",
-                "hash_links", "h2h_links", "player_text_links", "real_match_links", "category_links", "body_has_finished_marker",
-                "body_sample_file", "links_sample_file", "error",
-            ])
-            summary = {
-                "generated_at": now_iso(),
-                "results_url_count": len(results_urls),
-                "total_links": len(all_inventory),
-                "total_real_match_links": len(discovered),
-                "page_stats": page_stats,
-                "recommendation": "If total_real_match_links is low, inspect page_stats.csv plus page_samples/*. If body contains results but link_inventory has no match hashes/H2H links, build a DOM row extractor or use OddsPortal archive endpoints for match discovery.",
-            }
+            write_csv(out_dir / "page_stats.csv", page_stats, ["results_url", "landed_url", "title", "bad_landed_url", "show_more_clicks", "total_links", "oddsportal_links", "tennis_links", "hash_links", "h2h_links", "player_text_links", "real_match_links", "category_links", "body_has_finished_marker", "body_sample_file", "links_sample_file", "error"])
+            summary = {"generated_at": now_iso(), "results_url_count": len(results_urls), "total_links": len(all_inventory), "total_real_match_links": len(discovered), "bad_landed_pages": sum(1 for s in page_stats if str(s.get("bad_landed_url")) == "true"), "page_stats": page_stats, "recommendation": "If pages still land on /bookmakers/, inspect cookie route-memory/session settings. Discovery intentionally does not apply bet365 filter."}
             (out_dir / "discovery_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-            lines = [
-                "# OddsPortal Match Discovery Probe",
-                "",
-                f"Generated: {summary['generated_at']}",
-                f"Pages checked: {len(results_urls)}",
-                f"Total links: {len(all_inventory)}",
-                f"Real match links discovered: {len(discovered)}",
-                "",
-                "## Page stats",
-                "",
-            ]
+            lines = ["# OddsPortal Match Discovery Probe", "", f"Generated: {summary['generated_at']}", f"Pages checked: {len(results_urls)}", f"Bad landed pages: {summary['bad_landed_pages']}", f"Total links: {len(all_inventory)}", f"Real match links discovered: {len(discovered)}", "", "## Page stats", ""]
             for st in page_stats:
                 lines.append(f"- `{st.get('results_url')}`")
-                lines.append(f"  - landed: `{st.get('landed_url', '')}`")
+                lines.append(f"  - landed: `{st.get('landed_url', '')}` bad_landed={st.get('bad_landed_url', '')}")
                 lines.append(f"  - title: `{st.get('title', '')}`")
                 lines.append(f"  - links: total={st.get('total_links', 0)} tennis={st.get('tennis_links', 0)} hash={st.get('hash_links', 0)} h2h={st.get('h2h_links', 0)} player_text={st.get('player_text_links', 0)} real={st.get('real_match_links', 0)}")
                 lines.append(f"  - samples: `{st.get('body_sample_file', '')}`, `{st.get('links_sample_file', '')}`")
             (out_dir / "discovery_report.md").write_text("\n".join(lines), encoding="utf-8")
-
-            meta.update({
-                "stop_reason": "MATCH_DISCOVERY_PROBE_COMPLETE",
-                "total_links": len(all_inventory),
-                "total_real_match_links": len(discovered),
-            })
+            meta.update({"stop_reason": "MATCH_DISCOVERY_PROBE_COMPLETE", "total_links": len(all_inventory), "total_real_match_links": len(discovered), "bad_landed_pages": summary["bad_landed_pages"]})
             (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
             return 0
         finally:
