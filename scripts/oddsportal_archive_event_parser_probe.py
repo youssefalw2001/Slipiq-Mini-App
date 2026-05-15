@@ -2,16 +2,14 @@
 """
 SlipIQ OddsPortal archive event parser probe.
 
-This is stricter than the first archive endpoint discovery probe.
-It is built to parse REAL event objects such as:
-  { "id": 10540789, "name": "Ruud C. - Darderi L.", ... }
+This version decrypts OddsPortal archive/tournament endpoint bodies before parsing.
+The archive endpoint uses the same encrypted .dat-style payload format as the
+match odds endpoint we already decoded.
 
-It rejects fake country/tournament slugs such as kingdom/australian/italy/france.
+It parses decoded JSON rows such as:
+  d.rows[] with id, encodeEventId, home-name, away-name, status-name
+
 It does NOT decode odds and does NOT backtest.
-
-Goal output:
-- parsed_real_events.csv
-- event_parser_summary.json
 
 Read-only. No betting. No sportsbook login. No captcha bypass.
 """
@@ -32,6 +30,7 @@ from playwright.sync_api import Page, Response, sync_playwright
 
 import oddsportal_login_filtered_bet365_scraper as base
 from oddsportal_cookie_json_guarded import clear_oddsportal_route_memory
+from oddsportal_decoded_v3_probe import decode_oddsportal_dat
 
 PLAYER_PAIR_RE = re.compile(
     r"(?P<p1>[A-Z][A-Za-zÀ-ž'.\-]+(?:\s+[A-Z][A-Za-zÀ-ž'.\-]+)*\s+[A-Z]\.?)\s*(?:-|–|v|vs)\s*(?P<p2>[A-Z][A-Za-zÀ-ž'.\-]+(?:\s+[A-Z][A-Za-zÀ-ž'.\-]+)*\s+[A-Z]\.?)"
@@ -160,6 +159,20 @@ def read_response_text(resp: Response, max_bytes: int) -> tuple[str, str]:
     return raw.decode("utf-8", errors="replace"), status
 
 
+def decode_payload_if_possible(text: str) -> tuple[Any | None, str]:
+    if not text:
+        return None, "empty"
+    stripped = text.strip()
+    try:
+        return json.loads(stripped), "plain_json"
+    except Exception:
+        pass
+    try:
+        return decode_oddsportal_dat(stripped), "decoded_encrypted"
+    except Exception as exc:
+        return None, f"decode_failed:{exc}"
+
+
 def flatten(obj: Any, prefix: str = "") -> Iterable[tuple[str, Any]]:
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -188,9 +201,7 @@ def split_player_pair(value: str) -> tuple[str, str]:
     m = PLAYER_PAIR_RE.search(text)
     if not m:
         return "", ""
-    p1 = clean_text(m.group("p1"))
-    p2 = clean_text(m.group("p2"))
-    return p1, p2
+    return clean_text(m.group("p1")), clean_text(m.group("p2"))
 
 
 def first_value_by_keys(flat: dict[str, Any], wanted: set[str]) -> str:
@@ -200,14 +211,80 @@ def first_value_by_keys(flat: dict[str, Any], wanted: set[str]) -> str:
     return ""
 
 
+def get_any(row: dict[str, Any], keys: list[str]) -> Any:
+    for key in keys:
+        if key in row and row.get(key) not in (None, ""):
+            return row.get(key)
+    return ""
+
+
+def row_player_name(value: Any) -> str:
+    if isinstance(value, dict):
+        for k in ["name", "participantName", "shortName", "slug"]:
+            if value.get(k):
+                return clean_text(value.get(k))
+        return clean_text(" ".join(str(v) for v in value.values() if isinstance(v, (str, int, float))))
+    return clean_text(value)
+
+
+def extract_events_from_archive_rows(decoded: Any, source_endpoint: str, results_url: str, landed_url: str) -> list[dict[str, Any]]:
+    rows = None
+    if isinstance(decoded, dict):
+        d = decoded.get("d") if isinstance(decoded.get("d"), dict) else decoded
+        for key in ["rows", "events", "matches", "data"]:
+            if isinstance(d.get(key), list):
+                rows = d.get(key)
+                break
+    if not isinstance(rows, list):
+        return []
+
+    out: list[dict[str, Any]] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        event_id = clean_text(get_any(item, ["id", "eventId", "event_id", "matchId", "match_id"]))
+        encode_id = clean_text(get_any(item, ["encodeEventId", "encodedEventId", "eventHash", "hash", "eid"]))
+        home = row_player_name(get_any(item, ["home-name", "homeName", "home", "participant1", "homeParticipant", "homeTeam", "player1", "competitor1"]))
+        away = row_player_name(get_any(item, ["away-name", "awayName", "away", "participant2", "awayParticipant", "awayTeam", "player2", "competitor2"]))
+        name = clean_text(get_any(item, ["name", "eventName", "matchName", "title"]))
+        if (not home or not away) and name:
+            p1, p2 = split_player_pair(name)
+            home = home or p1
+            away = away or p2
+        if not name and home and away:
+            name = f"{home} - {away}"
+        if not home or not away:
+            continue
+        status = clean_text(get_any(item, ["status-name", "statusName", "status", "state"]))
+        match_date = clean_text(get_any(item, ["date", "startTime", "start_time", "time", "timestamp", "datestart"]))
+        raw_url = clean_text(get_any(item, ["url", "href", "link", "path", "slug"]))
+        match_url = normalize_match_url(raw_url, landed_url) if raw_url else ""
+        confidence = "high_archive_row" if event_id and encode_id else "medium_archive_row"
+        out.append({
+            "source_type": "decoded_archive_row",
+            "source_endpoint": source_endpoint,
+            "results_url": results_url,
+            "landed_url": landed_url,
+            "event_id": event_id,
+            "event_hash": encode_id,
+            "player1": home,
+            "player2": away,
+            "match_name": name,
+            "match_date": match_date[:80],
+            "status": status,
+            "match_url": match_url,
+            "confidence": confidence,
+            "raw_text": clean_text(json.dumps(item, ensure_ascii=False))[:1000],
+        })
+    return out
+
+
 def best_name_from_flat(flat: dict[str, Any]) -> str:
-    # Prefer explicit name/title fields that contain player-vs-player.
     for k, v in flat.items():
         if norm_key(k.split(".")[-1]) in NAME_KEYS:
             val = clean_text(v)
             if PLAYER_PAIR_RE.search(val):
                 return val
-    # Fallback to any string field with player-vs-player.
     for v in flat.values():
         val = clean_text(v)
         if PLAYER_PAIR_RE.search(val):
@@ -224,12 +301,10 @@ def best_url_from_flat(flat: dict[str, Any], base_url: str) -> str:
     return ""
 
 
-def extract_real_events_from_json(text: str, source_endpoint: str, results_url: str, landed_url: str) -> list[dict[str, Any]]:
-    try:
-        data = json.loads(text)
-    except Exception:
-        return []
-    out: list[dict[str, Any]] = []
+def extract_real_events_from_json_obj(data: Any, source_endpoint: str, results_url: str, landed_url: str) -> list[dict[str, Any]]:
+    out = extract_events_from_archive_rows(data, source_endpoint, results_url, landed_url)
+    if out:
+        return out
     for obj in iter_dicts(data):
         flat = dict(flatten(obj))
         name = best_name_from_flat(flat)
@@ -258,6 +333,7 @@ def extract_real_events_from_json(text: str, source_endpoint: str, results_url: 
             "player2": p2,
             "match_name": f"{p1} - {p2}",
             "match_date": match_date[:80],
+            "status": "",
             "match_url": match_url,
             "confidence": confidence,
             "raw_text": raw,
@@ -275,10 +351,12 @@ def extract_real_events_from_text(text: str, source_endpoint: str, results_url: 
             continue
         chunk = clean_text(text[max(0, m.start() - 300): m.end() + 500])
         id_m = re.search(r'"(?:id|eventId|event_id|matchId|match_id)"\s*:\s*"?(\d{4,})"?', chunk, re.I)
+        hash_m = re.search(r'"(?:encodeEventId|encodedEventId|eventHash|hash)"\s*:\s*"?([A-Za-z0-9]{7,12})"?', chunk, re.I)
         url_m = re.search(r'(/tennis/[^\s"\'<>]+)', chunk)
         date_m = DATE_RE.search(chunk)
         match_url = normalize_match_url(url_m.group(1), landed_url) if url_m else ""
-        key = f"{p1}|{p2}|{id_m.group(1) if id_m else ''}|{match_url}"
+        event_hash = hash_m.group(1) if hash_m and hash_m.group(1).lower() not in FAKE_HASH_WORDS else extract_hash_from_url(match_url)
+        key = f"{p1}|{p2}|{id_m.group(1) if id_m else ''}|{event_hash}|{match_url}"
         if key in seen:
             continue
         seen.add(key)
@@ -288,13 +366,14 @@ def extract_real_events_from_text(text: str, source_endpoint: str, results_url: 
             "results_url": results_url,
             "landed_url": landed_url,
             "event_id": id_m.group(1) if id_m else "",
-            "event_hash": extract_hash_from_url(match_url) if match_url else "",
+            "event_hash": event_hash,
             "player1": p1,
             "player2": p2,
             "match_name": f"{p1} - {p2}",
             "match_date": date_m.group(1) if date_m else "",
+            "status": "",
             "match_url": match_url,
-            "confidence": "medium_text_pair" if id_m else "low_text_pair",
+            "confidence": "medium_text_pair" if id_m or event_hash else "low_text_pair",
             "raw_text": chunk[:1000],
         })
     return out
@@ -303,13 +382,14 @@ def extract_real_events_from_text(text: str, source_endpoint: str, results_url: 
 def dedupe_events(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
-    priority = {"high_event_object": 0, "medium_event_object": 1, "medium_text_pair": 2, "low_text_pair": 3}
+    priority = {"high_archive_row": 0, "medium_archive_row": 1, "high_event_object": 2, "medium_event_object": 3, "medium_text_pair": 4, "low_text_pair": 5}
     for row in sorted(rows, key=lambda r: priority.get(str(r.get("confidence")), 9)):
         event_id = str(row.get("event_id") or "")
+        event_hash = str(row.get("event_hash") or "")
         match_url = str(row.get("match_url") or "")
         p1 = str(row.get("player1") or "")
         p2 = str(row.get("player2") or "")
-        key = event_id or match_url or f"{p1}|{p2}|{row.get('match_date','')}"
+        key = event_id or event_hash or match_url or f"{p1}|{p2}|{row.get('match_date','')}"
         if not key or key in seen:
             continue
         seen.add(key)
@@ -317,9 +397,9 @@ def dedupe_events(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def save_body(out_dir: Path, page_idx: int, resp_idx: int, url: str, text: str) -> str:
+def save_body(out_dir: Path, page_idx: int, resp_idx: int, url: str, text: str, suffix: str = "raw") -> str:
     h = hashlib.sha1(url.encode("utf-8", errors="ignore")).hexdigest()[:12]
-    path = out_dir / "endpoint_bodies" / f"page_{page_idx:03d}_{resp_idx:03d}_{h}.txt"
+    path = out_dir / "endpoint_bodies" / f"page_{page_idx:03d}_{resp_idx:03d}_{h}_{suffix}.txt"
     ensure_dir(path.parent)
     path.write_text(text[:2_000_000], encoding="utf-8", errors="replace")
     return str(path.relative_to(out_dir))
@@ -377,11 +457,17 @@ def probe_page(page: Page, results_url: str, out_dir: Path, wait_ms: int, max_bo
         seen_urls.add(resp.url)
         counter["n"] += 1
         text, body_status = read_response_text(resp, max_body_bytes)
-        body_file = save_body(out_dir, page_idx, counter["n"], resp.url, text) if text else ""
+        raw_body_file = save_body(out_dir, page_idx, counter["n"], resp.url, text, "raw") if text else ""
         landed = page.url
-        json_events = extract_real_events_from_json(text, resp.url, results_url, landed) if text else []
-        text_events = extract_real_events_from_text(text, resp.url, results_url, landed) if text else []
-        parsed = json_events + text_events
+        decoded, decode_status = decode_payload_if_possible(text)
+        decoded_body_file = ""
+        parsed: list[dict[str, Any]] = []
+        if decoded is not None:
+            decoded_text = json.dumps(decoded, ensure_ascii=False, indent=2)
+            decoded_body_file = save_body(out_dir, page_idx, counter["n"], resp.url, decoded_text, "decoded")
+            parsed.extend(extract_real_events_from_json_obj(decoded, resp.url, results_url, landed))
+        if not parsed and text:
+            parsed.extend(extract_real_events_from_text(text, resp.url, results_url, landed))
         events.extend(parsed)
         endpoint_rows.append({
             "results_url": results_url,
@@ -391,7 +477,9 @@ def probe_page(page: Page, results_url: str, out_dir: Path, wait_ms: int, max_bo
             "content_type": resp.headers.get("content-type") or "",
             "resource_type": resp.request.resource_type,
             "body_status": body_status,
-            "body_file": body_file,
+            "decode_status": decode_status,
+            "raw_body_file": raw_body_file,
+            "decoded_body_file": decoded_body_file,
             "body_length": len(text),
             "parsed_real_events": len(parsed),
         })
@@ -403,11 +491,9 @@ def probe_page(page: Page, results_url: str, out_dir: Path, wait_ms: int, max_bo
         landed = page.url
         bad_landed = is_bad_landed_url(landed)
         clicked = 0 if bad_landed else scroll_and_click(page, wait_ms)
-        # Parse document HTML too.
         try:
             doc = page.content()
-            html_events = extract_real_events_from_text(doc, "document_html", results_url, landed)
-            events.extend(html_events)
+            events.extend(extract_real_events_from_text(doc, "document_html", results_url, landed))
         except Exception:
             pass
         stats = {
@@ -475,10 +561,10 @@ def main() -> int:
             browser.close()
 
     events = dedupe_events(all_events)
-    high_conf = [r for r in events if str(r.get("confidence", "")).startswith("high") or str(r.get("confidence", "")).startswith("medium_event")]
+    high_conf = [r for r in events if str(r.get("confidence", "")).startswith("high") or str(r.get("confidence", "")).startswith("medium_archive") or str(r.get("confidence", "")).startswith("medium_event")]
 
-    event_fields = ["source_type", "source_endpoint", "results_url", "landed_url", "event_id", "event_hash", "player1", "player2", "match_name", "match_date", "match_url", "confidence", "raw_text"]
-    endpoint_fields = ["results_url", "landed_url", "endpoint_url", "status", "content_type", "resource_type", "body_status", "body_file", "body_length", "parsed_real_events"]
+    event_fields = ["source_type", "source_endpoint", "results_url", "landed_url", "event_id", "event_hash", "player1", "player2", "match_name", "match_date", "status", "match_url", "confidence", "raw_text"]
+    endpoint_fields = ["results_url", "landed_url", "endpoint_url", "status", "content_type", "resource_type", "body_status", "decode_status", "raw_body_file", "decoded_body_file", "body_length", "parsed_real_events"]
     write_csv(out_dir / "parsed_real_events.csv", events, event_fields)
     write_csv(out_dir / "high_confidence_events.csv", high_conf, event_fields)
     write_csv(out_dir / "endpoint_parse_inventory.csv", all_endpoint_rows, endpoint_fields)
@@ -492,8 +578,9 @@ def main() -> int:
         "parsed_real_event_count": len(events),
         "high_confidence_event_count": len(high_conf),
         "bad_landed_pages": sum(1 for s in page_stats if str(s.get("bad_landed_url")) == "true"),
+        "decoded_endpoint_count": sum(1 for r in all_endpoint_rows if r.get("decode_status") == "decoded_encrypted"),
         "page_stats": page_stats,
-        "recommendation": "If high_confidence_event_count is high, use these event rows as the match discovery layer. If event_id exists but match_url is missing, build an event_id-to-match-page resolver next.",
+        "recommendation": "If high_confidence_event_count is high, use these decoded archive rows as the match discovery layer. If match_url is missing but event_hash exists, build event_hash-to-match-page resolver next.",
     }
     (out_dir / "event_parser_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     (out_dir / "run_summary.json").write_text(json.dumps({**summary, "stop_reason": "ARCHIVE_EVENT_PARSER_COMPLETE", "args": vars(args)}, indent=2), encoding="utf-8")
@@ -505,6 +592,7 @@ def main() -> int:
         f"Pages checked: {len(results_urls)}",
         f"Bad landed pages: {summary['bad_landed_pages']}",
         f"Captured endpoint responses: {summary['captured_endpoint_count']}",
+        f"Decoded encrypted endpoints: {summary['decoded_endpoint_count']}",
         f"Parsed real events: {summary['parsed_real_event_count']}",
         f"High-confidence events: {summary['high_confidence_event_count']}",
         "",
