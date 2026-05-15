@@ -1,0 +1,65 @@
+name: OddsPortal Archive Endpoint Discovery Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit_pages:
+        description: Number of tournament results pages to inspect.
+        required: false
+        default: '5'
+      wait_ms:
+        description: Browser wait between page actions.
+        required: false
+        default: '4500'
+      max_body_bytes:
+        description: Max bytes saved per captured endpoint body.
+        required: false
+        default: '1500000'
+
+jobs:
+  archive-endpoint-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run archive endpoint discovery probe
+        shell: bash
+        run: |
+          python -u scripts/oddsportal_archive_endpoint_discovery_probe.py \
+            --results-urls-file data/oddsportal_major_results_urls.txt \
+            --out artifacts/output/oddsportal-archive-endpoint-discovery-probe \
+            --limit-pages '${{ github.event.inputs.limit_pages }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --max-body-bytes '${{ github.event.inputs.max_body_bytes }}'
+
+      - name: Upload safe archive endpoint discovery artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-archive-endpoint-discovery-probe-safe
+          path: |
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/run_summary.json
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/archive_discovery_summary.json
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/archive_discovery_report.md
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/page_stats.csv
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/archive_endpoint_candidates.csv
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/parsed_event_candidates.csv
+            artifacts/output/oddsportal-archive-endpoint-discovery-probe/usable_match_candidates.csv
+          if-no-files-found: warn
