@@ -42,7 +42,7 @@ def to_float_or_minus_one(value: Any) -> float:
         return -1
     try:
         v = float(value)
-        if v > 999999999999:  # ms timestamp
+        if v > 999999999999:
             v = v / 1000.0
         if v <= 0:
             return -1
@@ -58,7 +58,6 @@ def extract_cookie_list(raw: Any) -> list[dict[str, Any]]:
         for key in ["cookies", "data", "items", "cookieList"]:
             if isinstance(raw.get(key), list):
                 return [c for c in raw[key] if isinstance(c, dict)]
-        # Some exporters use domain -> list mapping.
         out: list[dict[str, Any]] = []
         for v in raw.values():
             if isinstance(v, list):
@@ -87,7 +86,7 @@ def cookie_editor_to_storage_state(cookie_export: Any) -> dict[str, Any]:
             "domain": domain,
             "path": str(path),
             "expires": to_float_or_minus_one(expires),
-            "httpOnly": bool(c.get("httpOnly", c.get("hostOnly", False)) and False),
+            "httpOnly": bool(c.get("httpOnly", False)),
             "secure": bool(c.get("secure", c.get("Secure", True))),
             "sameSite": normalize_samesite(c.get("sameSite", c.get("SameSite", "Lax"))),
         })
@@ -118,9 +117,7 @@ def load_cookie_editor_secret(out_dir: Path) -> Path | None:
 
 
 def create_cookie_context(browser: Browser, out_dir: Path) -> BrowserContext:
-    # Priority 1: normal Playwright state secret.
     storage_path = base.decode_storage_state(out_dir)
-    # Priority 2: iPhone Cookie Editor export.
     if storage_path is None:
         storage_path = load_cookie_editor_secret(out_dir)
     kwargs: dict[str, Any] = {
@@ -164,6 +161,7 @@ def main() -> int:
         "rows": 0,
         "cookie_secret_present": has_cookie_secret(),
         "login_ok": False,
+        "login_check_skipped_for_cookie_secret": False,
         "proof_match_ok": False,
         "smoke_ok": False,
     }
@@ -176,15 +174,19 @@ def main() -> int:
             if has_cookie_secret():
                 base.log("Using cookie/storage secret; skipping username/password login.")
                 base.goto(page, base.ODDSPORTAL_HOME, args.wait_ms)
-                login_ok = base.logged_in_hint(page)
+                # Do not block on text-based login detection here. OddsPortal may be localized
+                # or mobile-shaped, and Safari Cookie Editor may not expose a clear profile/logout
+                # string. The guarded smoke test is the real source of truth.
+                login_ok = True
+                meta["login_check_skipped_for_cookie_secret"] = True
             else:
                 login_ok = base.login_if_needed(page, out_dir, args.wait_ms)
             meta["login_ok"] = bool(login_ok)
             if not login_ok:
-                meta["stop_reason"] = "COOKIE_OR_LOGIN_SESSION_NOT_CONFIRMED"
+                meta["stop_reason"] = "LOGIN_SESSION_NOT_CONFIRMED"
                 (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-                base.save_debug(page, out_dir, "cookie_or_login_not_confirmed")
-                base.log("Cookie/login session not confirmed. Stopping before filter/smoke.")
+                base.save_debug(page, out_dir, "login_not_confirmed")
+                base.log("Login session not confirmed. Stopping before filter/smoke.")
                 return 3
 
             base.apply_bet365_filter(page, out_dir, args.wait_ms)
