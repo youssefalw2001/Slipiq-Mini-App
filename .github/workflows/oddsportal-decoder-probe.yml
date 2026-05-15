@@ -64,10 +64,17 @@ jobs:
             --out artifacts/output/oddsportal-decoder-probe \
             --wait-ms '${{ github.event.inputs.wait_ms }}'
 
-      - name: Upload decoder probe artifacts
+      - name: Upload safe decoder probe artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: oddsportal-decoder-probe
-          path: artifacts/output/**
+          name: oddsportal-decoder-probe-safe
+          path: |
+            artifacts/output/oddsportal-decoder-probe/run_summary.json
+            artifacts/output/oddsportal-decoder-probe/decoder_probe_summary.json
+            artifacts/output/oddsportal-decoder-probe/decoder_probe_report.md
+            artifacts/output/oddsportal-decoder-probe/decoder_candidates.csv
+            artifacts/output/oddsportal-decoder-probe/pagevar_probe.json
+            artifacts/output/oddsportal-decoder-probe/script_urls.json
+            artifacts/output/oddsportal-decoder-probe/snippets/**
           if-no-files-found: warn
