@@ -74,10 +74,15 @@ jobs:
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
             --max-body-bytes '${{ github.event.inputs.max_body_bytes }}'
 
-      - name: Upload endpoint probe artifacts
+      - name: Upload safe endpoint probe artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: oddsportal-endpoint-probe
-          path: artifacts/output/**
+          name: oddsportal-endpoint-probe-safe
+          path: |
+            artifacts/output/oddsportal-endpoint-probe/run_summary.json
+            artifacts/output/oddsportal-endpoint-probe/endpoint_probe_summary.json
+            artifacts/output/oddsportal-endpoint-probe/endpoint_probe_report.md
+            artifacts/output/oddsportal-endpoint-probe/endpoint_candidates.csv
+            artifacts/output/oddsportal-endpoint-probe/endpoint_responses/**
           if-no-files-found: warn
