@@ -2,10 +2,11 @@
 """
 SlipIQ OddsPortal match discovery probe.
 
-Purpose:
-- Diagnose whether tournament results pages produce enough real match links.
-- Discovery only: no bet365 filter, no odds decode, no backtest.
-- Reject bad landed pages such as /bookmakers/ before counting links.
+Discovery-only diagnostic using a CLEAN PUBLIC browser context:
+- no OddsPortal cookies
+- no login
+- no bookmaker filter
+- reject bad landed pages such as /bookmakers/
 
 Read-only. No betting. No sportsbook login. No captcha bypass.
 """
@@ -20,10 +21,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from playwright.sync_api import BrowserContext, Page, sync_playwright
+from playwright.sync_api import Page, sync_playwright
 
 import oddsportal_login_filtered_bet365_scraper as base
-from oddsportal_cookie_json_guarded import create_cookie_context, has_cookie_secret, clear_oddsportal_route_memory
+from oddsportal_cookie_json_guarded import clear_oddsportal_route_memory
 
 HASH_RE = re.compile(r"[A-Za-z0-9]{7,12}")
 BAD_PATH_PARTS = [
@@ -83,7 +84,6 @@ def normalize_match_url(href: str, current_url: str) -> str | None:
     lower_path = parsed.path.lower()
     if any(part in lower_path for part in BAD_PATH_PARTS):
         return None
-
     h = extract_hash_from_url(absolute)
     if h:
         return f"{strip_hash(absolute)}#{h}:cs;12"
@@ -145,6 +145,11 @@ def classify_link(href: str, text: str, current_url: str) -> dict[str, str]:
     }
 
 
+def goto_public(page: Page, url: str, wait_ms: int) -> None:
+    page.goto(url, wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(wait_ms)
+
+
 def click_show_more(page: Page, wait_ms: int, max_clicks: int = 25) -> int:
     labels = ["show more matches", "show more", "load more", "more matches", "next", "pokaż więcej", "pokaz wiecej", "więcej", "wiecej", "zobacz więcej", "zobacz wiecej"]
     clicked = 0
@@ -188,15 +193,13 @@ def scroll_page(page: Page, wait_ms: int, rounds: int = 6) -> None:
 
 
 def collect_links(page: Page, results_url: str, wait_ms: int, out_dir: Path, page_index: int) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    base.log(f"Discovery probe opening without bookmaker filter: {results_url}")
-    base.goto(page, results_url, wait_ms)
-    page.wait_for_timeout(wait_ms)
-    title = ""
-    body_text = ""
+    base.log(f"Public discovery probe opening: {results_url}")
+    goto_public(page, results_url, wait_ms)
+
     try:
         title = page.title()
     except Exception:
-        pass
+        title = ""
     try:
         body_text = page.locator("body").inner_text(timeout=10000)
     except Exception:
@@ -273,7 +276,14 @@ def main() -> int:
     if args.limit_pages and args.limit_pages > 0:
         results_urls = results_urls[: args.limit_pages]
 
-    meta: dict[str, Any] = {"generated_at": now_iso(), "args": vars(args), "results_url_count": len(results_urls), "cookie_secret_present": has_cookie_secret(), "login_ok": False, "bookmaker_filter_applied": False}
+    meta: dict[str, Any] = {
+        "generated_at": now_iso(),
+        "args": vars(args),
+        "results_url_count": len(results_urls),
+        "public_discovery_context": True,
+        "login_used": False,
+        "bookmaker_filter_applied": False,
+    }
     all_inventory: list[dict[str, str]] = []
     page_stats: list[dict[str, Any]] = []
     discovered: list[dict[str, str]] = []
@@ -281,22 +291,9 @@ def main() -> int:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not args.headed, args=["--disable-dev-shm-usage"])
-        context: BrowserContext = create_cookie_context(browser, out_dir)
+        context = browser.new_context(locale="en-US", timezone_id="UTC")
         page = context.new_page()
         try:
-            if has_cookie_secret():
-                base.log("Using cookie/storage secret; skipping username/password login.")
-                base.goto(page, base.ODDSPORTAL_HOME, args.wait_ms)
-                login_ok = True
-            else:
-                login_ok = base.login_if_needed(page, out_dir, args.wait_ms)
-            meta["login_ok"] = bool(login_ok)
-            if not login_ok:
-                meta["stop_reason"] = "LOGIN_SESSION_NOT_CONFIRMED"
-                (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-                return 3
-
-            # IMPORTANT: do not apply bet365 filter during discovery. It can redirect to /bookmakers/.
             for idx, results_url in enumerate(results_urls, start=1):
                 clear_oddsportal_route_memory(context, page, args.wait_ms)
                 try:
@@ -320,9 +317,10 @@ def main() -> int:
             write_csv(out_dir / "link_inventory.csv", all_inventory, link_fields)
             write_csv(out_dir / "discovered_match_urls.csv", discovered, ["results_url", "landed_url", "match_url", "link_text", "reason"])
             write_csv(out_dir / "page_stats.csv", page_stats, ["results_url", "landed_url", "title", "bad_landed_url", "show_more_clicks", "total_links", "oddsportal_links", "tennis_links", "hash_links", "h2h_links", "player_text_links", "real_match_links", "category_links", "body_has_finished_marker", "body_sample_file", "links_sample_file", "error"])
-            summary = {"generated_at": now_iso(), "results_url_count": len(results_urls), "total_links": len(all_inventory), "total_real_match_links": len(discovered), "bad_landed_pages": sum(1 for s in page_stats if str(s.get("bad_landed_url")) == "true"), "page_stats": page_stats, "recommendation": "If pages still land on /bookmakers/, inspect cookie route-memory/session settings. Discovery intentionally does not apply bet365 filter."}
+
+            summary = {"generated_at": now_iso(), "public_discovery_context": True, "results_url_count": len(results_urls), "total_links": len(all_inventory), "total_real_match_links": len(discovered), "bad_landed_pages": sum(1 for s in page_stats if str(s.get("bad_landed_url")) == "true"), "page_stats": page_stats, "recommendation": "If public discovery still lands badly, the input URLs or OddsPortal public route structure are the issue. Next fallback is internal archive endpoint discovery."}
             (out_dir / "discovery_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-            lines = ["# OddsPortal Match Discovery Probe", "", f"Generated: {summary['generated_at']}", f"Pages checked: {len(results_urls)}", f"Bad landed pages: {summary['bad_landed_pages']}", f"Total links: {len(all_inventory)}", f"Real match links discovered: {len(discovered)}", "", "## Page stats", ""]
+            lines = ["# OddsPortal Match Discovery Probe", "", f"Generated: {summary['generated_at']}", "Mode: clean public browser context", f"Pages checked: {len(results_urls)}", f"Bad landed pages: {summary['bad_landed_pages']}", f"Total links: {len(all_inventory)}", f"Real match links discovered: {len(discovered)}", "", "## Page stats", ""]
             for st in page_stats:
                 lines.append(f"- `{st.get('results_url')}`")
                 lines.append(f"  - landed: `{st.get('landed_url', '')}` bad_landed={st.get('bad_landed_url', '')}")
@@ -334,10 +332,6 @@ def main() -> int:
             (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
             return 0
         finally:
-            try:
-                context.storage_state(path=str(out_dir / "last_storage_state.json"))
-            except Exception:
-                pass
             context.close()
             browser.close()
 
