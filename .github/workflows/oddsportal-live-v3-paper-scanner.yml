@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       limit_matches:
-        description: Maximum discovered OddsPortal tennis match links to price-check.
+        description: Number of ranked singles matches to price-check.
         required: false
         default: '50'
+      discover_limit:
+        description: Maximum discovered singles before ranking and price-checking.
+        required: false
+        default: '200'
       wait_ms:
         description: Browser wait per page/interaction.
         required: false
@@ -22,7 +26,7 @@ on:
       discovery_pages:
         description: Number of ajax-nextgames pages per date to scan.
         required: false
-        default: '3'
+        default: '5'
       exclude_doubles:
         description: Skip doubles/team matches containing slash-separated player names.
         required: false
@@ -59,7 +63,7 @@ on:
 jobs:
   live-v3-paper-scanner:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       PYTHONUNBUFFERED: '1'
 
@@ -108,7 +112,7 @@ jobs:
           fi
           echo "Supabase write secrets found."
 
-      - name: Run live V3 paper scanner
+      - name: Run ranked live V3 paper scanner
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
@@ -125,9 +129,10 @@ jobs:
           if [ -n "$DISCOVERY_URLS" ]; then
             EXTRA_DISCOVERY=(--discovery-urls "$DISCOVERY_URLS")
           fi
-          python -u scripts/oddsportal_live_v3_paper_scanner.py \
+          python -u scripts/oddsportal_live_v3_paper_scanner_v2.py \
             --out artifacts/output/oddsportal-live-v3-paper-scanner \
             --limit-matches '${{ github.event.inputs.limit_matches }}' \
+            --discover-limit '${{ github.event.inputs.discover_limit }}' \
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
             --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
             --discovery-days '${{ github.event.inputs.discovery_days }}' \
@@ -147,5 +152,7 @@ jobs:
             artifacts/output/oddsportal-live-v3-paper-scanner/run_summary.json
             artifacts/output/oddsportal-live-v3-paper-scanner/live_v3_price_checks.csv
             artifacts/output/oddsportal-live-v3-paper-scanner/live_v3_discovered_matches.csv
+            artifacts/output/oddsportal-live-v3-paper-scanner/live_v3_discovered_ranked_pool.csv
+            artifacts/output/oddsportal-live-v3-paper-scanner/live_v3_filtered_signals.csv
             artifacts/output/oddsportal-live-v3-paper-scanner/live_v3_report.md
           if-no-files-found: warn
