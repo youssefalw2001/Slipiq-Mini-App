@@ -3,7 +3,7 @@
 SlipIQ OddsPortal live V3 / P2 grouped 9-12 paper scanner.
 
 Purpose:
-- Discover current/upcoming OddsPortal tennis match links.
+- Discover current/upcoming OddsPortal tennis match rows.
 - Direct-fetch Correct Score / 1st Set market endpoints.
 - Extract provider 549 bet365 prices for 3:6, 4:6, 5:7.
 - Reconstruct Player 2 & 9-12 grouped odds.
@@ -22,13 +22,20 @@ import re
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlencode, urlparse, urldefrag
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode, urlparse, urldefrag
+from urllib.request import Request, urlopen
 
-from playwright.sync_api import BrowserContext, Page, sync_playwright
+from playwright.sync_api import BrowserContext, Page, Response, sync_playwright
 
 import oddsportal_login_filtered_bet365_scraper as base
+from oddsportal_archive_first_set_results_builder import (
+    decode_response as decode_archive_response,
+    get_any,
+    get_rows,
+    normalize_match_url as archive_normalize_match_url,
+    player_name,
+)
 from oddsportal_cookie_json_guarded import create_cookie_context, has_cookie_secret, clear_oddsportal_route_memory
 from oddsportal_constructed_v3_endpoint_probe import construct_v3_endpoint
 from oddsportal_decoded_v3_probe import (
@@ -56,6 +63,18 @@ BAD_LINK_PARTS = [
     "/outrights/",
     "/archive/",
     "/fixtures/",
+]
+NOISY_RESPONSE_PARTS = [
+    "/build/assets/",
+    ".css",
+    ".svg",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".woff",
+    ".ico",
+    ".map",
 ]
 
 
@@ -86,12 +105,10 @@ def bool_text(value: bool) -> str:
 
 def event_hash_from_url(url: str) -> str:
     path = urlparse(url).path.rstrip("/")
-    if not path:
-        return ""
-    last = path.split("/")[-1]
-    if re.fullmatch(r"[A-Za-z0-9]{8,}", last or ""):
-        return last
-    # Some archive links carry the event hash after a fragment.
+    if path:
+        last = path.split("/")[-1]
+        if re.fullmatch(r"[A-Za-z0-9]{8,}", last or ""):
+            return last
     frag = urlparse(url).fragment
     if frag:
         first = frag.split(":", 1)[0].strip("/")
@@ -119,7 +136,6 @@ def is_probable_match_url(url: str) -> bool:
 
 def names_from_link(text: str, url: str) -> tuple[str, str, str]:
     text = clean_text(text)
-    # OddsPortal links often render as "Player A - Player B".
     for sep in [" - ", " vs ", " v "]:
         if sep in text:
             left, right = text.split(sep, 1)
@@ -128,7 +144,6 @@ def names_from_link(text: str, url: str) -> tuple[str, str, str]:
             if p1 and p2:
                 return p1, p2, f"{p1} vs {p2}"
     parts = [p for p in urlparse(url).path.strip("/").split("/") if p]
-    # h2h/player-one/player-two/eventhash format.
     if "h2h" in parts:
         idx = parts.index("h2h")
         if len(parts) > idx + 3:
@@ -164,6 +179,7 @@ def extract_match_links(page: Page, source_url: str) -> list[dict[str, str]]:
         out.append({
             "discovered_at": now_iso(),
             "source_url": source_url,
+            "source_endpoint": "dom_link",
             "match_url": href,
             "event_hash": event_hash,
             "player1": player1,
@@ -173,28 +189,106 @@ def extract_match_links(page: Page, source_url: str) -> list[dict[str, str]]:
     return out
 
 
+def should_inspect_discovery_response(resp: Response) -> bool:
+    parsed = urlparse(resp.url)
+    host = parsed.netloc.lower()
+    path = parsed.path.lower()
+    if "oddsportal.com" not in host:
+        return False
+    if "/match-event/" in path:
+        return False
+    if any(part in path for part in NOISY_RESPONSE_PARTS):
+        return False
+    return "/ajax" in path or path.endswith(".dat") or "tournament" in path or "matches" in path
+
+
+def row_to_live_candidate(row: dict[str, Any], source_endpoint: str, source_url: str, landed_url: str) -> dict[str, str] | None:
+    event_hash = clean_text(get_any(row, ["encodeEventId", "encodedEventId", "eventHash", "hash", "eid"]))
+    event_id = clean_text(get_any(row, ["id", "eventId", "event_id", "matchId", "match_id"]))
+    player1 = player_name(get_any(row, ["home-name", "homeName", "home", "participant1", "homeParticipant", "homeTeam", "player1", "competitor1"]))
+    player2 = player_name(get_any(row, ["away-name", "awayName", "away", "participant2", "awayParticipant", "awayTeam", "player2", "competitor2"]))
+    raw_url = clean_text(get_any(row, ["url", "href", "link", "path", "slug"]))
+    match_url = archive_normalize_match_url(raw_url, landed_url) if raw_url else ""
+    if not event_hash and match_url:
+        event_hash = event_hash_from_url(match_url)
+    if not event_hash:
+        return None
+    if not match_url:
+        match_url = normalize_match_url(landed_url) + f"#{event_hash}"
+    match_name = f"{player1} vs {player2}" if player1 and player2 else clean_text(get_any(row, ["name", "eventName", "matchName", "title"]))
+    if not match_name:
+        match_name = event_hash
+    return {
+        "discovered_at": now_iso(),
+        "source_url": source_url,
+        "source_endpoint": source_endpoint,
+        "match_url": match_url,
+        "event_hash": event_hash,
+        "event_id": event_id,
+        "player1": player1,
+        "player2": player2,
+        "match_name": match_name,
+    }
+
+
+def extract_network_matches(resp: Response, source_url: str, landed_url: str) -> list[dict[str, str]]:
+    if not should_inspect_discovery_response(resp):
+        return []
+    decoded, decode_status = decode_archive_response(resp)
+    if decoded is None:
+        return []
+    rows = get_rows(decoded)
+    if not rows:
+        return []
+    out: list[dict[str, str]] = []
+    for row in rows:
+        candidate = row_to_live_candidate(row, resp.url, source_url, landed_url)
+        if candidate:
+            candidate["decode_status"] = decode_status
+            out.append(candidate)
+    return out
+
+
 def discover_matches(context: BrowserContext, page: Page, urls: list[str], wait_ms: int, limit: int) -> list[dict[str, str]]:
     all_matches: list[dict[str, str]] = []
     seen: set[str] = set()
     for url in urls:
         if limit and len(all_matches) >= limit:
             break
+        network_matches: list[dict[str, str]] = []
+        seen_responses: set[str] = set()
+
+        def on_response(resp: Response) -> None:
+            if resp.url in seen_responses:
+                return
+            seen_responses.add(resp.url)
+            try:
+                network_matches.extend(extract_network_matches(resp, url, page.url))
+            except Exception as exc:
+                base.log(f"Live discovery response parse skipped: {exc}")
+
+        page.on("response", on_response)
         try:
             clear_oddsportal_route_memory(context, page, wait_ms)
             base.log(f"Live scanner discovery opening: {url}")
             base.goto(page, url, wait_ms)
             page.wait_for_timeout(wait_ms)
-            for _ in range(3):
+            for _ in range(5):
                 try:
                     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 except Exception:
                     pass
-                page.wait_for_timeout(max(700, wait_ms // 3))
+                page.wait_for_timeout(max(900, wait_ms // 2))
             links = extract_match_links(page, url)
         except Exception as exc:
             base.log(f"Discovery failed for {url}: {exc}")
             links = []
-        for row in links:
+        finally:
+            try:
+                page.remove_listener("response", on_response)
+            except Exception:
+                pass
+        for row in network_matches + links:
             key = row.get("event_hash") or row.get("match_url")
             if not key or key in seen:
                 continue
@@ -310,7 +404,7 @@ def classify_bucket(grouped: float | None, p2_match_odds: float | None) -> str:
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     ensure_dir(path.parent)
     fields = [
-        "discovered_at", "scraped_at", "source_url", "match_url", "event_hash", "player1", "player2", "match_name",
+        "discovered_at", "scraped_at", "source_url", "source_endpoint", "match_url", "event_hash", "event_id", "player1", "player2", "match_name",
         "constructed_url", "provider_id", "http_status", "decode_status", "body_length", "market_bt", "market_scope",
         "p2_3_6_decimal", "p2_4_6_decimal", "p2_5_7_decimal", "p2_grouped_9_12",
         "v3_exact_4_6_trigger", "v4_compression_ratio", "v4_compression_trigger", "ceo_bucket", "odds_status", "note",
