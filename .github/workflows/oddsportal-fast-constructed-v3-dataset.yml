@@ -47,15 +47,45 @@ jobs:
           python -m pip install -r requirements-oddsportal.txt
           python -m playwright install --with-deps chromium
 
-      - name: Check master CSV exists
+      - name: Validate master CSV
         shell: bash
         run: |
-          if [ ! -s data/first_set_results_master.csv ]; then
-            echo "data/first_set_results_master.csv is missing or empty. Run 'OddsPortal Build First Set Results Master' first."
-            exit 2
-          fi
-          echo "Master CSV row count:"
-          wc -l data/first_set_results_master.csv
+          python - <<'PY'
+          from pathlib import Path
+          import csv
+          import sys
+
+          p = Path("data/first_set_results_master.csv")
+          if not p.exists():
+              sys.exit("FAIL: master CSV missing")
+          if p.stat().st_size < 10000:
+              sys.exit(f"FAIL: master CSV too small: {p.stat().st_size} bytes")
+
+          with p.open(newline="", encoding="utf-8") as f:
+              rows = list(csv.DictReader(f))
+
+          required = {
+              "event_id",
+              "event_hash",
+              "player1",
+              "player2",
+              "match_url",
+              "partialresult",
+              "first_set_score",
+              "result_status",
+          }
+          headers = set(rows[0].keys() if rows else [])
+          missing = required - headers
+          if missing:
+              sys.exit(f"FAIL: missing columns: {sorted(missing)}")
+          if len(rows) < 100:
+              sys.exit(f"FAIL: too few rows: {len(rows)}")
+
+          ok = sum(1 for r in rows if r.get("result_status") == "ok" and r.get("first_set_score"))
+          if ok < len(rows) * 0.90:
+              sys.exit(f"FAIL: too few valid result rows: {ok}/{len(rows)}")
+          print(f"PASS: {len(rows)} rows, {ok} valid")
+          PY
 
       - name: Check OddsPortal auth/session secret exists
         shell: bash
