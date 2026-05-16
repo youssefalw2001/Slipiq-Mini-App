@@ -45,6 +45,11 @@ from oddsportal_decoded_v3_probe import (
     tier_for_grouped,
 )
 
+PROOF_TOKEN_URLS = [
+    "https://www.oddsportal.com/tennis/h2h/ofner-sebastian-h6vs3iR2/sinner-jannik-6HdC3z4H/#xhTpdK0l:cs;12",
+    "https://www.oddsportal.com/tennis/h2h/ofner-sebastian-h6vs3iR2/sinner-jannik-6HdC3z4H/#cs;12",
+]
+
 
 def now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -104,6 +109,53 @@ def token_seed_url_variants(match_url: str, event_hash: str) -> list[str]:
     return out
 
 
+def capture_token_from_url(context: BrowserContext, page: Page, url: str, wait_ms: int) -> tuple[str, str]:
+    captured: list[str] = []
+    seen: set[str] = set()
+
+    def on_response(resp: Response) -> None:
+        if resp.url in seen:
+            return
+        seen.add(resp.url)
+        if should_capture_match_event(resp) or TOKEN_RE.search(resp.url):
+            token = extract_session_token(resp.url)
+            if token:
+                captured.append(resp.url)
+
+    page.on("response", on_response)
+    try:
+        clear_oddsportal_route_memory(context, page, wait_ms)
+        base.log(f"Token seed trying: {url}")
+        base.goto(page, url, wait_ms)
+        click_light_market_controls(page, max(800, wait_ms // 2))
+        for _ in range(3):
+            try:
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            except Exception:
+                pass
+            page.wait_for_timeout(max(800, wait_ms // 2))
+        try:
+            html = page.content()
+            m = TOKEN_RE.search(html)
+            if m:
+                return m.group(1), url
+        except Exception:
+            pass
+    except Exception as exc:
+        base.log(f"Token seed failed: {exc}")
+    finally:
+        try:
+            page.remove_listener("response", on_response)
+        except Exception:
+            pass
+
+    for endpoint_url in captured:
+        token = extract_session_token(endpoint_url)
+        if token:
+            return token, endpoint_url
+    return "", ""
+
+
 def discover_token_fast(
     context: BrowserContext,
     page: Page,
@@ -111,47 +163,20 @@ def discover_token_fast(
     wait_ms: int,
     max_events: int,
 ) -> tuple[str, str]:
+    # First try known proof URLs that target Correct Score -> 1st Set directly.
+    for proof_url in PROOF_TOKEN_URLS:
+        token, seed = capture_token_from_url(context, page, proof_url, wait_ms)
+        if token:
+            return token, seed
+
+    # Then try rows from the saved master CSV.
     seed_rows = [r for r in rows if clean_text(r.get("match_url")) and clean_text(r.get("event_hash"))]
     for row in seed_rows[:max_events]:
         event_hash = clean_text(row.get("event_hash"))
         for url in token_seed_url_variants(clean_text(row.get("match_url")), event_hash):
-            captured: list[str] = []
-            seen: set[str] = set()
-
-            def on_response(resp: Response) -> None:
-                if resp.url in seen:
-                    return
-                seen.add(resp.url)
-                if should_capture_match_event(resp) or TOKEN_RE.search(resp.url):
-                    token = extract_session_token(resp.url)
-                    if token:
-                        captured.append(resp.url)
-
-            page.on("response", on_response)
-            try:
-                clear_oddsportal_route_memory(context, page, wait_ms)
-                base.log(f"Token seed trying: {url}")
-                base.goto(page, url, wait_ms)
-                click_light_market_controls(page, max(800, wait_ms // 2))
-                page.wait_for_timeout(max(800, wait_ms // 2))
-                try:
-                    html = page.content()
-                    m = TOKEN_RE.search(html)
-                    if m:
-                        return m.group(1), url
-                except Exception:
-                    pass
-            except Exception as exc:
-                base.log(f"Token seed failed: {exc}")
-            finally:
-                try:
-                    page.remove_listener("response", on_response)
-                except Exception:
-                    pass
-            for endpoint_url in captured:
-                token = extract_session_token(endpoint_url)
-                if token:
-                    return token, endpoint_url
+            token, seed = capture_token_from_url(context, page, url, wait_ms)
+            if token:
+                return token, seed
     return "", ""
 
 
