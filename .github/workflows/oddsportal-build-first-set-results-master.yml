@@ -12,7 +12,7 @@ on:
         required: false
         default: '3000'
       commit_to_repo:
-        description: Commit data/first_set_results_master.csv back to repo.
+        description: Try to commit data/first_set_results_master.csv back to repo. Artifact is uploaded either way.
         required: false
         default: 'true'
 
@@ -54,9 +54,12 @@ jobs:
             --wait-ms '${{ github.event.inputs.wait_ms }}'
           mkdir -p data
           cp artifacts/output/oddsportal-first-set-results-master/first_set_results.csv data/first_set_results_master.csv
+          echo "Master CSV rows including header:"
+          wc -l data/first_set_results_master.csv
 
-      - name: Commit master CSV
+      - name: Try to commit master CSV
         if: ${{ github.event.inputs.commit_to_repo == 'true' }}
+        continue-on-error: true
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
