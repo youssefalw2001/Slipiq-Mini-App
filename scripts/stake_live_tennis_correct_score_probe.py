@@ -176,8 +176,34 @@ def stake_headers() -> dict[str, str]:
     return headers
 
 
+def cookies_from_json_secret() -> dict[str, str]:
+    raw = os.getenv("STAKE_COOKIES_JSON") or ""
+    if not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return {}
+    cookies: dict[str, str] = {}
+    if isinstance(parsed, list):
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            name = clean_text(item.get("name"))
+            value = str(item.get("value") or "")
+            domain = clean_text(item.get("domain"))
+            if name and ("stake.com" in domain or not domain):
+                cookies[name] = value
+    elif isinstance(parsed, dict):
+        for name, value in parsed.items():
+            if clean_text(name):
+                cookies[clean_text(name)] = str(value or "")
+    return cookies
+
+
 def stake_cookies() -> dict[str, str]:
     cookies: dict[str, str] = {}
+    cookies.update(cookies_from_json_secret())
     session_cookie = os.getenv("STAKE_SESSION_COOKIE") or ""
     cf_clearance = os.getenv("STAKE_CF_CLEARANCE") or ""
     if session_cookie:
@@ -356,7 +382,6 @@ def match_score(signal: dict[str, Any], stake_row: dict[str, Any]) -> int:
     if not sig_p2 and isinstance(raw, dict):
         sig_p2 = clean_text(raw.get("player2"))
     if not sig_p1 or not sig_p2:
-        # Fall back to match_name token overlap.
         return len(name_tokens(signal.get("match_name", "")) & name_tokens(stake_row.get("match_name", "")))
     a = name_tokens(sig_p1)
     b = name_tokens(sig_p2)
@@ -443,12 +468,15 @@ async def async_main() -> int:
 
     out_dir = Path(args.out)
     ensure_dir(out_dir)
+    cookie_map = stake_cookies()
     meta: dict[str, Any] = {
         "generated_at": now_iso(),
         "args": vars(args),
         "stake_access_token_present": bool(os.getenv("STAKE_ACCESS_TOKEN")),
         "stake_session_cookie_present": bool(os.getenv("STAKE_SESSION_COOKIE")),
-        "stake_cf_clearance_present": bool(os.getenv("STAKE_CF_CLEARANCE")),
+        "stake_cf_clearance_present": bool(os.getenv("STAKE_CF_CLEARANCE") or cookie_map.get("cf_clearance")),
+        "stake_cookies_json_present": bool(os.getenv("STAKE_COOKIES_JSON")),
+        "stake_cookie_count": len(cookie_map),
         "supabase_ready": supabase_ready(),
         "query_used": "",
         "events_returned": 0,
