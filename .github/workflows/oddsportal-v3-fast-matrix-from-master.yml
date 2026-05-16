@@ -1,0 +1,259 @@
+name: OddsPortal V3 Fast Matrix From Master CSV
+
+on:
+  workflow_dispatch:
+    inputs:
+      shard_limit:
+        description: Rows per shard. Four shards are hardcoded at starts 0, 250, 500, 750.
+        required: false
+        default: '250'
+      wait_ms:
+        description: Browser wait while discovering session token.
+        required: false
+        default: '2500'
+      pause_seconds:
+        description: Pause between constructed endpoint requests.
+        required: false
+        default: '0.25'
+      token_max_events:
+        description: Number of master rows to try while discovering the session token.
+        required: false
+        default: '8'
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-master:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-v3-matrix]'))
+    runs-on: ubuntu-latest
+    outputs:
+      master_rows: ${{ steps.validate.outputs.master_rows }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Validate master CSV
+        id: validate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import csv
+          import os
+          import sys
+
+          p = Path("data/first_set_results_master.csv")
+          if not p.exists():
+              sys.exit("FAIL: master CSV missing")
+          if p.stat().st_size < 10000:
+              sys.exit(f"FAIL: master CSV too small: {p.stat().st_size} bytes")
+
+          with p.open(newline="", encoding="utf-8") as f:
+              rows = list(csv.DictReader(f))
+
+          required = {
+              "event_id",
+              "event_hash",
+              "player1",
+              "player2",
+              "match_url",
+              "partialresult",
+              "first_set_score",
+              "result_status",
+          }
+          headers = set(rows[0].keys() if rows else [])
+          missing = required - headers
+          if missing:
+              sys.exit(f"FAIL: missing columns: {sorted(missing)}")
+          if len(rows) < 100:
+              sys.exit(f"FAIL: too few rows: {len(rows)}")
+
+          ok = sum(1 for r in rows if r.get("result_status") == "ok" and r.get("first_set_score"))
+          if ok < len(rows) * 0.90:
+              sys.exit(f"FAIL: too few valid result rows: {ok}/{len(rows)}")
+
+          print(f"PASS: {len(rows)} rows, {ok} valid")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              print(f"master_rows={len(rows)}", file=f)
+          PY
+
+  fetch-shard:
+    needs: validate-master
+    if: needs.validate-master.result == 'success' && fromJSON(needs.validate-master.outputs.master_rows) > matrix.start_index
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 0
+            start_index: 0
+          - shard: 1
+            start_index: 250
+          - shard: 2
+            start_index: 500
+          - shard: 3
+            start_index: 750
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Check OddsPortal auth/session secret exists
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+        run: |
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set an OddsPortal cookie/storage secret or username/password repository secrets."
+            exit 2
+          fi
+          echo "OddsPortal auth/session secret found."
+
+      - name: Fetch V3 odds shard
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+        run: |
+          python -u scripts/oddsportal_v3_odds_from_master_csv.py \
+            --master-results-csv data/first_set_results_master.csv \
+            --out artifacts/output/oddsportal-v3-shard-${{ matrix.shard }} \
+            --start-index '${{ matrix.start_index }}' \
+            --limit-total '${{ github.event.inputs.shard_limit || '250' }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms || '2500' }}' \
+            --pause-seconds '${{ github.event.inputs.pause_seconds || '0.25' }}' \
+            --token-max-events '${{ github.event.inputs.token_max_events || '8' }}'
+
+      - name: Upload shard artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-v3-shard-${{ matrix.shard }}
+          path: |
+            artifacts/output/oddsportal-v3-shard-${{ matrix.shard }}/run_summary.json
+            artifacts/output/oddsportal-v3-shard-${{ matrix.shard }}/dataset_summary.json
+            artifacts/output/oddsportal-v3-shard-${{ matrix.shard }}/v3_odds_from_master_report.md
+            artifacts/output/oddsportal-v3-shard-${{ matrix.shard }}/v3_odds_from_master.csv
+          if-no-files-found: warn
+
+  merge-shards:
+    needs:
+      - validate-master
+      - fetch-shard
+    if: always() && needs.validate-master.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download shard artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          path: artifacts/shards
+          pattern: oddsportal-v3-shard-*
+
+      - name: Merge shard CSVs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import csv
+          import json
+          import time
+
+          out_dir = Path("artifacts/output/oddsportal-v3-fast-matrix-merged")
+          out_dir.mkdir(parents=True, exist_ok=True)
+          root = Path("artifacts/shards")
+          csv_paths = sorted(root.glob("**/v3_odds_from_master.csv"))
+          summary_paths = sorted(root.glob("**/dataset_summary.json"))
+
+          def now_iso() -> str:
+              return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+          rows = []
+          fields = []
+          for csv_path in csv_paths:
+              with csv_path.open(newline="", encoding="utf-8") as f:
+                  reader = csv.DictReader(f)
+                  if not fields and reader.fieldnames:
+                      fields = list(reader.fieldnames)
+                  for row in reader:
+                      rows.append(row)
+
+          counts = {}
+          for row in rows:
+              status = row.get("odds_status") or "unknown"
+              counts[status] = counts.get(status, 0) + 1
+
+          if fields:
+              merged_csv = out_dir / "v3_odds_from_master_merged.csv"
+              with merged_csv.open("w", newline="", encoding="utf-8") as f:
+                  writer = csv.DictWriter(f, fieldnames=fields)
+                  writer.writeheader()
+                  writer.writerows(rows)
+
+          shard_summaries = []
+          for path in summary_paths:
+              try:
+                  shard_summaries.append(json.loads(path.read_text(encoding="utf-8")))
+              except Exception as exc:
+                  shard_summaries.append({"path": str(path), "error": str(exc)})
+
+          dataset_summary = {
+              "generated_at": now_iso(),
+              "shard_csv_count": len(csv_paths),
+              "shard_summary_count": len(summary_paths),
+              "rows_written": len(rows),
+              "ok_rows": sum(1 for r in rows if r.get("odds_status") == "ok"),
+              "odds_status_counts": counts,
+              "stop_reason": "MERGE_COMPLETE" if csv_paths else "NO_SHARD_CSVS",
+              "shard_summaries": shard_summaries,
+          }
+          (out_dir / "dataset_summary.json").write_text(json.dumps(dataset_summary, indent=2), encoding="utf-8")
+          (out_dir / "run_summary.json").write_text(json.dumps(dataset_summary, indent=2), encoding="utf-8")
+          report = [
+              "# OddsPortal V3 Fast Matrix Merge",
+              "",
+              f"Generated: {dataset_summary['generated_at']}",
+              f"Shard CSVs: {dataset_summary['shard_csv_count']}",
+              f"Rows written: {dataset_summary['rows_written']}",
+              f"OK rows: {dataset_summary['ok_rows']}",
+              "",
+              "## Odds status counts",
+              json.dumps(counts, indent=2),
+          ]
+          (out_dir / "v3_odds_from_master_merged_report.md").write_text("\n".join(report), encoding="utf-8")
+          print(json.dumps(dataset_summary, indent=2))
+          PY
+
+      - name: Upload merged artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-v3-fast-matrix-merged
+          path: |
+            artifacts/output/oddsportal-v3-fast-matrix-merged/run_summary.json
+            artifacts/output/oddsportal-v3-fast-matrix-merged/dataset_summary.json
+            artifacts/output/oddsportal-v3-fast-matrix-merged/v3_odds_from_master_merged.csv
+            artifacts/output/oddsportal-v3-fast-matrix-merged/v3_odds_from_master_merged_report.md
+          if-no-files-found: warn
