@@ -50,6 +50,9 @@ PROOF_TOKEN_URLS = [
     "https://www.oddsportal.com/tennis/h2h/ofner-sebastian-h6vs3iR2/sinner-jannik-6HdC3z4H/#cs;12",
 ]
 
+P2_V3_FIRST_SET_SCORES = set(TARGET_P2)
+P1_V3_FIRST_SET_SCORES = set(TARGET_P1)
+
 
 def now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -61,6 +64,10 @@ def ensure_dir(path: Path) -> None:
 
 def clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def bool_text(value: bool) -> str:
+    return "true" if value else "false"
 
 
 def read_csv_rows(path: Path) -> list[dict[str, Any]]:
@@ -183,7 +190,7 @@ def discover_token_fast(
 def output_fields() -> list[str]:
     return [
         "scraped_at", "event_id", "event_hash", "player1", "player2", "match_name", "match_date", "tournament", "match_url",
-        "partialresult", "first_set_score", "result_status", "constructed_url", "provider_id", "http_status", "decode_status", "body_length",
+        "partialresult", "first_set_score", "p2_v3_hit", "p1_v3_hit", "result_status", "constructed_url", "provider_id", "http_status", "decode_status", "body_length",
         "market_bt", "market_scope", "p2_3_6_decimal", "p2_4_6_decimal", "p2_5_7_decimal", "p2_grouped_9_12", "p2_tier",
         "p1_6_3_decimal", "p1_6_4_decimal", "p1_7_5_decimal", "p1_grouped_9_12", "p1_tier",
         "bet365_confirmed_count", "all_score_count", "odds_status", "note",
@@ -193,6 +200,9 @@ def output_fields() -> list[str]:
 def fetch_odds_row(context: BrowserContext, row: dict[str, Any], token: str) -> dict[str, Any]:
     event_hash = clean_text(row.get("event_hash"))
     match_url = clean_text(row.get("match_url"))
+    first_set_score = clean_text(row.get("first_set_score"))
+    p2_v3_hit = first_set_score in P2_V3_FIRST_SET_SCORES
+    p1_v3_hit = first_set_score in P1_V3_FIRST_SET_SCORES
     base_row = {
         "scraped_at": now_iso(),
         "event_id": row.get("event_id", ""),
@@ -204,7 +214,9 @@ def fetch_odds_row(context: BrowserContext, row: dict[str, Any], token: str) -> 
         "tournament": row.get("tournament", ""),
         "match_url": match_url,
         "partialresult": row.get("partialresult", ""),
-        "first_set_score": row.get("first_set_score", ""),
+        "first_set_score": first_set_score,
+        "p2_v3_hit": bool_text(p2_v3_hit),
+        "p1_v3_hit": bool_text(p1_v3_hit),
         "result_status": row.get("result_status", ""),
         "provider_id": PROVIDER_BET365,
     }
@@ -362,6 +374,8 @@ def main() -> int:
         "master_rows_total": len(all_rows),
         "rows_written": len(rows_written),
         "ok_rows": sum(1 for r in rows_written if r.get("odds_status") == "ok"),
+        "p2_v3_hits": sum(1 for r in rows_written if r.get("p2_v3_hit") == "true"),
+        "p1_v3_hits": sum(1 for r in rows_written if r.get("p1_v3_hit") == "true"),
         "odds_status_counts": meta.get("odds_status_counts", {}),
     }
     meta["dataset_summary"] = dataset_summary
@@ -375,6 +389,8 @@ def main() -> int:
         f"Master rows total: {dataset_summary['master_rows_total']}",
         f"Rows written: {dataset_summary['rows_written']}",
         f"OK rows: {dataset_summary['ok_rows']}",
+        f"P2 V3 hits: {dataset_summary['p2_v3_hits']}",
+        f"P1 V3 hits: {dataset_summary['p1_v3_hits']}",
         "",
         "## Odds status counts",
         json.dumps(dataset_summary["odds_status_counts"], indent=2),
