@@ -20,6 +20,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -134,6 +135,47 @@ def is_probable_match_url(url: str) -> bool:
     return bool(event_hash_from_url(url))
 
 
+def is_doubles_candidate(player1: str, player2: str, match_name: str) -> bool:
+    combined = f"{player1} {player2} {match_name}"
+    return "/" in combined
+
+
+def build_ajax_nextgames_urls(days: int, pages: int) -> list[str]:
+    """Build direct OddsPortal tennis next-games URLs.
+
+    A working artifact showed this pattern:
+      /ajax-nextgames/2/3/1/YYYYMMDD/yj142.dat?page=1&...&hideFinished=1
+
+    Opening these URLs directly lets the existing network decoder read live/upcoming rows
+    without depending on fragile visible DOM links.
+    """
+    out: list[str] = []
+    days = max(1, int(days or 1))
+    pages = max(1, int(pages or 1))
+    today = datetime.now(timezone.utc).date()
+    stamp = int(time.time() * 1000)
+    for offset in range(days):
+        ymd = (today + timedelta(days=offset)).strftime("%Y%m%d")
+        for page_no in range(1, pages + 1):
+            out.append(
+                f"https://www.oddsportal.com/ajax-nextgames/2/3/1/{ymd}/yj142.dat"
+                f"?page={page_no}&_={stamp + offset * 100 + page_no}&hideFinished=1"
+            )
+    return out
+
+
+def dedupe_urls(urls: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        key = clean_text(url)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+    return out
+
+
 def names_from_link(text: str, url: str) -> tuple[str, str, str]:
     text = clean_text(text)
     for sep in [" - ", " vs ", " v "]:
@@ -155,7 +197,7 @@ def names_from_link(text: str, url: str) -> tuple[str, str, str]:
     return "", "", event_hash_from_url(url)
 
 
-def extract_match_links(page: Page, source_url: str) -> list[dict[str, str]]:
+def extract_match_links(page: Page, source_url: str, exclude_doubles: bool) -> list[dict[str, str]]:
     try:
         raw_links = page.evaluate(
             """
@@ -176,6 +218,8 @@ def extract_match_links(page: Page, source_url: str) -> list[dict[str, str]]:
         seen.add(href)
         event_hash = event_hash_from_url(href)
         player1, player2, match_name = names_from_link(str(item.get("text") or ""), href)
+        if exclude_doubles and is_doubles_candidate(player1, player2, match_name):
+            continue
         out.append({
             "discovered_at": now_iso(),
             "source_url": source_url,
@@ -202,7 +246,7 @@ def should_inspect_discovery_response(resp: Response) -> bool:
     return "/ajax" in path or path.endswith(".dat") or "tournament" in path or "matches" in path
 
 
-def row_to_live_candidate(row: dict[str, Any], source_endpoint: str, source_url: str, landed_url: str) -> dict[str, str] | None:
+def row_to_live_candidate(row: dict[str, Any], source_endpoint: str, source_url: str, landed_url: str, exclude_doubles: bool) -> dict[str, str] | None:
     event_hash = clean_text(get_any(row, ["encodeEventId", "encodedEventId", "eventHash", "hash", "eid"]))
     event_id = clean_text(get_any(row, ["id", "eventId", "event_id", "matchId", "match_id"]))
     player1 = player_name(get_any(row, ["home-name", "homeName", "home", "participant1", "homeParticipant", "homeTeam", "player1", "competitor1"]))
@@ -218,6 +262,8 @@ def row_to_live_candidate(row: dict[str, Any], source_endpoint: str, source_url:
     match_name = f"{player1} vs {player2}" if player1 and player2 else clean_text(get_any(row, ["name", "eventName", "matchName", "title"]))
     if not match_name:
         match_name = event_hash
+    if exclude_doubles and is_doubles_candidate(player1, player2, match_name):
+        return None
     return {
         "discovered_at": now_iso(),
         "source_url": source_url,
@@ -231,7 +277,7 @@ def row_to_live_candidate(row: dict[str, Any], source_endpoint: str, source_url:
     }
 
 
-def extract_network_matches(resp: Response, source_url: str, landed_url: str) -> list[dict[str, str]]:
+def extract_network_matches(resp: Response, source_url: str, landed_url: str, exclude_doubles: bool) -> list[dict[str, str]]:
     if not should_inspect_discovery_response(resp):
         return []
     decoded, decode_status = decode_archive_response(resp)
@@ -242,14 +288,14 @@ def extract_network_matches(resp: Response, source_url: str, landed_url: str) ->
         return []
     out: list[dict[str, str]] = []
     for row in rows:
-        candidate = row_to_live_candidate(row, resp.url, source_url, landed_url)
+        candidate = row_to_live_candidate(row, resp.url, source_url, landed_url, exclude_doubles)
         if candidate:
             candidate["decode_status"] = decode_status
             out.append(candidate)
     return out
 
 
-def discover_matches(context: BrowserContext, page: Page, urls: list[str], wait_ms: int, limit: int) -> list[dict[str, str]]:
+def discover_matches(context: BrowserContext, page: Page, urls: list[str], wait_ms: int, limit: int, exclude_doubles: bool) -> list[dict[str, str]]:
     all_matches: list[dict[str, str]] = []
     seen: set[str] = set()
     for url in urls:
@@ -263,7 +309,7 @@ def discover_matches(context: BrowserContext, page: Page, urls: list[str], wait_
                 return
             seen_responses.add(resp.url)
             try:
-                network_matches.extend(extract_network_matches(resp, url, page.url))
+                network_matches.extend(extract_network_matches(resp, url, page.url, exclude_doubles))
             except Exception as exc:
                 base.log(f"Live discovery response parse skipped: {exc}")
 
@@ -279,7 +325,7 @@ def discover_matches(context: BrowserContext, page: Page, urls: list[str], wait_
                 except Exception:
                     pass
                 page.wait_for_timeout(max(900, wait_ms // 2))
-            links = extract_match_links(page, url)
+            links = extract_match_links(page, url, exclude_doubles)
         except Exception as exc:
             base.log(f"Discovery failed for {url}: {exc}")
             links = []
@@ -574,14 +620,19 @@ def main() -> int:
     parser.add_argument("--write-supabase", default="false", choices=["true", "false"])
     parser.add_argument("--promote-buckets", default="PRICE_ONLY_REVIEW,A_PLUS,A,MAIN")
     parser.add_argument("--discovery-urls", default=",".join(DEFAULT_DISCOVERY_URLS))
+    parser.add_argument("--discovery-days", type=int, default=3)
+    parser.add_argument("--discovery-pages", type=int, default=3)
+    parser.add_argument("--exclude-doubles", default="true", choices=["true", "false"])
     args = parser.parse_args()
 
     out_dir = Path(args.out)
     ensure_dir(out_dir)
     scanner_run_id = f"live-v3-{int(time.time())}"
-    discovery_urls = parse_csv_list(args.discovery_urls) or DEFAULT_DISCOVERY_URLS
+    requested_urls = parse_csv_list(args.discovery_urls) or DEFAULT_DISCOVERY_URLS
+    discovery_urls = dedupe_urls(build_ajax_nextgames_urls(args.discovery_days, args.discovery_pages) + requested_urls)
     dry_run = args.dry_run == "true"
     write_supabase = args.write_supabase == "true" and not dry_run
+    exclude_doubles = args.exclude_doubles == "true"
     promote_buckets = set(parse_csv_list(args.promote_buckets))
     meta: dict[str, Any] = {
         "generated_at": now_iso(),
@@ -589,6 +640,8 @@ def main() -> int:
         "args": vars(args),
         "dry_run": dry_run,
         "write_supabase": write_supabase,
+        "exclude_doubles": exclude_doubles,
+        "discovery_url_count": len(discovery_urls),
         "cookie_secret_present": has_cookie_secret(),
         "login_ok": False,
         "session_token": "",
@@ -626,7 +679,7 @@ def main() -> int:
                 (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
                 return 2
 
-            discovered = discover_matches(context, page, discovery_urls, args.wait_ms, args.limit_matches)
+            discovered = discover_matches(context, page, discovery_urls, args.wait_ms, args.limit_matches, exclude_doubles)
             meta["discovered_match_count"] = len(discovered)
             for i, match in enumerate(discovered, start=1):
                 base.log(f"[{i}/{len(discovered)}] Live V3 price check: {match.get('match_name')} {match.get('event_hash')}")
@@ -658,6 +711,8 @@ def main() -> int:
         f"Scanner run id: {scanner_run_id}",
         f"Dry run: {dry_run}",
         f"Write Supabase: {write_supabase}",
+        f"Exclude doubles: {exclude_doubles}",
+        f"Discovery URLs: {meta['discovery_url_count']}",
         f"Discovered matches: {meta['discovered_match_count']}",
         f"Rows written: {meta['rows_written']}",
         "",
