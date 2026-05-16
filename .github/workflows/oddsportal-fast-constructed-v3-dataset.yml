@@ -75,7 +75,7 @@ jobs:
           ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
           ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
-          python -u scripts/oddsportal_fast_constructed_v3_dataset.py \
+          python -u scripts/oddsportal_fast_constructed_v3_dataset_v2.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --out artifacts/output/oddsportal-fast-constructed-v3-dataset \
             --limit-pages '${{ github.event.inputs.limit_pages }}' \
