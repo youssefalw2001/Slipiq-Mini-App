@@ -10,7 +10,7 @@ on:
       wait_ms:
         description: Browser wait per tournament results page.
         required: false
-        default: '3000'
+        default: '5000'
       min_rows:
         description: Minimum candidate data rows required for validation success.
         required: false
@@ -43,14 +43,35 @@ jobs:
           python -m pip install -r requirements-oddsportal.txt
           python -m playwright install --with-deps chromium
 
+      - name: Check OddsPortal auth/session secret exists
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+        run: |
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set an OddsPortal cookie/storage secret or username/password repository secrets."
+            exit 2
+          fi
+          echo "OddsPortal auth/session secret found."
+
       - name: Build expanded first-set results candidate
         shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
           python -u scripts/oddsportal_archive_first_set_results_builder.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --out artifacts/output/oddsportal-expanded-first-set-master-candidate \
             --limit-pages '${{ github.event.inputs.limit_pages || '0' }}' \
-            --wait-ms '${{ github.event.inputs.wait_ms || '3000' }}'
+            --wait-ms '${{ github.event.inputs.wait_ms || '5000' }}'
 
       - name: Validate candidate master CSV
         id: validate_candidate
