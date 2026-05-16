@@ -32,7 +32,7 @@ from urllib.parse import urljoin, urlparse, urldefrag
 from playwright.sync_api import Page, Response, sync_playwright
 
 import oddsportal_login_filtered_bet365_scraper as base
-from oddsportal_cookie_json_guarded import clear_oddsportal_route_memory
+from oddsportal_cookie_json_guarded import clear_oddsportal_route_memory, create_cookie_context, has_cookie_secret
 from oddsportal_decoded_v3_probe import decode_oddsportal_dat
 
 VALID_SET_SCORES = {
@@ -270,6 +270,32 @@ def dedupe_results(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def write_empty_outputs(out_dir: Path, stop_reason: str, urls_count: int, login_ok: bool) -> None:
+    endpoint_fields = ["results_url", "landed_url", "endpoint_url", "status", "decode_status", "row_count", "error"]
+    result_fields = [
+        "results_url", "landed_url", "source_endpoint", "event_id", "event_hash", "player1", "player2", "match_name",
+        "match_date", "tournament", "archive_status", "status_id", "match_url", "partialresult", "first_set_score",
+        "result_status", "result_source", "p2_v3_hit", "p1_v3_hit",
+    ]
+    write_csv(out_dir / "archive_results_endpoint_inventory.csv", [], endpoint_fields)
+    write_csv(out_dir / "first_set_results.csv", [], result_fields)
+    summary = {
+        "generated_at": now_iso(),
+        "results_url_count": urls_count,
+        "captured_endpoint_count": 0,
+        "finished_result_rows": 0,
+        "mapped_first_set_count": 0,
+        "needs_result_count": 0,
+        "p2_v3_hits": 0,
+        "p1_v3_hits": 0,
+        "cookie_secret_present": has_cookie_secret(),
+        "login_ok": login_ok,
+        "stop_reason": stop_reason,
+    }
+    (out_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (out_dir / "first_set_results_report.md").write_text(f"# OddsPortal Archive First-Set Results\n\nStop reason: {stop_reason}\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--results-urls-file", default="data/oddsportal_major_results_urls.txt")
@@ -286,11 +312,22 @@ def main() -> int:
 
     all_endpoint_rows: list[dict[str, Any]] = []
     all_result_rows: list[dict[str, Any]] = []
+    login_ok = False
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
-        context = browser.new_context(locale="en-US", timezone_id="UTC")
+        context = create_cookie_context(browser, out_dir)
         page = context.new_page()
         try:
+            if has_cookie_secret():
+                base.log("Using cookie/storage secret for archive first-set results builder.")
+                base.goto(page, base.ODDSPORTAL_HOME, args.wait_ms)
+                login_ok = True
+            else:
+                login_ok = bool(base.login_if_needed(page, out_dir, args.wait_ms))
+            if not login_ok:
+                write_empty_outputs(out_dir, "LOGIN_SESSION_NOT_CONFIRMED", len(urls), login_ok)
+                return 2
+
             for url in urls:
                 clear_oddsportal_route_memory(context, page, args.wait_ms)
                 try:
@@ -322,6 +359,9 @@ def main() -> int:
         "needs_result_count": sum(1 for r in result_rows if r.get("result_status") != "ok"),
         "p2_v3_hits": sum(1 for r in result_rows if r.get("p2_v3_hit") == "true"),
         "p1_v3_hits": sum(1 for r in result_rows if r.get("p1_v3_hit") == "true"),
+        "cookie_secret_present": has_cookie_secret(),
+        "login_ok": login_ok,
+        "stop_reason": "ARCHIVE_FIRST_SET_RESULTS_COMPLETE",
     }
     (out_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     report = [
@@ -335,6 +375,7 @@ def main() -> int:
         f"Needs result: {summary['needs_result_count']}",
         f"P2 V3 hits: {summary['p2_v3_hits']}",
         f"P1 V3 hits: {summary['p1_v3_hits']}",
+        f"Login/session OK: {summary['login_ok']}",
     ]
     (out_dir / "first_set_results_report.md").write_text("\n".join(report), encoding="utf-8")
     return 0
