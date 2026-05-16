@@ -1,0 +1,112 @@
+name: OddsPortal Stake vs bet365 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Number of latest Supabase signals to check.
+        required: false
+        default: '6'
+      scanner_run_id:
+        description: Optional scanner_run_id to restrict signals. Leave blank for latest signals.
+        required: false
+        default: ''
+      geo_variants:
+        description: Comma-separated geo variants to test. Use NONE for no geo parameter.
+        required: false
+        default: 'US,GB,CA,AU,EU,NONE'
+      target_provider_name:
+        description: Provider name substring to find.
+        required: false
+        default: 'stake'
+      target_provider_id:
+        description: Optional exact Stake provider id if known.
+        required: false
+        default: ''
+      wait_ms:
+        description: Browser wait for token discovery.
+        required: false
+        default: '3500'
+      pause_seconds:
+        description: Pause between endpoint variant requests.
+        required: false
+        default: '0.20'
+
+jobs:
+  stake-vs-bet365:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set an OddsPortal cookie/storage secret or username/password repository secrets."
+            exit 2
+          fi
+          if [ -z "$SUPABASE_URL" ] || { [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$SUPABASE_SERVICE_KEY" ]; }; then
+            echo "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SERVICE_KEY before running probe."
+            exit 2
+          fi
+          echo "Required secrets found."
+
+      - name: Run Stake vs bet365 probe
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          python -u scripts/oddsportal_stake_vs_bet365_probe.py \
+            --out artifacts/output/oddsportal-stake-vs-bet365 \
+            --limit '${{ github.event.inputs.limit }}' \
+            --scanner-run-id '${{ github.event.inputs.scanner_run_id }}' \
+            --geo-variants '${{ github.event.inputs.geo_variants }}' \
+            --target-provider-name '${{ github.event.inputs.target_provider_name }}' \
+            --target-provider-id '${{ github.event.inputs.target_provider_id }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --pause-seconds '${{ github.event.inputs.pause_seconds }}'
+
+      - name: Upload Stake probe artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-stake-vs-bet365
+          path: |
+            artifacts/output/oddsportal-stake-vs-bet365/run_summary.json
+            artifacts/output/oddsportal-stake-vs-bet365/stake_vs_bet365_comparison.csv
+            artifacts/output/oddsportal-stake-vs-bet365/stake_provider_inventory.csv
+            artifacts/output/oddsportal-stake-vs-bet365/stake_vs_bet365_report.md
+          if-no-files-found: warn
