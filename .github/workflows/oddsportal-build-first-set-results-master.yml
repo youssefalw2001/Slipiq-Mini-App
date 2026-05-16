@@ -1,0 +1,83 @@
+name: OddsPortal Build First Set Results Master
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit_pages:
+        description: Number of tournament result pages to parse. Use 0 for all URLs.
+        required: false
+        default: '25'
+      wait_ms:
+        description: Browser wait between archive page actions.
+        required: false
+        default: '3000'
+      commit_to_repo:
+        description: Commit data/first_set_results_master.csv back to repo.
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  build-first-set-results-master:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Build first-set results master CSV
+        shell: bash
+        run: |
+          python -u scripts/oddsportal_archive_first_set_results_builder.py \
+            --results-urls-file data/oddsportal_major_results_urls.txt \
+            --out artifacts/output/oddsportal-first-set-results-master \
+            --limit-pages '${{ github.event.inputs.limit_pages }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms }}'
+          mkdir -p data
+          cp artifacts/output/oddsportal-first-set-results-master/first_set_results.csv data/first_set_results_master.csv
+
+      - name: Commit master CSV
+        if: ${{ github.event.inputs.commit_to_repo == 'true' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/first_set_results_master.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update first-set results master CSV"
+            git push
+          fi
+
+      - name: Upload first-set results artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-first-set-results-master-safe
+          path: |
+            artifacts/output/oddsportal-first-set-results-master/run_summary.json
+            artifacts/output/oddsportal-first-set-results-master/first_set_results_report.md
+            artifacts/output/oddsportal-first-set-results-master/first_set_results.csv
+            artifacts/output/oddsportal-first-set-results-master/archive_results_endpoint_inventory.csv
+            data/first_set_results_master.csv
+          if-no-files-found: warn
