@@ -48,15 +48,16 @@ jobs:
           STAKE_ACCESS_TOKEN: ${{ secrets.STAKE_ACCESS_TOKEN }}
           STAKE_SESSION_COOKIE: ${{ secrets.STAKE_SESSION_COOKIE }}
           STAKE_CF_CLEARANCE: ${{ secrets.STAKE_CF_CLEARANCE }}
+          STAKE_COOKIES_JSON: ${{ secrets.STAKE_COOKIES_JSON }}
           STAKE_USER_AGENT: ${{ secrets.STAKE_USER_AGENT }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          if [ -z "$STAKE_ACCESS_TOKEN" ] && [ -z "$STAKE_SESSION_COOKIE" ]; then
-            echo "No Stake auth secrets found. The probe will try public GraphQL access only."
+          if [ -z "$STAKE_ACCESS_TOKEN" ] && [ -z "$STAKE_SESSION_COOKIE" ] && [ -z "$STAKE_CF_CLEARANCE" ] && [ -z "$STAKE_COOKIES_JSON" ]; then
+            echo "No Stake auth/cookie secrets found. The probe will try public GraphQL access only."
           else
-            echo "Stake auth secret found."
+            echo "Stake auth/cookie secret found."
           fi
           if [ -z "$SUPABASE_URL" ] || { [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$SUPABASE_SERVICE_KEY" ]; }; then
             echo "Supabase secrets missing. The probe will skip signal matching."
@@ -70,6 +71,7 @@ jobs:
           STAKE_ACCESS_TOKEN: ${{ secrets.STAKE_ACCESS_TOKEN }}
           STAKE_SESSION_COOKIE: ${{ secrets.STAKE_SESSION_COOKIE }}
           STAKE_CF_CLEARANCE: ${{ secrets.STAKE_CF_CLEARANCE }}
+          STAKE_COOKIES_JSON: ${{ secrets.STAKE_COOKIES_JSON }}
           STAKE_USER_AGENT: ${{ secrets.STAKE_USER_AGENT }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
