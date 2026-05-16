@@ -1,0 +1,158 @@
+name: OddsPortal Build Expanded First Set Master Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit_pages:
+        description: Number of results pages to process. Use 0 for all URLs in data/oddsportal_major_results_urls.txt.
+        required: false
+        default: '0'
+      wait_ms:
+        description: Browser wait per tournament results page.
+        required: false
+        default: '3000'
+      min_rows:
+        description: Minimum candidate data rows required for validation success.
+        required: false
+        default: '1000'
+  push:
+    branches:
+      - main
+
+jobs:
+  build-candidate:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-master-candidate]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Build expanded first-set results candidate
+        shell: bash
+        run: |
+          python -u scripts/oddsportal_archive_first_set_results_builder.py \
+            --results-urls-file data/oddsportal_major_results_urls.txt \
+            --out artifacts/output/oddsportal-expanded-first-set-master-candidate \
+            --limit-pages '${{ github.event.inputs.limit_pages || '0' }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms || '3000' }}'
+
+      - name: Validate candidate master CSV
+        id: validate_candidate
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import csv
+          import json
+          import os
+          import sys
+          import time
+
+          def now_iso() -> str:
+              return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+          out_dir = Path("artifacts/output/oddsportal-expanded-first-set-master-candidate")
+          out_dir.mkdir(parents=True, exist_ok=True)
+          src = out_dir / "first_set_results.csv"
+          candidate = out_dir / "candidate_first_set_results_master.csv"
+          min_rows = int("${{ github.event.inputs.min_rows || '1000' }}")
+          required = {
+              "event_id",
+              "event_hash",
+              "player1",
+              "player2",
+              "match_url",
+              "partialresult",
+              "first_set_score",
+              "result_status",
+          }
+          summary = {
+              "generated_at": now_iso(),
+              "candidate_path": str(candidate),
+              "source_path": str(src),
+              "min_rows": min_rows,
+              "exists": src.exists(),
+              "size_bytes": src.stat().st_size if src.exists() else 0,
+              "rows": 0,
+              "ok_rows": 0,
+              "event_hash_rows": 0,
+              "first_set_score_rows": 0,
+              "missing_columns": [],
+              "duplicate_event_ids": 0,
+              "validation_status": "fail",
+              "stop_reason": "NOT_VALIDATED",
+          }
+
+          rows = []
+          if not src.exists():
+              summary["stop_reason"] = "CANDIDATE_MISSING"
+          elif src.stat().st_size < 10000:
+              summary["stop_reason"] = f"CANDIDATE_TOO_SMALL:{src.stat().st_size}"
+          else:
+              with src.open(newline="", encoding="utf-8") as f:
+                  rows = list(csv.DictReader(f))
+              headers = set(rows[0].keys() if rows else [])
+              missing = sorted(required - headers)
+              summary["rows"] = len(rows)
+              summary["ok_rows"] = sum(1 for r in rows if r.get("result_status") == "ok" and r.get("first_set_score"))
+              summary["event_hash_rows"] = sum(1 for r in rows if r.get("event_hash"))
+              summary["first_set_score_rows"] = sum(1 for r in rows if r.get("first_set_score"))
+              summary["missing_columns"] = missing
+              event_ids = [r.get("event_id") for r in rows if r.get("event_id")]
+              summary["duplicate_event_ids"] = len(event_ids) - len(set(event_ids))
+
+              if missing:
+                  summary["stop_reason"] = "MISSING_COLUMNS"
+              elif len(rows) < min_rows:
+                  summary["stop_reason"] = f"TOO_FEW_ROWS:{len(rows)}<{min_rows}"
+              elif summary["ok_rows"] < len(rows) * 0.90:
+                  summary["stop_reason"] = f"TOO_FEW_OK_ROWS:{summary['ok_rows']}/{len(rows)}"
+              elif summary["event_hash_rows"] < len(rows) * 0.90:
+                  summary["stop_reason"] = f"TOO_FEW_EVENT_HASH_ROWS:{summary['event_hash_rows']}/{len(rows)}"
+              elif summary["first_set_score_rows"] < len(rows) * 0.90:
+                  summary["stop_reason"] = f"TOO_FEW_FIRST_SET_SCORE_ROWS:{summary['first_set_score_rows']}/{len(rows)}"
+              else:
+                  candidate.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+                  summary["validation_status"] = "pass"
+                  summary["stop_reason"] = "CANDIDATE_VALID"
+
+          (out_dir / "validation_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+          print(json.dumps(summary, indent=2))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              print(f"validation_status={summary['validation_status']}", file=f)
+              print(f"rows={summary['rows']}", file=f)
+              print(f"stop_reason={summary['stop_reason']}", file=f)
+          if summary["validation_status"] != "pass":
+              sys.exit(2)
+          PY
+
+      - name: Upload candidate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-expanded-first-set-master-candidate
+          path: |
+            artifacts/output/oddsportal-expanded-first-set-master-candidate/first_set_results.csv
+            artifacts/output/oddsportal-expanded-first-set-master-candidate/candidate_first_set_results_master.csv
+            artifacts/output/oddsportal-expanded-first-set-master-candidate/archive_results_endpoint_inventory.csv
+            artifacts/output/oddsportal-expanded-first-set-master-candidate/run_summary.json
+            artifacts/output/oddsportal-expanded-first-set-master-candidate/validation_summary.json
+            artifacts/output/oddsportal-expanded-first-set-master-candidate/first_set_results_report.md
+          if-no-files-found: warn
