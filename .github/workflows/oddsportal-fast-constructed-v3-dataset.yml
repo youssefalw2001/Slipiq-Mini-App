@@ -4,19 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       limit_pages:
-        description: Number of tournament result pages to parse into events.
+        description: Number of tournament result pages to parse into result rows.
         required: false
         default: '25'
       start_index:
-        description: Start index inside finished archive events.
+        description: Start index inside result rows.
         required: false
         default: '0'
       limit_total:
-        description: Number of finished events to fetch V3 odds for.
+        description: Number of result rows to fetch V3 odds for.
         required: false
         default: '100'
       wait_ms:
-        description: Browser wait while discovering session token.
+        description: Browser wait while collecting result rows and discovering session token.
         required: false
         default: '2500'
       pause_seconds:
@@ -71,7 +71,7 @@ jobs:
           ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
           ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
-          python -u scripts/oddsportal_constructed_v3_endpoint_probe.py \
+          python -u scripts/oddsportal_fast_v3_odds_only_v2.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
             --out artifacts/output/oddsportal-fast-v3-odds-only \
             --limit-pages '${{ github.event.inputs.limit_pages }}' \
@@ -87,8 +87,9 @@ jobs:
           name: oddsportal-fast-v3-odds-only-safe
           path: |
             artifacts/output/oddsportal-fast-v3-odds-only/run_summary.json
-            artifacts/output/oddsportal-fast-v3-odds-only/constructed_v3_endpoint_probe_report.md
-            artifacts/output/oddsportal-fast-v3-odds-only/constructed_v3_endpoint_probe.csv
-            artifacts/output/oddsportal-fast-v3-odds-only/archive_events_all.csv
-            artifacts/output/oddsportal-fast-v3-odds-only/archive_events_filtered.csv
+            artifacts/output/oddsportal-fast-v3-odds-only/dataset_summary.json
+            artifacts/output/oddsportal-fast-v3-odds-only/fast_v3_odds_only_report.md
+            artifacts/output/oddsportal-fast-v3-odds-only/fast_v3_odds_only.csv
+            artifacts/output/oddsportal-fast-v3-odds-only/first_set_results.csv
+            artifacts/output/oddsportal-fast-v3-odds-only/archive_results_endpoint_inventory.csv
           if-no-files-found: warn
