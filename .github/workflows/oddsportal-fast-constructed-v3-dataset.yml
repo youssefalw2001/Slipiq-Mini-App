@@ -1,37 +1,33 @@
-name: OddsPortal Fast Constructed V3 Dataset
+name: OddsPortal Fast V3 Odds Only
 
 on:
   workflow_dispatch:
     inputs:
       limit_pages:
-        description: Number of tournament result pages to parse into result rows.
+        description: Number of tournament result pages to parse into events.
         required: false
         default: '25'
       start_index:
-        description: Start index inside result rows.
+        description: Start index inside finished archive events.
         required: false
         default: '0'
       limit_total:
-        description: Number of result rows to enrich with direct bet365 V3 odds. Use 0 for all.
+        description: Number of finished events to fetch V3 odds for.
         required: false
-        default: '200'
+        default: '100'
       wait_ms:
-        description: Browser wait while collecting archive results and discovering token.
+        description: Browser wait while discovering session token.
         required: false
         default: '2500'
       pause_seconds:
         description: Pause between constructed endpoint requests.
         required: false
         default: '0.15'
-      stake:
-        description: Flat stake for built-in summary calculations.
-        required: false
-        default: '100'
 
 jobs:
-  fast-constructed-v3-dataset:
+  fast-v3-odds-only:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     env:
       PYTHONUNBUFFERED: '1'
 
@@ -61,12 +57,12 @@ jobs:
           ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
           if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
-            echo "Set ODDSPORTAL_COOKIES_JSON, ODDSPORTAL_COOKIES_JSON_B64, ODDSPORTAL_STORAGE_STATE_B64, or both ODDSPORTAL_USERNAME and ODDSPORTAL_PASSWORD as repository secrets."
+            echo "Set an OddsPortal cookie/storage secret or username/password repository secrets."
             exit 2
           fi
           echo "OddsPortal auth/session secret found."
 
-      - name: Build fast constructed V3 backtest-ready dataset
+      - name: Build fast V3 odds-only CSV
         shell: bash
         env:
           ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
@@ -75,26 +71,24 @@ jobs:
           ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
           ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
         run: |
-          python -u scripts/oddsportal_fast_constructed_v3_dataset_v2.py \
+          python -u scripts/oddsportal_constructed_v3_endpoint_probe.py \
             --results-urls-file data/oddsportal_major_results_urls.txt \
-            --out artifacts/output/oddsportal-fast-constructed-v3-dataset \
+            --out artifacts/output/oddsportal-fast-v3-odds-only \
             --limit-pages '${{ github.event.inputs.limit_pages }}' \
             --start-index '${{ github.event.inputs.start_index }}' \
             --limit-total '${{ github.event.inputs.limit_total }}' \
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
-            --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
-            --stake '${{ github.event.inputs.stake }}'
+            --pause-seconds '${{ github.event.inputs.pause_seconds }}'
 
-      - name: Upload safe fast V3 dataset artifacts
+      - name: Upload safe fast V3 odds artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: oddsportal-fast-constructed-v3-dataset-safe
+          name: oddsportal-fast-v3-odds-only-safe
           path: |
-            artifacts/output/oddsportal-fast-constructed-v3-dataset/run_summary.json
-            artifacts/output/oddsportal-fast-constructed-v3-dataset/dataset_summary.json
-            artifacts/output/oddsportal-fast-constructed-v3-dataset/fast_v3_report.md
-            artifacts/output/oddsportal-fast-constructed-v3-dataset/fast_v3_backtest_ready.csv
-            artifacts/output/oddsportal-fast-constructed-v3-dataset/first_set_results.csv
-            artifacts/output/oddsportal-fast-constructed-v3-dataset/archive_results_endpoint_inventory.csv
+            artifacts/output/oddsportal-fast-v3-odds-only/run_summary.json
+            artifacts/output/oddsportal-fast-v3-odds-only/constructed_v3_endpoint_probe_report.md
+            artifacts/output/oddsportal-fast-v3-odds-only/constructed_v3_endpoint_probe.csv
+            artifacts/output/oddsportal-fast-v3-odds-only/archive_events_all.csv
+            artifacts/output/oddsportal-fast-v3-odds-only/archive_events_filtered.csv
           if-no-files-found: warn
