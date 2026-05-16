@@ -1,0 +1,102 @@
+name: OddsPortal Stake Network Discovery Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Number of latest Supabase signals to inspect.
+        required: false
+        default: '6'
+      scanner_run_id:
+        description: Optional scanner_run_id to restrict signals. Leave blank for latest signals.
+        required: false
+        default: ''
+      wait_ms:
+        description: Browser wait per navigation.
+        required: false
+        default: '4000'
+      per_page_ms:
+        description: Time to watch network responses per page variant.
+        required: false
+        default: '9000'
+      max_responses_per_signal:
+        description: Max relevant OddsPortal responses to process per signal.
+        required: false
+        default: '80'
+
+jobs:
+  stake-network-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-oddsportal.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$ODDSPORTAL_STORAGE_STATE_B64" ] && [ -z "$ODDSPORTAL_COOKIES_JSON" ] && [ -z "$ODDSPORTAL_COOKIES_JSON_B64" ] && { [ -z "$ODDSPORTAL_USERNAME" ] || [ -z "$ODDSPORTAL_PASSWORD" ]; }; then
+            echo "Set an OddsPortal cookie/storage secret or username/password repository secrets."
+            exit 2
+          fi
+          if [ -z "$SUPABASE_URL" ] || { [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$SUPABASE_SERVICE_KEY" ]; }; then
+            echo "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SERVICE_KEY before running probe."
+            exit 2
+          fi
+          echo "Required secrets found."
+
+      - name: Run Stake network discovery probe
+        shell: bash
+        env:
+          ODDSPORTAL_USERNAME: ${{ secrets.ODDSPORTAL_USERNAME }}
+          ODDSPORTAL_PASSWORD: ${{ secrets.ODDSPORTAL_PASSWORD }}
+          ODDSPORTAL_STORAGE_STATE_B64: ${{ secrets.ODDSPORTAL_STORAGE_STATE_B64 }}
+          ODDSPORTAL_COOKIES_JSON: ${{ secrets.ODDSPORTAL_COOKIES_JSON }}
+          ODDSPORTAL_COOKIES_JSON_B64: ${{ secrets.ODDSPORTAL_COOKIES_JSON_B64 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          python -u scripts/oddsportal_stake_network_discovery_probe.py \
+            --out artifacts/output/oddsportal-stake-network-discovery \
+            --limit '${{ github.event.inputs.limit }}' \
+            --scanner-run-id '${{ github.event.inputs.scanner_run_id }}' \
+            --wait-ms '${{ github.event.inputs.wait_ms }}' \
+            --per-page-ms '${{ github.event.inputs.per_page_ms }}' \
+            --max-responses-per-signal '${{ github.event.inputs.max_responses_per_signal }}'
+
+      - name: Upload Stake network discovery artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oddsportal-stake-network-discovery
+          path: |
+            artifacts/output/oddsportal-stake-network-discovery/run_summary.json
+            artifacts/output/oddsportal-stake-network-discovery/stake_network_response_summary.csv
+            artifacts/output/oddsportal-stake-network-discovery/stake_network_provider_records.csv
+            artifacts/output/oddsportal-stake-network-discovery/stake_network_discovery_report.md
+          if-no-files-found: warn
