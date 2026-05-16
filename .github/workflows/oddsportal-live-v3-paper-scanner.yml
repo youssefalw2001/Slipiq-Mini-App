@@ -6,15 +6,31 @@ on:
       limit_matches:
         description: Maximum discovered OddsPortal tennis match links to price-check.
         required: false
-        default: '25'
+        default: '50'
       wait_ms:
         description: Browser wait per page/interaction.
         required: false
-        default: '3000'
+        default: '4000'
       pause_seconds:
         description: Pause between constructed endpoint requests.
         required: false
         default: '0.25'
+      discovery_days:
+        description: Number of UTC dates to scan through direct ajax-nextgames feeds.
+        required: false
+        default: '3'
+      discovery_pages:
+        description: Number of ajax-nextgames pages per date to scan.
+        required: false
+        default: '3'
+      exclude_doubles:
+        description: Skip doubles/team matches containing slash-separated player names.
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
       dry_run:
         description: Keep true for artifact-only smoke tests. false allows Supabase writes when write_supabase is true.
         required: false
@@ -36,7 +52,7 @@ on:
         required: false
         default: 'PRICE_ONLY_REVIEW,A_PLUS,A,MAIN'
       discovery_urls:
-        description: Optional comma-separated OddsPortal discovery URLs. Leave blank for defaults.
+        description: Optional comma-separated extra OddsPortal discovery URLs. Leave blank for defaults plus ajax feeds.
         required: false
         default: ''
 
@@ -114,6 +130,9 @@ jobs:
             --limit-matches '${{ github.event.inputs.limit_matches }}' \
             --wait-ms '${{ github.event.inputs.wait_ms }}' \
             --pause-seconds '${{ github.event.inputs.pause_seconds }}' \
+            --discovery-days '${{ github.event.inputs.discovery_days }}' \
+            --discovery-pages '${{ github.event.inputs.discovery_pages }}' \
+            --exclude-doubles '${{ github.event.inputs.exclude_doubles }}' \
             --dry-run '${{ github.event.inputs.dry_run }}' \
             --write-supabase '${{ github.event.inputs.write_supabase }}' \
             --promote-buckets '${{ github.event.inputs.promote_buckets }}' \
