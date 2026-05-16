@@ -2,18 +2,15 @@
 """
 SlipIQ fast V3 odds-only builder V2.
 
-Why this exists:
-- The old odds-only workflow used build_archive_events(), which returned 0 events on
-  current OddsPortal archive responses.
-- The first-set results builder is the proven archive parser and gets event_id,
-  event_hash, player1/player2, match_url, and first_set_score quickly.
-
-This script uses the proven first-set-results parser ONLY as a master event list,
+Uses the proven first-set-results archive parser as the master event list,
 then fetches V3 odds via the constructed endpoint:
 
   /match-event/1-2-{event_hash}-8-12-{session_token}.dat?geo=US&lang=en
 
-Outputs odds rows. It does not backtest inside GitHub.
+Important reliability behavior:
+- This script does NOT hard-fail when no rows/token are found.
+- It writes run_summary.json and exits 0 so GitHub uploads diagnostics.
+
 Read-only. No betting. No sportsbook login. No captcha bypass.
 """
 from __future__ import annotations
@@ -206,6 +203,11 @@ def fetch_odds_row(context: Any, row: dict[str, Any], token: str) -> dict[str, A
     }
 
 
+def write_summary(out_dir: Path, meta: dict[str, Any]) -> None:
+    ensure_dir(out_dir)
+    (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--results-urls-file", default="data/oddsportal_major_results_urls.txt")
@@ -232,6 +234,7 @@ def main() -> int:
         "session_token": "",
         "seed_endpoint_url": "",
         "odds_status_counts": {},
+        "fatal": False,
     }
 
     result_rows, endpoint_rows = build_result_rows(args.results_urls_file, out_dir, args.limit_pages, args.wait_ms)
@@ -245,8 +248,9 @@ def main() -> int:
     meta["chunk_count"] = len(chunk)
     if not chunk:
         meta["stop_reason"] = "NO_RESULT_ROWS_TO_PROCESS"
-        (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        return 2
+        meta["note"] = "No rows in the selected slice. Try start_index 0 or increase limit_pages."
+        write_summary(out_dir, meta)
+        return 0
 
     rows: list[dict[str, Any]] = []
     with sync_playwright() as p:
@@ -263,8 +267,9 @@ def main() -> int:
             meta["login_ok"] = bool(login_ok)
             if not login_ok:
                 meta["stop_reason"] = "LOGIN_SESSION_NOT_CONFIRMED"
-                (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-                return 3
+                meta["fatal"] = True
+                write_summary(out_dir, meta)
+                return 0
 
             seed_events = [result_row_to_event(r) for r in result_rows if r.get("event_hash") and r.get("match_url")]
             token, seed_url = robust_discover_session_token(context, page, seed_events, args.wait_ms)
@@ -272,8 +277,9 @@ def main() -> int:
             meta["seed_endpoint_url"] = seed_url
             if not token:
                 meta["stop_reason"] = "NO_SESSION_TOKEN_DISCOVERED"
-                (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-                return 4
+                meta["note"] = "Result rows were found, but no /match-event/ token was captured. The artifact still includes first_set_results.csv for joining later."
+                write_summary(out_dir, meta)
+                return 0
 
             counts: dict[str, int] = {}
             for i, result_row in enumerate(chunk, start=1):
@@ -285,7 +291,7 @@ def main() -> int:
                 counts[status] = counts.get(status, 0) + 1
                 meta["rows_written"] = i
                 meta["odds_status_counts"] = counts
-                (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+                write_summary(out_dir, meta)
                 time.sleep(args.pause_seconds)
         finally:
             context.close()
@@ -301,7 +307,7 @@ def main() -> int:
     meta["dataset_summary"] = summary
     meta["stop_reason"] = "FAST_V3_ODDS_ONLY_COMPLETE"
     (out_dir / "dataset_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    (out_dir / "run_summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    write_summary(out_dir, meta)
     report = [
         "# Fast V3 Odds Only V2",
         "",
