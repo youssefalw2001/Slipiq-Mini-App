@@ -1,0 +1,303 @@
+name: API Tennis Full Historical Odds Warehouse
+
+on:
+  workflow_dispatch:
+    inputs:
+      preset_range:
+        description: Use 15_months for 2025-02-17 through 2026-05-17, or custom for manual dates.
+        required: false
+        default: 'custom'
+        type: choice
+        options:
+          - custom
+          - 15_months
+      date_start:
+        description: Custom start date YYYY-MM-DD. Ignored when preset_range=15_months.
+        required: false
+        default: '2026-05-01'
+      date_stop:
+        description: Custom stop date YYYY-MM-DD. Ignored when preset_range=15_months.
+        required: false
+        default: '2026-05-07'
+      event_type_keys:
+        description: Comma-separated event_type_key values. Default 265,266 for ATP/WTA singles.
+        required: false
+        default: '265,266'
+      include_all_types:
+        description: If true, do not pass event_type_key. This can be huge and may include lower tiers.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      request_pause_ms:
+        description: Pause between API requests to reduce rate-limit risk.
+        required: false
+        default: '250'
+      include_raw_sample:
+        description: Save a small raw JSON sample for structure inspection.
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      raw_sample_limit:
+        description: Max raw samples per chunk.
+        required: false
+        default: '5'
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.plan.outputs.chunks }}
+      warehouse_run_id: ${{ steps.plan.outputs.warehouse_run_id }}
+    steps:
+      - name: Build date chunks
+        id: plan
+        shell: bash
+        run: |
+          node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const preset = '${{ github.event.inputs.preset_range }}';
+          const inputStart = '${{ github.event.inputs.date_start }}';
+          const inputStop = '${{ github.event.inputs.date_stop }}';
+          const includeAll = '${{ github.event.inputs.include_all_types }}' === 'true';
+          const start = preset === '15_months' ? '2025-02-17' : inputStart;
+          const stop = preset === '15_months' ? '2026-05-17' : inputStop;
+          const runId = `api-tennis-warehouse-${Date.now()}`;
+          const chunkDays = includeAll ? 3 : 7;
+          const chunks = [];
+          let d = new Date(`${start}T00:00:00Z`);
+          const end = new Date(`${stop}T00:00:00Z`);
+          while (d <= end) {
+            const chunkStart = new Date(d);
+            const chunkEnd = new Date(d);
+            chunkEnd.setUTCDate(chunkEnd.getUTCDate() + chunkDays - 1);
+            if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+            chunks.push({
+              date_start: chunkStart.toISOString().slice(0, 10),
+              date_stop: chunkEnd.toISOString().slice(0, 10),
+            });
+            d = new Date(chunkEnd);
+            d.setUTCDate(d.getUTCDate() + 1);
+          }
+          console.log(`chunks=${JSON.stringify(chunks)}`);
+          console.log(`warehouse_run_id=${runId}`);
+          NODE
+
+  warehouse:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check API Tennis key
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+        run: |
+          if [ -z "$API_TENNIS_KEY" ] && [ -z "$APITENNIS_API_KEY" ] && [ -z "$API_TENNIS_API_KEY" ]; then
+            echo "Missing API Tennis key. Add API_TENNIS_KEY, APITENNIS_API_KEY, or API_TENNIS_API_KEY in repo secrets."
+            exit 2
+          fi
+
+      - name: Export full historical odds warehouse chunk
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          OUT_DIR: artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}
+        run: |
+          node scripts/api_tennis_full_historical_odds_warehouse.mjs \
+            --out="artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}" \
+            --date-start='${{ matrix.chunk.date_start }}' \
+            --date-stop='${{ matrix.chunk.date_stop }}' \
+            --event-type-keys='${{ github.event.inputs.event_type_keys }}' \
+            --include-all-types='${{ github.event.inputs.include_all_types }}' \
+            --request-pause-ms='${{ github.event.inputs.request_pause_ms }}' \
+            --include-raw-sample='${{ github.event.inputs.include_raw_sample }}' \
+            --raw-sample-limit='${{ github.event.inputs.raw_sample_limit }}' \
+            --warehouse-run-id='${{ needs.plan.outputs.warehouse_run_id }}'
+
+      - name: Upload warehouse chunk artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-warehouse-${{ matrix.chunk.date_start }}-${{ matrix.chunk.date_stop }}
+          path: |
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/fixtures_full.csv
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/odds_full_long.csv
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/market_inventory.csv
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/first_set_correct_score_wide.csv
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/moneyline_favorite.csv
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/raw_sample.json
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/run_summary.json
+            artifacts/output/api-tennis-full-historical-odds-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/warehouse_report.md
+          if-no-files-found: warn
+
+  combine:
+    needs: [plan, warehouse]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download all warehouse chunk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: api-tennis-warehouse-*
+          path: downloaded-artifacts
+          merge-multiple: false
+
+      - name: Combine warehouse chunks
+        shell: bash
+        run: |
+          mkdir -p combined-warehouse
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'downloaded-artifacts';
+          const outDir = 'combined-warehouse';
+          const fileNames = [
+            'fixtures_full.csv',
+            'odds_full_long.csv',
+            'first_set_correct_score_wide.csv',
+            'moneyline_favorite.csv',
+          ];
+          const dirs = fs.existsSync(root) ? fs.readdirSync(root).map((d) => path.join(root, d)).filter((p) => fs.statSync(p).isDirectory()).sort() : [];
+          const stats = { artifacts_found: dirs.length, files: {}, summaries: [], inventory: new Map(), errors: 0 };
+
+          function appendCsv(name) {
+            const outPath = path.join(outDir, name.replace('.csv', '_combined.csv'));
+            fs.writeFileSync(outPath, '');
+            let header = null;
+            let rows = 0;
+            let chunks = 0;
+            for (const dir of dirs) {
+              const p = path.join(dir, name);
+              if (!fs.existsSync(p)) continue;
+              const lines = fs.readFileSync(p, 'utf8').split(/\r?\n/).filter(Boolean);
+              if (!lines.length) continue;
+              chunks += 1;
+              if (!header) {
+                header = lines[0];
+                fs.appendFileSync(outPath, header + '\n');
+              }
+              const body = lines.slice(1);
+              rows += body.length;
+              if (body.length) fs.appendFileSync(outPath, body.join('\n') + '\n');
+            }
+            stats.files[name] = { chunks, rows, output: outPath };
+          }
+
+          for (const name of fileNames) appendCsv(name);
+
+          for (const dir of dirs) {
+            const summaryPath = path.join(dir, 'run_summary.json');
+            if (fs.existsSync(summaryPath)) {
+              try {
+                const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+                stats.summaries.push(s);
+                if (Array.isArray(s.errors)) stats.errors += s.errors.length;
+              } catch (e) {
+                stats.summaries.push({ artifact: dir, parse_error: String(e) });
+              }
+            }
+            const invPath = path.join(dir, 'market_inventory.csv');
+            if (fs.existsSync(invPath)) {
+              const lines = fs.readFileSync(invPath, 'utf8').split(/\r?\n/).filter(Boolean);
+              if (lines.length > 1) {
+                const header = lines[0].split(',');
+                for (const line of lines.slice(1)) {
+                  const cells = line.split(',');
+                  const row = Object.fromEntries(header.map((h, i) => [h, cells[i] || '']));
+                  const key = `${row.market_name}|${row.market_type}`;
+                  if (!stats.inventory.has(key)) {
+                    stats.inventory.set(key, { ...row, rows: 0, matchesApprox: 0, bookmakersApprox: 0, optionsApprox: 0 });
+                  }
+                  const item = stats.inventory.get(key);
+                  item.rows += Number(row.rows) || 0;
+                  item.matchesApprox += Number(row.matches) || 0;
+                  item.bookmakersApprox = Math.max(item.bookmakersApprox, Number(row.bookmakers) || 0);
+                  item.optionsApprox = Math.max(item.optionsApprox, Number(row.options) || 0);
+                  if (!item.first_date || (row.first_date && row.first_date < item.first_date)) item.first_date = row.first_date;
+                  if (!item.last_date || (row.last_date && row.last_date > item.last_date)) item.last_date = row.last_date;
+                  if (!item.sample_options && row.sample_options) item.sample_options = row.sample_options;
+                  if (!item.sample_bookmakers && row.sample_bookmakers) item.sample_bookmakers = row.sample_bookmakers;
+                }
+              }
+            }
+          }
+
+          const inventoryRows = [...stats.inventory.values()].sort((a,b) => b.rows - a.rows);
+          const invOut = path.join(outDir, 'market_inventory_combined.csv');
+          const invFields = ['market_name','market_type','rows','matchesApprox','bookmakersApprox','optionsApprox','first_date','last_date','sample_bookmakers','sample_options'];
+          fs.writeFileSync(invOut, invFields.join(',') + '\n');
+          for (const r of inventoryRows) {
+            fs.appendFileSync(invOut, invFields.map((f) => {
+              const s = String(r[f] ?? '').replaceAll('"','""');
+              return /[",\n\r]/.test(s) ? `"${s}"` : s;
+            }).join(',') + '\n');
+          }
+          stats.files['market_inventory.csv'] = { chunks: dirs.length, rows: inventoryRows.length, output: invOut };
+
+          const summaryOut = path.join(outDir, 'warehouse_combined_summary.json');
+          fs.writeFileSync(summaryOut, JSON.stringify({
+            generated_at: new Date().toISOString(),
+            warehouse_run_id: '${{ needs.plan.outputs.warehouse_run_id }}',
+            stats,
+          }, null, 2));
+
+          const report = [
+            '# API Tennis Full Historical Odds Warehouse Combined Report',
+            '',
+            `Generated: ${new Date().toISOString()}`,
+            `Warehouse run id: ${{ needs.plan.outputs.warehouse_run_id }}`,
+            `Chunk artifacts found: ${dirs.length}`,
+            '',
+            '## Combined file row counts',
+            ...Object.entries(stats.files).map(([name, info]) => `- ${name}: rows=${info.rows}, chunks=${info.chunks}`),
+            '',
+            '## Top markets',
+            ...inventoryRows.slice(0, 75).map((m) => `- ${m.market_name} [${m.market_type}] rows=${m.rows} matchesApprox=${m.matchesApprox} books=${m.bookmakersApprox} options=${m.optionsApprox} sample_options=${m.sample_options || ''}`),
+            '',
+            `Chunk-level errors: ${stats.errors}`,
+            '',
+            'This is raw warehouse data. Use downstream optimizers for strategy testing.',
+          ];
+          fs.writeFileSync(path.join(outDir, 'warehouse_combined_report.md'), report.join('\n'));
+          NODE
+
+      - name: Compress combined warehouse
+        shell: bash
+        run: |
+          cd combined-warehouse
+          zip -9 ../api-tennis-full-historical-odds-warehouse-combined.zip ./*
+
+      - name: Upload combined warehouse artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-full-historical-odds-warehouse-combined
+          path: |
+            api-tennis-full-historical-odds-warehouse-combined.zip
+            combined-warehouse/warehouse_combined_summary.json
+            combined-warehouse/warehouse_combined_report.md
+          if-no-files-found: error
