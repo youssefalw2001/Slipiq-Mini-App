@@ -1,0 +1,104 @@
+name: API Tennis Grouped Odds Validation Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined warehouse artifact.
+        required: false
+        default: 'api-tennis-full-historical-odds-warehouse-combined'
+      sample_size:
+        description: Random sample size per audit group.
+        required: false
+        default: '50'
+      seed:
+        description: Random seed.
+        required: false
+        default: '20260517'
+      stake:
+        description: Dutching stake for payout validation.
+        required: false
+        default: '100'
+      trigger_min:
+        description: Lower bound for P2 4:6 trigger odds.
+        required: false
+        default: '6.25'
+      trigger_max:
+        description: Upper bound for P2 4:6 trigger odds.
+        required: false
+        default: '6.99'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined warehouse artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-full-historical-odds-warehouse.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/warehouse
+          if_no_artifact_found: fail
+
+      - name: Extract warehouse zip
+        shell: bash
+        run: |
+          ZIP_PATH=$(find artifacts/input/warehouse -type f -name 'api-tennis-full-historical-odds-warehouse-combined.zip' | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "Warehouse zip not found. Files available:"
+            find artifacts/input/warehouse -type f | sort
+            exit 2
+          fi
+          mkdir -p artifacts/input/warehouse/extracted
+          unzip -q "$ZIP_PATH" -d artifacts/input/warehouse/extracted
+
+      - name: Locate first-set wide input
+        id: locate
+        shell: bash
+        run: |
+          FIRST_SET=$(find artifacts/input/warehouse/extracted -type f -name 'first_set_correct_score_wide_combined.csv' | head -n 1)
+          if [ -z "$FIRST_SET" ]; then
+            echo "Missing first-set wide file."
+            find artifacts/input/warehouse/extracted -type f | sort
+            exit 2
+          fi
+          echo "first_set=$FIRST_SET" >> "$GITHUB_OUTPUT"
+
+      - name: Run grouped odds validation audit
+        shell: bash
+        run: |
+          python scripts/api_tennis_grouped_odds_validation_audit.py \
+            --first-set-wide='${{ steps.locate.outputs.first_set }}' \
+            --out=artifacts/output/api-tennis-grouped-odds-validation-audit \
+            --sample-size='${{ github.event.inputs.sample_size }}' \
+            --seed='${{ github.event.inputs.seed }}' \
+            --stake='${{ github.event.inputs.stake }}' \
+            --trigger-min='${{ github.event.inputs.trigger_min }}' \
+            --trigger-max='${{ github.event.inputs.trigger_max }}'
+
+      - name: Upload grouped odds validation artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-grouped-odds-validation-audit
+          path: |
+            artifacts/output/api-tennis-grouped-odds-validation-audit/grouped_odds_math_audit.csv
+            artifacts/output/api-tennis-grouped-odds-validation-audit/grouped_odds_mismatches.csv
+            artifacts/output/api-tennis-grouped-odds-validation-audit/grouped_odds_validation_summary.json
+            artifacts/output/api-tennis-grouped-odds-validation-audit/grouped_odds_validation_report.md
+          if-no-files-found: warn
