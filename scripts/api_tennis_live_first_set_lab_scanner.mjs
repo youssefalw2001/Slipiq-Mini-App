@@ -120,8 +120,8 @@ function breakEven(odds) {
 function historicalStatsForLane(laneKey) {
   const stats = {
     CORE_P1_ATP_GS_BET365: { hit: 0.4321, roi: 0.2764, sample: 162 },
+    CORE_P1_MIRROR_WTA_OTHER: { hit: 0.4704, roi: 0.2144, sample: 270 },
     VIP_P1_ATP_GS_MULTI: { hit: 0.4188, roi: 0.2072, sample: 320 },
-    VIP_P1_MIRROR_WTA_OTHER: { hit: 0.4704, roi: 0.2144, sample: 270 },
     VIP_P2_V3_SHAPE: { hit: 0.5758, roi: 0.3432, sample: 99 },
   };
   return stats[laneKey] || { hit: null, roi: null, sample: 0 };
@@ -134,14 +134,14 @@ const lanes = [
     minGrouped: 2.50, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster'
   },
   {
+    key: 'CORE_P1_MIRROR_WTA_OTHER', access: 'CORE_AND_VIP', books: ['bet365', '1xBet'], scores: ['6:3', '6:4', '7:5'],
+    sideText: 'Player 1 wins first set 6:3, 6:4, or 7:5', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 8.00,
+    minGrouped: 2.30, tierFloorA: 2.35, tierFloorS: 2.60, tour: 'WTA', tournamentGroup: 'OTHER_TOUR', publicLabel: 'Mirror Cluster'
+  },
+  {
     key: 'VIP_P1_ATP_GS_MULTI', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['6:3', '6:4'],
     sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25,
     minGrouped: 2.60, tierFloorA: 2.60, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster Plus'
-  },
-  {
-    key: 'VIP_P1_MIRROR_WTA_OTHER', access: 'VIP_ONLY', books: ['bet365', '1xBet'], scores: ['6:3', '6:4', '7:5'],
-    sideText: 'Player 1 wins first set 6:3, 6:4, or 7:5', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 8.00,
-    minGrouped: 2.30, tierFloorA: 2.35, tierFloorS: 2.60, tour: 'WTA', tournamentGroup: 'OTHER_TOUR', publicLabel: 'Mirror Cluster'
   },
   {
     key: 'VIP_P2_V3_SHAPE', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['3:6', '4:6', '5:7'],
