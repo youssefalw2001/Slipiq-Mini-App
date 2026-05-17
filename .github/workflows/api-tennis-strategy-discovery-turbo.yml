@@ -1,0 +1,121 @@
+name: API Tennis Strategy Discovery Turbo
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined warehouse artifact.
+        required: false
+        default: 'api-tennis-full-historical-odds-warehouse-combined'
+      start_bankroll:
+        description: Starting bankroll for compound simulation.
+        required: false
+        default: '5000'
+      risk_pct:
+        description: Risk per bet as decimal.
+        required: false
+        default: '0.02'
+      train_ratio:
+        description: Chronological train ratio.
+        required: false
+        default: '0.70'
+      min_bets:
+        description: Minimum bets for leaderboard.
+        required: false
+        default: '100'
+      min_test_bets:
+        description: Minimum test-period bets before overfit penalty.
+        required: false
+        default: '20'
+      max_rules:
+        description: Safety cap for rules tested.
+        required: false
+        default: '200000'
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined warehouse artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-full-historical-odds-warehouse.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/warehouse
+          if_no_artifact_found: fail
+
+      - name: Extract warehouse zip
+        shell: bash
+        run: |
+          ZIP_PATH=$(find artifacts/input/warehouse -type f -name 'api-tennis-full-historical-odds-warehouse-combined.zip' | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "Warehouse zip not found. Files available:"
+            find artifacts/input/warehouse -type f | sort
+            exit 2
+          fi
+          mkdir -p artifacts/input/warehouse/extracted
+          unzip -q "$ZIP_PATH" -d artifacts/input/warehouse/extracted
+          find artifacts/input/warehouse/extracted -maxdepth 1 -type f | sort
+
+      - name: Locate inputs
+        id: locate
+        shell: bash
+        run: |
+          FIRST_SET=$(find artifacts/input/warehouse/extracted -type f -name 'first_set_correct_score_wide_combined.csv' | head -n 1)
+          FIXTURES=$(find artifacts/input/warehouse/extracted -type f -name 'fixtures_full_combined.csv' | head -n 1)
+          if [ -z "$FIRST_SET" ]; then
+            echo "Missing first-set wide file."
+            find artifacts/input/warehouse/extracted -type f | sort
+            exit 2
+          fi
+          echo "first_set=$FIRST_SET" >> "$GITHUB_OUTPUT"
+          echo "fixtures=$FIXTURES" >> "$GITHUB_OUTPUT"
+          echo "First set: $FIRST_SET"
+          echo "Fixtures: $FIXTURES"
+
+      - name: Run strategy discovery turbo
+        shell: bash
+        run: |
+          python scripts/api_tennis_strategy_discovery_turbo.py \
+            --first-set-wide='${{ steps.locate.outputs.first_set }}' \
+            --fixtures='${{ steps.locate.outputs.fixtures }}' \
+            --out=artifacts/output/api-tennis-strategy-discovery-turbo \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}' \
+            --train-ratio='${{ github.event.inputs.train_ratio }}' \
+            --min-bets='${{ github.event.inputs.min_bets }}' \
+            --min-test-bets='${{ github.event.inputs.min_test_bets }}' \
+            --max-rules='${{ github.event.inputs.max_rules }}'
+
+      - name: Upload strategy discovery turbo artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-strategy-discovery-turbo
+          path: |
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_report.md
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_cards.json
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_funnel.json
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_leaderboard.csv
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_scalable.csv
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_high_volume.csv
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_high_roi.csv
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_train_test.csv
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_monthly.csv
+            artifacts/output/api-tennis-strategy-discovery-turbo/strategy_discovery_turbo_candidate_rules.csv
+          if-no-files-found: warn
