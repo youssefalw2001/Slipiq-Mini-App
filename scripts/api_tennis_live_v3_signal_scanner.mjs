@@ -327,7 +327,6 @@ function pricePayload(row, signalId, scannerRunId) {
     odds_p2_6_4: safeNumber(row.p2_4_6_decimal),
     odds_p2_7_5: safeNumber(row.p2_5_7_decimal),
     reconstructed_p2_9_12_odds: grouped,
-    verified_grouped_odds: grouped,
     price_age_seconds: 0,
     is_fresh: true,
     is_playable: grouped >= MIN_GROUPED,
