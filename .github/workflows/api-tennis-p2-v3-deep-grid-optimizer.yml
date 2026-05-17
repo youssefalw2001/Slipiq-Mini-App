@@ -1,0 +1,113 @@
+name: API Tennis P2 V3 Deep Grid Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined warehouse artifact.
+        required: false
+        default: 'api-tennis-full-historical-odds-warehouse-combined'
+      trigger_min:
+        description: Lower bound for P2 4:6 trigger odds.
+        required: false
+        default: '6.25'
+      trigger_max:
+        description: Upper bound for P2 4:6 trigger odds.
+        required: false
+        default: '6.99'
+      start_bankroll:
+        description: Starting bankroll for compound simulation.
+        required: false
+        default: '5000'
+      risk_pct:
+        description: Risk per bet as decimal.
+        required: false
+        default: '0.02'
+      min_bets_leaderboard:
+        description: Minimum bets to appear on leaderboard.
+        required: false
+        default: '25'
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined warehouse artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-full-historical-odds-warehouse.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/warehouse
+          if_no_artifact_found: fail
+
+      - name: Extract warehouse zip
+        shell: bash
+        run: |
+          ZIP_PATH=$(find artifacts/input/warehouse -type f -name 'api-tennis-full-historical-odds-warehouse-combined.zip' | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "Warehouse zip not found. Files available:"
+            find artifacts/input/warehouse -type f | sort
+            exit 2
+          fi
+          mkdir -p artifacts/input/warehouse/extracted
+          unzip -q "$ZIP_PATH" -d artifacts/input/warehouse/extracted
+          find artifacts/input/warehouse/extracted -maxdepth 1 -type f | sort
+
+      - name: Locate inputs
+        id: locate
+        shell: bash
+        run: |
+          FIRST_SET=$(find artifacts/input/warehouse/extracted -type f -name 'first_set_correct_score_wide_combined.csv' | head -n 1)
+          FIXTURES=$(find artifacts/input/warehouse/extracted -type f -name 'fixtures_full_combined.csv' | head -n 1)
+          if [ -z "$FIRST_SET" ]; then
+            echo "Missing first-set wide file."
+            find artifacts/input/warehouse/extracted -type f | sort
+            exit 2
+          fi
+          echo "first_set=$FIRST_SET" >> "$GITHUB_OUTPUT"
+          echo "fixtures=$FIXTURES" >> "$GITHUB_OUTPUT"
+          echo "First set: $FIRST_SET"
+          echo "Fixtures: $FIXTURES"
+
+      - name: Run P2 V3 deep grid optimizer
+        shell: bash
+        run: |
+          python scripts/api_tennis_p2_v3_deep_grid_optimizer.py \
+            --first-set-wide='${{ steps.locate.outputs.first_set }}' \
+            --fixtures='${{ steps.locate.outputs.fixtures }}' \
+            --out=artifacts/output/api-tennis-p2-v3-deep-grid-optimizer \
+            --trigger-min='${{ github.event.inputs.trigger_min }}' \
+            --trigger-max='${{ github.event.inputs.trigger_max }}' \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}' \
+            --min-bets-leaderboard='${{ github.event.inputs.min_bets_leaderboard }}'
+
+      - name: Upload P2 V3 deep grid optimizer artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-p2-v3-deep-grid-optimizer
+          path: |
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_candidates.csv
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_results.csv
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_leaderboard.csv
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_monthly.csv
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_funnel.json
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_summary.json
+            artifacts/output/api-tennis-p2-v3-deep-grid-optimizer/p2_v3_deep_grid_report.md
+          if-no-files-found: warn
