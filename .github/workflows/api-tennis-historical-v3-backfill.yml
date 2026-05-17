@@ -1,0 +1,155 @@
+name: API Tennis Historical V3 Backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      preset_range:
+        description: Use 15_months for 2025-02-17 through 2026-05-17, or custom for manual dates.
+        required: false
+        default: 'custom'
+        type: choice
+        options:
+          - custom
+          - 15_months
+      date_start:
+        description: Custom start date YYYY-MM-DD. Ignored when preset_range=15_months.
+        required: false
+        default: '2026-05-01'
+      date_stop:
+        description: Custom stop date YYYY-MM-DD. Ignored when preset_range=15_months.
+        required: false
+        default: '2026-05-07'
+      event_type_keys:
+        description: Comma-separated event_type_key values. Default 265,266 for ATP/WTA singles.
+        required: false
+        default: '265,266'
+      write_supabase:
+        description: Upsert rows into Supabase historical table.
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      min_grouped:
+        description: Minimum grouped P2 9-12 odds.
+        required: false
+        default: '3.30'
+      ideal_grouped:
+        description: Ideal grouped P2 9-12 odds.
+        required: false
+        default: '3.50'
+      request_pause_ms:
+        description: Pause between API requests to reduce rate-limit risk.
+        required: false
+        default: '250'
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.plan.outputs.chunks }}
+      backfill_run_id: ${{ steps.plan.outputs.backfill_run_id }}
+    steps:
+      - name: Build date chunks
+        id: plan
+        shell: bash
+        run: |
+          node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const preset = '${{ github.event.inputs.preset_range }}';
+          const inputStart = '${{ github.event.inputs.date_start }}';
+          const inputStop = '${{ github.event.inputs.date_stop }}';
+          const start = preset === '15_months' ? '2025-02-17' : inputStart;
+          const stop = preset === '15_months' ? '2026-05-17' : inputStop;
+          const runId = `api-tennis-15m-${Date.now()}`;
+          const chunks = [];
+          let d = new Date(`${start}T00:00:00Z`);
+          const end = new Date(`${stop}T00:00:00Z`);
+          while (d <= end) {
+            const chunkStart = new Date(d);
+            const chunkEnd = new Date(d);
+            chunkEnd.setUTCDate(chunkEnd.getUTCDate() + 13);
+            if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+            chunks.push({
+              date_start: chunkStart.toISOString().slice(0, 10),
+              date_stop: chunkEnd.toISOString().slice(0, 10),
+            });
+            d = new Date(chunkEnd);
+            d.setUTCDate(d.getUTCDate() + 1);
+          }
+          console.log(`chunks=${JSON.stringify(chunks)}`);
+          console.log(`backfill_run_id=${runId}`);
+          NODE
+
+  backfill:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$API_TENNIS_KEY" ] && [ -z "$APITENNIS_API_KEY" ] && [ -z "$API_TENNIS_API_KEY" ]; then
+            echo "Missing API Tennis key."
+            exit 2
+          fi
+          if [ '${{ github.event.inputs.write_supabase }}' = 'true' ]; then
+            if [ -z "$SUPABASE_URL" ] || { [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$SUPABASE_SERVICE_KEY" ]; }; then
+              echo "Supabase write requested but Supabase secrets are missing."
+              exit 2
+            fi
+          fi
+
+      - name: Run historical backfill chunk
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OUT_DIR: artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}
+        run: |
+          node scripts/api_tennis_historical_v3_backfill.mjs \
+            --out="artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}" \
+            --date-start='${{ matrix.chunk.date_start }}' \
+            --date-stop='${{ matrix.chunk.date_stop }}' \
+            --event-type-keys='${{ github.event.inputs.event_type_keys }}' \
+            --write-supabase='${{ github.event.inputs.write_supabase }}' \
+            --min-grouped='${{ github.event.inputs.min_grouped }}' \
+            --ideal-grouped='${{ github.event.inputs.ideal_grouped }}' \
+            --request-pause-ms='${{ github.event.inputs.request_pause_ms }}' \
+            --backfill-run-id='${{ needs.plan.outputs.backfill_run_id }}'
+
+      - name: Upload chunk artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-historical-v3-backfill-${{ matrix.chunk.date_start }}-${{ matrix.chunk.date_stop }}
+          path: |
+            artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/run_summary.json
+            artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/api_tennis_historical_v3_backfill_rows.csv
+            artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/api_tennis_historical_v3_backfill_report.md
+          if-no-files-found: warn
