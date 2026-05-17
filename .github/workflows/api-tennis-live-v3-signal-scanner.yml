@@ -1,0 +1,152 @@
+name: API Tennis Live V3 Signal Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Start date YYYY-MM-DD. Leave blank for today UTC.
+        required: false
+        default: ''
+      date_stop:
+        description: Stop date YYYY-MM-DD. Leave blank for today + 2 days UTC.
+        required: false
+        default: ''
+      event_type_keys:
+        description: Comma-separated event_type_key values. Default 265,266 for ATP/WTA singles.
+        required: false
+        default: '265,266'
+      include_all_types:
+        description: Ignore event_type_keys and scan all event types.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      min_grouped:
+        description: Minimum grouped P2 9-12 odds for watchlist/playable candidates.
+        required: false
+        default: '3.30'
+      ideal_grouped:
+        description: Ideal grouped P2 9-12 odds for Price Lab A signals.
+        required: false
+        default: '3.50'
+      limit_signals:
+        description: Max best-per-match candidates to write/alert.
+        required: false
+        default: '25'
+      dry_run:
+        description: true = artifacts only. false enables writes if write_supabase is true.
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      write_supabase:
+        description: Write API Tennis signals/price checks into Supabase. Ignored when dry_run is true.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      send_telegram:
+        description: Send Telegram alerts for official/Price Lab signals. Requires Supabase write and Telegram secrets.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  api-tennis-live-v3-signal-scanner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$API_TENNIS_KEY" ] && [ -z "$APITENNIS_API_KEY" ] && [ -z "$API_TENNIS_API_KEY" ]; then
+            echo "Missing API Tennis key. Add API_TENNIS_KEY, APITENNIS_API_KEY, or API_TENNIS_API_KEY in repo secrets."
+            exit 2
+          fi
+          echo "API Tennis key found."
+
+          if [ '${{ github.event.inputs.write_supabase }}' = 'true' ] && [ '${{ github.event.inputs.dry_run }}' = 'false' ]; then
+            if [ -z "$SUPABASE_URL" ] || { [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && [ -z "$SUPABASE_SERVICE_KEY" ]; }; then
+              echo "Supabase write requested but SUPABASE_URL and service role key are missing."
+              exit 2
+            fi
+            echo "Supabase write secrets found."
+          fi
+
+          if [ '${{ github.event.inputs.send_telegram }}' = 'true' ]; then
+            if [ -z "$TELEGRAM_BOT_TOKEN" ] || { [ -z "$TELEGRAM_VIP_CHAT_ID" ] && [ -z "$TELEGRAM_CHAT_ID" ]; }; then
+              echo "Telegram send requested but TELEGRAM_BOT_TOKEN and chat id are missing."
+              exit 2
+            fi
+            echo "Telegram secrets found."
+          fi
+
+      - name: Run API Tennis live V3 signal scanner
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          OUT_DIR: artifacts/output/api-tennis-live-v3-signal-scanner
+        run: |
+          node scripts/api_tennis_live_v3_signal_scanner.mjs \
+            --out=artifacts/output/api-tennis-live-v3-signal-scanner \
+            --date-start='${{ github.event.inputs.date_start }}' \
+            --date-stop='${{ github.event.inputs.date_stop }}' \
+            --event-type-keys='${{ github.event.inputs.event_type_keys }}' \
+            --include-all-types='${{ github.event.inputs.include_all_types }}' \
+            --min-grouped='${{ github.event.inputs.min_grouped }}' \
+            --ideal-grouped='${{ github.event.inputs.ideal_grouped }}' \
+            --limit-signals='${{ github.event.inputs.limit_signals }}' \
+            --dry-run='${{ github.event.inputs.dry_run }}' \
+            --write-supabase='${{ github.event.inputs.write_supabase }}' \
+            --send-telegram='${{ github.event.inputs.send_telegram }}'
+
+      - name: Upload API Tennis live scanner artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-live-v3-signal-scanner
+          path: |
+            artifacts/output/api-tennis-live-v3-signal-scanner/run_summary.json
+            artifacts/output/api-tennis-live-v3-signal-scanner/api_tennis_all_bookmaker_rows.csv
+            artifacts/output/api-tennis-live-v3-signal-scanner/api_tennis_signal_candidates.csv
+            artifacts/output/api-tennis-live-v3-signal-scanner/processed.json
+            artifacts/output/api-tennis-live-v3-signal-scanner/api_tennis_live_v3_report.md
+          if-no-files-found: warn
