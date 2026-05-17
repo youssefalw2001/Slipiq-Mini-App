@@ -8,7 +8,8 @@ Production path:
 - calculate P2 3:6 / 4:6 / 5:7 grouped odds per bookmaker
 - pick best bookmaker per match
 - classify Official V3 / Price Lab / Watchlist
-- optionally write price checks + signals to Supabase
+- write only production-ready signal rows to Supabase
+- keep watchlist rows in artifacts only
 - optionally send Telegram alerts
 
 Read-only odds source. This does not place bets.
@@ -88,17 +89,23 @@ if (!apiKey) {
   process.exit(2);
 }
 
-async function fetchApiTennis(method, params = {}) {
+async function fetchApiTennis(method, apiParams = {}) {
   const url = new URL(baseUrl);
   url.searchParams.set('method', method);
   url.searchParams.set('APIkey', apiKey);
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && String(value).trim() !== '') url.searchParams.set(key, String(value));
+  for (const [key, value] of Object.entries(apiParams)) {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      url.searchParams.set(key, String(value));
+    }
   }
   const res = await fetch(url, { headers: { accept: 'application/json' } });
   const text = await res.text();
   let payload;
-  try { payload = JSON.parse(text); } catch { throw new Error(`${method} non-JSON ${res.status}: ${text.slice(0, 500)}`); }
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error(`${method} non-JSON ${res.status}: ${text.slice(0, 500)}`);
+  }
   if (!res.ok || String(payload.success) !== '1') {
     throw new Error(`${method} failed HTTP ${res.status}: ${JSON.stringify(payload).slice(0, 1200)}`);
   }
@@ -292,7 +299,7 @@ function signalPayload(row, scannerRunId) {
     reconstructed_p2_9_12_odds: grouped,
     v3_trigger_price: p46,
     signal_class: signalClass,
-    execution_status: ready ? 'new' : 'watchlist',
+    execution_status: 'new',
     manual_confirmed: false,
     result_status: 'pending',
     auto_price_confirmed: true,
@@ -412,6 +419,7 @@ async function main() {
     price_checks_inserted: 0,
     telegram_sent: 0,
     skipped_existing: 0,
+    skipped_watchlist: 0,
     errors: [],
     stop_reason: 'NOT_STARTED',
   };
@@ -441,6 +449,11 @@ async function main() {
 
     for (const row of candidates) {
       const record = { match: row.match_name, bookmaker: row.bookmaker, grouped: row.p2_grouped_9_12, signal_class: row.signal_class };
+      if (row.signal_class === 'WATCHLIST_PRICE') {
+        summary.skipped_watchlist += 1;
+        processed.push({ ...record, action: 'skipped_watchlist' });
+        continue;
+      }
       if (DRY_RUN || !WRITE_SUPABASE) {
         processed.push({ ...record, action: 'dry_run' });
         continue;
@@ -490,6 +503,8 @@ async function main() {
       `Candidate rows: ${summary.candidate_rows}`,
       `Signals inserted: ${summary.signals_inserted}`,
       `Price checks inserted: ${summary.price_checks_inserted}`,
+      `Skipped existing: ${summary.skipped_existing}`,
+      `Skipped watchlist: ${summary.skipped_watchlist}`,
       `Telegram sent: ${summary.telegram_sent}`,
       '',
       '## Candidates',
