@@ -1,0 +1,83 @@
+name: API Tennis V3 Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Start date YYYY-MM-DD. Leave blank for today UTC.
+        required: false
+        default: ''
+      date_stop:
+        description: Stop date YYYY-MM-DD. Leave blank for today + 2 days UTC.
+        required: false
+        default: ''
+      event_type_keys:
+        description: Comma-separated event_type_key values. Default 265,266 for ATP/WTA singles.
+        required: false
+        default: '265,266'
+      include_all_types:
+        description: Ignore event_type_keys and scan all event types.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  api-tennis-v3-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check API Tennis key
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+        run: |
+          if [ -z "$API_TENNIS_KEY" ] && [ -z "$APITENNIS_API_KEY" ] && [ -z "$API_TENNIS_API_KEY" ]; then
+            echo "Missing API Tennis key. Add API_TENNIS_KEY, APITENNIS_API_KEY, or API_TENNIS_API_KEY in repo secrets."
+            exit 2
+          fi
+          echo "API Tennis key found."
+
+      - name: Run API Tennis V3 probe
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          API_TENNIS_DATE_START: ${{ github.event.inputs.date_start }}
+          API_TENNIS_DATE_STOP: ${{ github.event.inputs.date_stop }}
+          API_TENNIS_EVENT_TYPE_KEYS: ${{ github.event.inputs.event_type_keys }}
+          API_TENNIS_INCLUDE_ALL_TYPES: ${{ github.event.inputs.include_all_types }}
+          OUT_DIR: artifacts/output/api-tennis-v3-probe
+        run: |
+          node scripts/api_tennis_v3_probe.mjs
+
+      - name: Upload API Tennis probe artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-v3-probe
+          path: |
+            artifacts/output/api-tennis-v3-probe/run_summary.json
+            artifacts/output/api-tennis-v3-probe/api_tennis_fixtures.csv
+            artifacts/output/api-tennis-v3-probe/api_tennis_market_inventory.csv
+            artifacts/output/api-tennis-v3-probe/api_tennis_v3_grouped_odds.csv
+            artifacts/output/api-tennis-v3-probe/api_tennis_live_odds_inventory.csv
+            artifacts/output/api-tennis-v3-probe/api_tennis_odds_raw_sample.json
+            artifacts/output/api-tennis-v3-probe/api_tennis_v3_report.md
+          if-no-files-found: warn
