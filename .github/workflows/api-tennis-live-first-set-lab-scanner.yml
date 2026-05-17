@@ -1,0 +1,93 @@
+name: API Tennis Live First Set Lab Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_telegram:
+        description: Send Telegram messages. Use false for dry-run.
+        required: false
+        default: 'false'
+      date_start:
+        description: Start date YYYY-MM-DD. Blank = today UTC.
+        required: false
+        default: ''
+      date_stop:
+        description: Stop date YYYY-MM-DD. Blank = today+2 UTC.
+        required: false
+        default: ''
+      max_minutes_to_start:
+        description: Maximum minutes before match start to scan.
+        required: false
+        default: '2160'
+      min_minutes_to_start:
+        description: Minimum minutes before match start. Use 0 for pre-match only.
+        required: false
+        default: '0'
+      event_type_keys:
+        description: ATP/WTA event type keys.
+        required: false
+        default: '265,266'
+  schedule:
+    - cron: '17 */2 * * *'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run live First Set Lab scanner
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CORE_CHAT_ID: ${{ secrets.TELEGRAM_CORE_CHAT_ID }}
+          TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
+          SEND_TELEGRAM: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.send_telegram }}
+          API_TENNIS_DATE_START: ${{ github.event.inputs.date_start }}
+          API_TENNIS_DATE_STOP: ${{ github.event.inputs.date_stop }}
+          API_TENNIS_EVENT_TYPE_KEYS: ${{ github.event.inputs.event_type_keys }}
+          MAX_MINUTES_TO_START: ${{ github.event.inputs.max_minutes_to_start }}
+          MIN_MINUTES_TO_START: ${{ github.event.inputs.min_minutes_to_start }}
+        shell: bash
+        run: |
+          ARGS=(
+            --out=artifacts/output/api-tennis-live-first-set-lab-scanner
+            --send-telegram="${SEND_TELEGRAM}"
+          )
+          if [ -n "${API_TENNIS_DATE_START}" ]; then
+            ARGS+=(--date-start="${API_TENNIS_DATE_START}")
+          fi
+          if [ -n "${API_TENNIS_DATE_STOP}" ]; then
+            ARGS+=(--date-stop="${API_TENNIS_DATE_STOP}")
+          fi
+          if [ -n "${MAX_MINUTES_TO_START}" ]; then
+            ARGS+=(--max-minutes-to-start="${MAX_MINUTES_TO_START}")
+          fi
+          if [ -n "${MIN_MINUTES_TO_START}" ]; then
+            ARGS+=(--min-minutes-to-start="${MIN_MINUTES_TO_START}")
+          fi
+          node scripts/api_tennis_live_first_set_lab_scanner.mjs "${ARGS[@]}"
+
+      - name: Upload live First Set Lab artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-live-first-set-lab-scanner
+          path: |
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_report.md
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_summary.json
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_signals.csv
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_raw_candidates.csv
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_telegram_log.csv
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_fatal_error.json
+          if-no-files-found: warn
