@@ -1,0 +1,92 @@
+name: API Tennis Winning-Side Cluster Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined backfill artifact to optimize.
+        required: false
+        default: 'api-tennis-15m-historical-v3-combined'
+      start_bankroll:
+        description: Starting bankroll for compound simulation.
+        required: false
+        default: '5000'
+      risk_pct:
+        description: Risk per bet as decimal.
+        required: false
+        default: '0.02'
+      random_trials:
+        description: Random side stress-test trials.
+        required: false
+        default: '250'
+      seed:
+        description: Random seed.
+        required: false
+        default: '20260517'
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined backfill artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-historical-v3-backfill.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/combined
+          if_no_artifact_found: fail
+
+      - name: Locate combined CSV
+        id: locate
+        shell: bash
+        run: |
+          CSV_PATH=$(find artifacts/input/combined -type f -name 'api_tennis_15m_historical_v3_rows_combined.csv' | head -n 1)
+          if [ -z "$CSV_PATH" ]; then
+            echo "Combined CSV not found. Files available:"
+            find artifacts/input/combined -type f | sort
+            exit 2
+          fi
+          echo "csv_path=$CSV_PATH" >> "$GITHUB_OUTPUT"
+          echo "Using CSV: $CSV_PATH"
+
+      - name: Run winning-side cluster optimizer
+        shell: bash
+        run: |
+          python scripts/api_tennis_winning_side_cluster_optimizer.py \
+            --csv='${{ steps.locate.outputs.csv_path }}' \
+            --out=artifacts/output/api-tennis-winning-side-cluster-optimizer \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}' \
+            --random-trials='${{ github.event.inputs.random_trials }}' \
+            --seed='${{ github.event.inputs.seed }}'
+
+      - name: Upload winning-side optimizer artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-winning-side-cluster-optimizer
+          path: |
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/side_cluster_rows.csv
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/fixed_book_side_results.csv
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/tournament_group_side_results.csv
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/favorite_bucket_results.csv
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/random_side_results.csv
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/winning_side_filter_leaderboard.csv
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/optimizer_summary.json
+            artifacts/output/api-tennis-winning-side-cluster-optimizer/optimizer_report.md
+          if-no-files-found: warn
