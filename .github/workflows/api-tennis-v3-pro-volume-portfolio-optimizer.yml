@@ -1,0 +1,112 @@
+name: API Tennis V3 Pro Volume Portfolio Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      v3_pro_artifact_name:
+        description: Name of V3 Pro artifact.
+        required: false
+        default: 'api-tennis-v3-pro-model-optimizer'
+      start_bankroll:
+        description: Starting bankroll for compound simulation.
+        required: false
+        default: '5000'
+      risk_pct:
+        description: Main risk per bet.
+        required: false
+        default: '0.02'
+      dream_risk_pct:
+        description: Dream/aggressive risk per bet.
+        required: false
+        default: '0.04'
+      train_ratio:
+        description: Chronological train ratio.
+        required: false
+        default: '0.70'
+      min_bets:
+        description: Minimum bets for leaderboard.
+        required: false
+        default: '100'
+      min_test_bets:
+        description: Minimum test-period bets before overfit penalty.
+        required: false
+        default: '20'
+      min_volume_target:
+        description: Target bets for scalable volume classification.
+        required: false
+        default: '300'
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest V3 Pro artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-v3-pro-model-optimizer.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.v3_pro_artifact_name }}
+          path: artifacts/input/v3pro
+          if_no_artifact_found: fail
+
+      - name: Locate V3 Pro signal candidates
+        id: locate
+        shell: bash
+        run: |
+          CANDIDATES=$(find artifacts/input/v3pro -type f -name 'v3_pro_signal_candidates.csv' | head -n 1)
+          if [ -z "$CANDIDATES" ]; then
+            echo "Missing v3_pro_signal_candidates.csv. Files available:"
+            find artifacts/input/v3pro -type f | sort
+            exit 2
+          fi
+          echo "candidates=$CANDIDATES" >> "$GITHUB_OUTPUT"
+          echo "Candidates: $CANDIDATES"
+
+      - name: Run V3 Pro volume portfolio optimizer
+        shell: bash
+        run: |
+          python scripts/api_tennis_v3_pro_volume_portfolio_optimizer.py \
+            --candidates='${{ steps.locate.outputs.candidates }}' \
+            --out=artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}' \
+            --dream-risk-pct='${{ github.event.inputs.dream_risk_pct }}' \
+            --train-ratio='${{ github.event.inputs.train_ratio }}' \
+            --min-bets='${{ github.event.inputs.min_bets }}' \
+            --min-test-bets='${{ github.event.inputs.min_test_bets }}' \
+            --min-volume-target='${{ github.event.inputs.min_volume_target }}'
+
+      - name: Upload V3 Pro volume portfolio artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-v3-pro-volume-portfolio-optimizer
+          path: |
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_report.md
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_cards.json
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_funnel.json
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_leaderboard.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_scalable.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_high_volume.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_high_roi.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_train_test.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_monthly.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_daily_counts.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_signal_mix.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_candidate_rules.csv
+            artifacts/output/api-tennis-v3-pro-volume-portfolio-optimizer/volume_portfolio_bankroll_curves.csv
+          if-no-files-found: warn
