@@ -1,0 +1,96 @@
+name: API Tennis Score Hunter Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined warehouse artifact.
+        required: false
+        default: 'api-tennis-full-historical-odds-warehouse-combined'
+      start_bankroll:
+        description: Starting bankroll for compound simulation.
+        required: false
+        default: '5000'
+      risk_pct:
+        description: Risk per bet as decimal.
+        required: false
+        default: '0.02'
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined warehouse artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-full-historical-odds-warehouse.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/warehouse
+          if_no_artifact_found: fail
+
+      - name: Extract warehouse zip
+        shell: bash
+        run: |
+          ZIP_PATH=$(find artifacts/input/warehouse -type f -name 'api-tennis-full-historical-odds-warehouse-combined.zip' | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "Warehouse zip not found. Files available:"
+            find artifacts/input/warehouse -type f | sort
+            exit 2
+          fi
+          mkdir -p artifacts/input/warehouse/extracted
+          unzip -q "$ZIP_PATH" -d artifacts/input/warehouse/extracted
+          find artifacts/input/warehouse/extracted -maxdepth 1 -type f | sort
+
+      - name: Locate optimizer inputs
+        id: locate
+        shell: bash
+        run: |
+          FIRST_SET=$(find artifacts/input/warehouse/extracted -type f -name 'first_set_correct_score_wide_combined.csv' | head -n 1)
+          MONEYLINE=$(find artifacts/input/warehouse/extracted -type f -name 'moneyline_favorite_combined.csv' | head -n 1)
+          if [ -z "$FIRST_SET" ] || [ -z "$MONEYLINE" ]; then
+            echo "Missing first-set or moneyline file. Files available:"
+            find artifacts/input/warehouse/extracted -type f | sort
+            exit 2
+          fi
+          echo "first_set=$FIRST_SET" >> "$GITHUB_OUTPUT"
+          echo "moneyline=$MONEYLINE" >> "$GITHUB_OUTPUT"
+          echo "First set: $FIRST_SET"
+          echo "Moneyline: $MONEYLINE"
+
+      - name: Run Score Hunter exact-score optimizer
+        shell: bash
+        run: |
+          python scripts/api_tennis_score_hunter_optimizer.py \
+            --first-set-wide='${{ steps.locate.outputs.first_set }}' \
+            --moneyline='${{ steps.locate.outputs.moneyline }}' \
+            --out=artifacts/output/api-tennis-score-hunter-optimizer \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}'
+
+      - name: Upload Score Hunter artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-score-hunter-optimizer
+          path: |
+            artifacts/output/api-tennis-score-hunter-optimizer/score_hunter_candidate_rows.csv
+            artifacts/output/api-tennis-score-hunter-optimizer/score_hunter_results.csv
+            artifacts/output/api-tennis-score-hunter-optimizer/score_hunter_leaderboard.csv
+            artifacts/output/api-tennis-score-hunter-optimizer/optimizer_summary.json
+            artifacts/output/api-tennis-score-hunter-optimizer/optimizer_report.md
+          if-no-files-found: warn
