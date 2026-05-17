@@ -1,26 +1,12 @@
 #!/usr/bin/env python3
 """SlipIQ P2-only V3 Price Gate Optimizer.
 
-Purpose:
-- Keep the original P2-only V3 signal.
-- Stop assuming every signal pays 3.50.
-- Test minimum REAL reconstructed grouped odds gates.
+Keeps the original P2-only V3 trigger and tests the minimum REAL grouped odds
+needed for the strategy to be bettable.
 
-Original trigger:
-- P2 4:6 exact score odds between trigger_min and trigger_max, default 6.25-6.99.
-
-Bet:
-- P2 grouped 9-12 cluster: 3:6 / 4:6 / 5:7.
-
-Win:
-- first_set_score in 3:6 / 4:6 / 5:7.
-
-Outputs:
-- price_gate_results.csv
-- price_gate_leaderboard.csv
-- price_gate_funnel.json
-- price_gate_report.md
-- price_gate_bankroll_curves.csv
+Trigger: P2 4:6 odds between trigger_min and trigger_max, default 6.25-6.99.
+Bet: P2 grouped 9-12 cluster = 3:6 / 4:6 / 5:7.
+Win: first_set_score in 3:6 / 4:6 / 5:7.
 """
 
 from __future__ import annotations
@@ -32,7 +18,7 @@ import math
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 P2_WIN_SCORES = {"3:6", "4:6", "5:7"}
 EVENT_TYPE_TOUR = {"265": "ATP", "266": "WTA"}
@@ -120,14 +106,10 @@ def normalize(raw: Dict) -> Dict:
 
 
 def dedupe_unique_match(rows: List[Dict]) -> List[Dict]:
-    """One row per event. Prefer highest real grouped odds, because this is diagnostic for availability."""
     groups = defaultdict(list)
     for r in rows:
         groups[r.get("event_key")].append(r)
-    out = []
-    for arr in groups.values():
-        out.append(max(arr, key=lambda x: x.get("p2_grouped_real") or 0))
-    return out
+    return [max(arr, key=lambda x: x.get("p2_grouped_real") or 0) for arr in groups.values()]
 
 
 def dedupe_match_book(rows: List[Dict]) -> List[Dict]:
@@ -166,25 +148,8 @@ def simulate(rows: List[Dict], start: float, risk: float):
         peak = max(peak, bank)
         dd = (peak - bank) / peak if peak else 0
         max_dd = max(max_dd, dd)
-        curve.append({
-            "bet_index": i,
-            "event_date": r.get("event_date", ""),
-            "event_key": r.get("event_key", ""),
-            "bookmaker": r.get("bookmaker", ""),
-            "p2_grouped_real": odds,
-            "won": str(bool(r["p2_cluster_win"])).lower(),
-            "stake": stake,
-            "pnl": pnl,
-            "bankroll": bank,
-            "drawdown_pct": dd * 100,
-        })
-    return {
-        "final_bankroll": bank,
-        "compound_profit": bank - start,
-        "compound_return_pct": ((bank / start) - 1) * 100 if start else None,
-        "max_drawdown_pct": max_dd * 100,
-        "worst_losing_streak": worst_losing,
-    }, curve
+        curve.append({"bet_index": i, "event_date": r.get("event_date", ""), "event_key": r.get("event_key", ""), "bookmaker": r.get("bookmaker", ""), "p2_grouped_real": odds, "won": str(bool(r["p2_cluster_win"])).lower(), "stake": stake, "pnl": pnl, "bankroll": bank, "drawdown_pct": dd * 100})
+    return {"final_bankroll": bank, "compound_profit": bank - start, "compound_return_pct": ((bank / start) - 1) * 100 if start else None, "max_drawdown_pct": max_dd * 100, "worst_losing_streak": worst_losing}, curve
 
 
 def metrics(rows: List[Dict], label: str, start: float, risk: float, **group):
@@ -200,23 +165,7 @@ def metrics(rows: List[Dict], label: str, start: float, risk: float, **group):
         if m:
             month_pl[m] += (r["p2_grouped_real"] - 1) if r["p2_cluster_win"] else -1
     sim, _ = simulate(rows, start, risk)
-    return {
-        "label": label,
-        **group,
-        "bets": bets,
-        "wins": wins,
-        "losses": bets - wins,
-        "hit_rate": wins / bets if bets else None,
-        "avg_odds": avg_odds,
-        "breakeven_hit_rate": 1 / avg_odds if avg_odds else None,
-        "edge_vs_breakeven": (wins / bets - 1 / avg_odds) if bets and avg_odds else None,
-        "flat_profit_units": units,
-        "flat_roi": units / bets if bets else None,
-        "months": len(months),
-        "positive_months": sum(1 for v in month_pl.values() if v > 0),
-        "bets_per_month": bets / len(months) if months else None,
-        **sim,
-    }
+    return {"label": label, **group, "bets": bets, "wins": wins, "losses": bets - wins, "hit_rate": wins / bets if bets else None, "avg_odds": avg_odds, "breakeven_hit_rate": 1 / avg_odds if avg_odds else None, "edge_vs_breakeven": (wins / bets - 1 / avg_odds) if bets and avg_odds else None, "flat_profit_units": units, "flat_roi": units / bets if bets else None, "months": len(months), "positive_months": sum(1 for v in month_pl.values() if v > 0), "bets_per_month": bets / len(months) if months else None, **sim}
 
 
 def main():
@@ -243,37 +192,34 @@ def main():
     groups = sorted({r["tournament_group"] for r in real_available if r.get("tournament_group")})
 
     results = []
-    modes = [
-        ("bookmaker_rows", lambda rows: dedupe_match_book(rows)),
-        ("unique_match_best_available", lambda rows: dedupe_unique_match(rows)),
-    ]
+    modes = [("bookmaker_rows", lambda rows: dedupe_match_book(rows)), ("unique_match_best_available", lambda rows: dedupe_unique_match(rows))]
     for mode_name, mode_fn in modes:
         base = mode_fn(real_available)
         for gate in gates:
-            rows = [r for r in base if r["p2_grouped_real"] >= gate]
-            results.append(metrics(rows, f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, min_grouped_odds=gate))
+            results.append(metrics([r for r in base if r["p2_grouped_real"] >= gate], f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, min_grouped_odds=gate))
         for book in books:
             book_base = mode_fn([r for r in real_available if r["bookmaker"] == book])
             for gate in gates:
-                rows = [r for r in book_base if r["p2_grouped_real"] >= gate]
-                results.append(metrics(rows, f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, bookmaker=book, min_grouped_odds=gate))
+                results.append(metrics([r for r in book_base if r["p2_grouped_real"] >= gate], f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, bookmaker=book, min_grouped_odds=gate))
         for t in tours:
             tour_base = mode_fn([r for r in real_available if r["tour"] == t])
             for gate in gates:
-                rows = [r for r in tour_base if r["p2_grouped_real"] >= gate]
-                results.append(metrics(rows, f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, tour=t, min_grouped_odds=gate))
+                results.append(metrics([r for r in tour_base if r["p2_grouped_real"] >= gate], f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, tour=t, min_grouped_odds=gate))
         for g in groups:
             group_base = mode_fn([r for r in real_available if r["tournament_group"] == g])
             for gate in gates:
-                rows = [r for r in group_base if r["p2_grouped_real"] >= gate]
-                results.append(metrics(rows, f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, tournament_group=g, min_grouped_odds=gate))
+                results.append(metrics([r for r in group_base if r["p2_grouped_real"] >= gate], f"P2_V3_REAL_GROUPED_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, tournament_group=g, min_grouped_odds=gate))
 
-    # Focus combos most likely to matter.
+    # Focus combos most likely to matter. Includes requested 1xBet + bet365 focus.
     combos = [
         ("ATP_bet365", lambda r: r["tour"] == "ATP" and r["bookmaker"] == "bet365"),
+        ("ATP_1xBet", lambda r: r["tour"] == "ATP" and r["bookmaker"] == "1xBet"),
+        ("ATP_1xBet_bet365", lambda r: r["tour"] == "ATP" and r["bookmaker"] in {"1xBet", "bet365"}),
         ("ATP_10Bet", lambda r: r["tour"] == "ATP" and r["bookmaker"] == "10Bet"),
         ("ATP_bet365_10Bet", lambda r: r["tour"] == "ATP" and r["bookmaker"] in {"bet365", "10Bet"}),
         ("ATP_all_books", lambda r: r["tour"] == "ATP"),
+        ("WTA_1xBet_bet365", lambda r: r["tour"] == "WTA" and r["bookmaker"] in {"1xBet", "bet365"}),
+        ("ALL_1xBet_bet365", lambda r: r["bookmaker"] in {"1xBet", "bet365"}),
         ("WTA_all_books", lambda r: r["tour"] == "WTA"),
     ]
     for combo_name, fn in combos:
@@ -281,8 +227,7 @@ def main():
         for mode_name, mode_fn in modes:
             base = mode_fn(combo_rows)
             for gate in gates:
-                rows = [r for r in base if r["p2_grouped_real"] >= gate]
-                results.append(metrics(rows, f"P2_V3_{combo_name}_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, combo=combo_name, min_grouped_odds=gate))
+                results.append(metrics([r for r in base if r["p2_grouped_real"] >= gate], f"P2_V3_{combo_name}_GE_{gate:.2f}", args.start_bankroll, args.risk_pct, mode=mode_name, combo=combo_name, min_grouped_odds=gate))
 
     fields = ["mode", "label", "combo", "bookmaker", "tour", "tournament_group", "min_grouped_odds", "bets", "wins", "losses", "hit_rate", "avg_odds", "breakeven_hit_rate", "edge_vs_breakeven", "flat_profit_units", "flat_roi", "months", "positive_months", "bets_per_month", "final_bankroll", "compound_profit", "compound_return_pct", "max_drawdown_pct", "worst_losing_streak"]
     write_csv(out / "price_gate_results.csv", results, fields)
@@ -292,7 +237,6 @@ def main():
     candidate_fields = ["event_key", "event_date", "event_time", "player1", "player2", "match_name", "bookmaker", "tour", "tournament_group", "tournament_name", "first_set_score", "odds_3_6", "odds_4_6", "odds_5_7", "p2_grouped_real", "p2_cluster_win"]
     write_csv(out / "p2_v3_real_available_candidates.csv", real_available, candidate_fields)
 
-    # Curves for the core gates.
     curve_rows = []
     for label, rows in [
         ("bookmaker_rows_ge_3_00", [r for r in dedupe_match_book(real_available) if r["p2_grouped_real"] >= 3.00]),
@@ -315,6 +259,8 @@ def main():
             d[clean(r.get(key)) or "missing"] += 1
         return dict(sorted(d.items(), key=lambda kv: (-kv[1], kv[0])))
 
+    book_rows = dedupe_match_book(real_available)
+    unique_rows = dedupe_unique_match(real_available)
     funnel = {
         "wide_rows_total": len(all_rows),
         "wide_rows_settled": sum(1 for r in all_rows if r["is_settled"]),
@@ -326,8 +272,9 @@ def main():
         "real_available_by_bookmaker": count_by(real_available, "bookmaker"),
         "real_available_by_tour": count_by(real_available, "tour"),
         "real_available_by_tournament_group": count_by(real_available, "tournament_group"),
-        "gate_counts_bookmaker_rows": {str(g): sum(1 for r in dedupe_match_book(real_available) if r["p2_grouped_real"] >= g) for g in gates},
-        "gate_counts_unique_match_best_available": {str(g): sum(1 for r in dedupe_unique_match(real_available) if r["p2_grouped_real"] >= g) for g in gates},
+        "gate_counts_bookmaker_rows": {str(g): sum(1 for r in book_rows if r["p2_grouped_real"] >= g) for g in gates},
+        "gate_counts_unique_match_best_available": {str(g): sum(1 for r in unique_rows if r["p2_grouped_real"] >= g) for g in gates},
+        "gate_counts_1xBet_bet365": {str(g): sum(1 for r in book_rows if r["bookmaker"] in {"1xBet", "bet365"} and r["p2_grouped_real"] >= g) for g in gates},
     }
     (out / "price_gate_funnel.json").write_text(json.dumps(funnel, indent=2), encoding="utf-8")
     summary = {"generated_at": datetime.utcnow().isoformat() + "Z", "trigger_min": args.trigger_min, "trigger_max": args.trigger_max, "funnel": funnel, "top_results": leaderboard[:50]}
@@ -342,6 +289,7 @@ def main():
         "",
         f"Trigger: P2 4:6 odds {args.trigger_min}-{args.trigger_max}",
         "Bet: P2 grouped 3:6 / 4:6 / 5:7 using REAL reconstructed grouped odds.",
+        "Requested focus combo added: 1xBet + bet365.",
         "",
         "## Funnel",
         f"Wide rows total: {funnel['wide_rows_total']}",
@@ -353,6 +301,9 @@ def main():
         "## Gate counts, bookmaker rows",
     ]
     for g, c in funnel["gate_counts_bookmaker_rows"].items():
+        lines.append(f"- >= {g}: {c}")
+    lines += ["", "## Gate counts, 1xBet + bet365"]
+    for g, c in funnel["gate_counts_1xBet_bet365"].items():
         lines.append(f"- >= {g}: {c}")
     lines += ["", "## Top price-gated results, min 50 bets"]
     for i, r in enumerate(leaderboard[:30], 1):
