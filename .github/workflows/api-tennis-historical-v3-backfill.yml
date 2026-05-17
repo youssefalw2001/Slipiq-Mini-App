@@ -24,13 +24,13 @@ on:
         required: false
         default: '265,266'
       write_supabase:
-        description: Upsert rows into Supabase historical table.
+        description: Upsert rows into Supabase historical table. Keep false for artifact-only backtests.
         required: false
-        default: 'true'
+        default: 'false'
         type: choice
         options:
-          - 'true'
           - 'false'
+          - 'true'
       min_grouped:
         description: Minimum grouped P2 9-12 odds.
         required: false
@@ -85,6 +85,7 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    continue-on-error: true
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -153,3 +154,100 @@ jobs:
             artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/api_tennis_historical_v3_backfill_rows.csv
             artifacts/output/api-tennis-historical-v3-backfill/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/api_tennis_historical_v3_backfill_report.md
           if-no-files-found: warn
+
+  combine:
+    needs: [plan, backfill]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download all chunk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: api-tennis-historical-v3-backfill-*
+          path: downloaded-artifacts
+          merge-multiple: false
+
+      - name: Combine chunk CSVs and summaries
+        shell: bash
+        run: |
+          mkdir -p combined-output
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'downloaded-artifacts';
+          const outDir = 'combined-output';
+          const csvName = 'api_tennis_historical_v3_backfill_rows.csv';
+          const summaryName = 'run_summary.json';
+          const rowsOut = path.join(outDir, 'api_tennis_15m_historical_v3_rows_combined.csv');
+          const summariesOut = path.join(outDir, 'api_tennis_15m_backfill_summaries.json');
+          const reportOut = path.join(outDir, 'api_tennis_15m_backfill_combined_report.md');
+          const dirs = fs.existsSync(root) ? fs.readdirSync(root).map((d) => path.join(root, d)).filter((p) => fs.statSync(p).isDirectory()).sort() : [];
+          let header = null;
+          let rowCount = 0;
+          let chunksWithCsv = 0;
+          const summaries = [];
+          fs.writeFileSync(rowsOut, '');
+          for (const dir of dirs) {
+            const csvPath = path.join(dir, csvName);
+            const summaryPath = path.join(dir, summaryName);
+            if (fs.existsSync(summaryPath)) {
+              try { summaries.push(JSON.parse(fs.readFileSync(summaryPath, 'utf8'))); } catch (e) { summaries.push({ artifact: dir, summary_parse_error: String(e) }); }
+            }
+            if (!fs.existsSync(csvPath)) continue;
+            const lines = fs.readFileSync(csvPath, 'utf8').split(/\r?\n/).filter(Boolean);
+            if (!lines.length) continue;
+            chunksWithCsv += 1;
+            if (!header) {
+              header = lines[0];
+              fs.appendFileSync(rowsOut, header + '\n');
+            }
+            const body = lines.slice(1);
+            rowCount += body.length;
+            if (body.length) fs.appendFileSync(rowsOut, body.join('\n') + '\n');
+          }
+          fs.writeFileSync(summariesOut, JSON.stringify(summaries, null, 2));
+          const totals = summaries.reduce((acc, s) => {
+            for (const key of ['rows_extracted','rows_upserted','rows_with_first_set_score','p2_grouped_330_plus','p2_grouped_350_plus','strict_v3_rows','settled_wins','settled_losses']) {
+              acc[key] = (acc[key] || 0) + (Number(s[key]) || 0);
+            }
+            if (Array.isArray(s.errors)) acc.errors += s.errors.length;
+            return acc;
+          }, { errors: 0 });
+          const settled = (totals.settled_wins || 0) + (totals.settled_losses || 0);
+          const hitRate = settled ? (totals.settled_wins / settled).toFixed(6) : 'n/a';
+          const md = [
+            '# API Tennis 15-Month Historical V3 Combined Backfill',
+            '',
+            `Combined artifact generated: ${new Date().toISOString()}`,
+            `Backfill run id: ${{ needs.plan.outputs.backfill_run_id }}`,
+            `Chunk artifacts found: ${dirs.length}`,
+            `Chunks with CSV: ${chunksWithCsv}`,
+            `Combined CSV rows: ${rowCount}`,
+            '',
+            '## Totals from chunk summaries',
+            `Rows extracted: ${totals.rows_extracted || 0}`,
+            `Rows upserted: ${totals.rows_upserted || 0}`,
+            `Rows with first-set score: ${totals.rows_with_first_set_score || 0}`,
+            `P2 grouped >= 3.30: ${totals.p2_grouped_330_plus || 0}`,
+            `P2 grouped >= 3.50: ${totals.p2_grouped_350_plus || 0}`,
+            `Strict V3 rows: ${totals.strict_v3_rows || 0}`,
+            `Settled wins/losses: ${totals.settled_wins || 0}/${totals.settled_losses || 0}`,
+            `Settled hit rate: ${hitRate}`,
+            `Chunk-level error count: ${totals.errors || 0}`,
+            '',
+            'Next step: upload this combined artifact for optimizer/backtest analysis.',
+            '',
+          ];
+          fs.writeFileSync(reportOut, md.join('\n'));
+          NODE
+
+      - name: Upload combined 15-month artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-15m-historical-v3-combined
+          path: |
+            combined-output/api_tennis_15m_historical_v3_rows_combined.csv
+            combined-output/api_tennis_15m_backfill_summaries.json
+            combined-output/api_tennis_15m_backfill_combined_report.md
+          if-no-files-found: error
