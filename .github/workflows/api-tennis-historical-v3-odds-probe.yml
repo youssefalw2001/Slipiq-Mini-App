@@ -1,0 +1,99 @@
+name: API Tennis Historical V3 Odds Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Historical start date YYYY-MM-DD.
+        required: true
+        default: '2026-05-01'
+      date_stop:
+        description: Historical stop date YYYY-MM-DD.
+        required: true
+        default: '2026-05-07'
+      event_type_keys:
+        description: Comma-separated event_type_key values. Default 265,266 for ATP/WTA singles.
+        required: false
+        default: '265,266'
+      chunk_mode:
+        description: daily is safer for API limits; range is faster if supported.
+        required: false
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - range
+      min_grouped:
+        description: Minimum grouped P2 9-12 odds.
+        required: false
+        default: '3.30'
+      ideal_grouped:
+        description: Ideal grouped P2 9-12 odds.
+        required: false
+        default: '3.50'
+      include_raw_sample:
+        description: Save a small raw API sample for structure inspection.
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  api-tennis-historical-v3-odds-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check API Tennis key
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+        run: |
+          if [ -z "$API_TENNIS_KEY" ] && [ -z "$APITENNIS_API_KEY" ] && [ -z "$API_TENNIS_API_KEY" ]; then
+            echo "Missing API Tennis key. Add API_TENNIS_KEY, APITENNIS_API_KEY, or API_TENNIS_API_KEY in repo secrets."
+            exit 2
+          fi
+          echo "API Tennis key found."
+
+      - name: Run historical V3 odds probe
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          OUT_DIR: artifacts/output/api-tennis-historical-v3-odds-probe
+        run: |
+          node scripts/api_tennis_historical_v3_odds_probe.mjs \
+            --out=artifacts/output/api-tennis-historical-v3-odds-probe \
+            --date-start='${{ github.event.inputs.date_start }}' \
+            --date-stop='${{ github.event.inputs.date_stop }}' \
+            --event-type-keys='${{ github.event.inputs.event_type_keys }}' \
+            --chunk-mode='${{ github.event.inputs.chunk_mode }}' \
+            --min-grouped='${{ github.event.inputs.min_grouped }}' \
+            --ideal-grouped='${{ github.event.inputs.ideal_grouped }}' \
+            --include-raw-sample='${{ github.event.inputs.include_raw_sample }}'
+
+      - name: Upload historical probe artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-historical-v3-odds-probe
+          path: |
+            artifacts/output/api-tennis-historical-v3-odds-probe/run_summary.json
+            artifacts/output/api-tennis-historical-v3-odds-probe/api_tennis_historical_v3_rows.csv
+            artifacts/output/api-tennis-historical-v3-odds-probe/api_tennis_historical_fixtures.csv
+            artifacts/output/api-tennis-historical-v3-odds-probe/api_tennis_historical_raw_sample.json
+            artifacts/output/api-tennis-historical-v3-odds-probe/api_tennis_historical_v3_report.md
+          if-no-files-found: warn
