@@ -1,0 +1,101 @@
+name: API Tennis Signal Room Volume Lite
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined warehouse artifact.
+        required: false
+        default: 'api-tennis-full-historical-odds-warehouse-combined'
+      start_bankroll:
+        description: Starting bankroll.
+        required: false
+        default: '5000'
+      risk_pct:
+        description: Core simulation risk per signal.
+        required: false
+        default: '0.02'
+      dream_risk_pct:
+        description: Aggressive/dream simulation risk per signal.
+        required: false
+        default: '0.04'
+      train_ratio:
+        description: Chronological train split ratio.
+        required: false
+        default: '0.70'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined warehouse artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-full-historical-odds-warehouse.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/warehouse
+          if_no_artifact_found: fail
+
+      - name: Extract warehouse zip
+        shell: bash
+        run: |
+          ZIP_PATH=$(find artifacts/input/warehouse -type f -name 'api-tennis-full-historical-odds-warehouse-combined.zip' | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "Warehouse zip not found. Files available:"
+            find artifacts/input/warehouse -type f | sort
+            exit 2
+          fi
+          mkdir -p artifacts/input/warehouse/extracted
+          unzip -q "$ZIP_PATH" -d artifacts/input/warehouse/extracted
+
+      - name: Locate first-set wide file
+        id: locate
+        shell: bash
+        run: |
+          FIRST_SET=$(find artifacts/input/warehouse/extracted -type f -name 'first_set_correct_score_wide_combined.csv' | head -n 1)
+          if [ -z "$FIRST_SET" ]; then
+            echo "Missing first_set_correct_score_wide_combined.csv"
+            find artifacts/input/warehouse/extracted -type f | sort
+            exit 2
+          fi
+          echo "first_set=$FIRST_SET" >> "$GITHUB_OUTPUT"
+          echo "First set: $FIRST_SET"
+
+      - name: Run signal room volume lite
+        shell: bash
+        run: |
+          python scripts/api_tennis_signal_room_volume_lite.py \
+            --first-set-wide='${{ steps.locate.outputs.first_set }}' \
+            --out=artifacts/output/api-tennis-signal-room-volume-lite \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}' \
+            --dream-risk-pct='${{ github.event.inputs.dream_risk_pct }}' \
+            --train-ratio='${{ github.event.inputs.train_ratio }}'
+
+      - name: Upload signal room volume lite artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-signal-room-volume-lite
+          path: |
+            artifacts/output/api-tennis-signal-room-volume-lite/signal_room_volume_lite_report.md
+            artifacts/output/api-tennis-signal-room-volume-lite/signal_room_volume_lite_cards.json
+            artifacts/output/api-tennis-signal-room-volume-lite/signal_room_volume_lite_results.csv
+            artifacts/output/api-tennis-signal-room-volume-lite/signal_room_volume_lite_train_test.csv
+            artifacts/output/api-tennis-signal-room-volume-lite/signal_room_volume_lite_signals.csv
+          if-no-files-found: warn
