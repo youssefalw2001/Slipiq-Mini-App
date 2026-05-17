@@ -1,0 +1,99 @@
+name: API Tennis Live bet365 V3 Availability Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      date_start:
+        description: Start date YYYY-MM-DD. Blank = today UTC.
+        required: false
+        default: ''
+      date_stop:
+        description: Stop date YYYY-MM-DD. Blank = today+2 UTC.
+        required: false
+        default: ''
+      bookmaker:
+        description: Target bookmaker name exactly as API Tennis returns it.
+        required: false
+        default: 'bet365'
+      trigger_min:
+        description: Lower bound for P2 4:6 trigger odds.
+        required: false
+        default: '6.25'
+      trigger_max:
+        description: Upper bound for P2 4:6 trigger odds.
+        required: false
+        default: '6.99'
+      min_grouped:
+        description: Minimum playable P2 grouped odds.
+        required: false
+        default: '3.05'
+      a_grouped:
+        description: A-tier grouped odds.
+        required: false
+        default: '3.20'
+      s_grouped:
+        description: S-tier grouped odds.
+        required: false
+        default: '3.30'
+      expected_min_candidates:
+        description: Candidate threshold for the live availability snapshot.
+        required: false
+        default: '1'
+      event_type_keys:
+        description: ATP/WTA event type keys.
+        required: false
+        default: '265,266'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run live bet365 V3 availability probe
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          API_TENNIS_DATE_START: ${{ github.event.inputs.date_start }}
+          API_TENNIS_DATE_STOP: ${{ github.event.inputs.date_stop }}
+          API_TENNIS_EVENT_TYPE_KEYS: ${{ github.event.inputs.event_type_keys }}
+        shell: bash
+        run: |
+          ARGS=(
+            --out=artifacts/output/api-tennis-live-bet365-v3-availability-probe
+            --bookmaker='${{ github.event.inputs.bookmaker }}'
+            --trigger-min='${{ github.event.inputs.trigger_min }}'
+            --trigger-max='${{ github.event.inputs.trigger_max }}'
+            --min-grouped='${{ github.event.inputs.min_grouped }}'
+            --a-grouped='${{ github.event.inputs.a_grouped }}'
+            --s-grouped='${{ github.event.inputs.s_grouped }}'
+            --expected-min-candidates='${{ github.event.inputs.expected_min_candidates }}'
+          )
+          if [ -n '${{ github.event.inputs.date_start }}' ]; then
+            ARGS+=(--date-start='${{ github.event.inputs.date_start }}')
+          fi
+          if [ -n '${{ github.event.inputs.date_stop }}' ]; then
+            ARGS+=(--date-stop='${{ github.event.inputs.date_stop }}')
+          fi
+          node scripts/api_tennis_live_bet365_v3_availability_probe.mjs "${ARGS[@]}"
+
+      - name: Upload live bet365 V3 availability artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-live-bet365-v3-availability-probe
+          path: |
+            artifacts/output/api-tennis-live-bet365-v3-availability-probe/bet365_v3_live_probe_report.md
+            artifacts/output/api-tennis-live-bet365-v3-availability-probe/bet365_v3_live_probe_summary.json
+            artifacts/output/api-tennis-live-bet365-v3-availability-probe/bet365_v3_live_all_target_rows.csv
+            artifacts/output/api-tennis-live-bet365-v3-availability-probe/bet365_v3_live_candidates.csv
+          if-no-files-found: warn
