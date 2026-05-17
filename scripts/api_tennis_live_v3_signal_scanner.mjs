@@ -290,7 +290,6 @@ function signalPayload(row, scannerRunId) {
     odds_p2_6_4: p46,
     odds_p2_7_5: safeNumber(row.p2_5_7_decimal),
     reconstructed_p2_9_12_odds: grouped,
-    best_grouped_odds: grouped,
     v3_trigger_price: p46,
     signal_class: signalClass,
     execution_status: ready ? 'new' : 'watchlist',
