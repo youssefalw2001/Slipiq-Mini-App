@@ -5,10 +5,11 @@ SlipIQ / First Set Lab settlement script.
 Reads open live_signals from Supabase, fetches API Tennis fixtures/results, parses
 first-set score, grades each signal, and updates live_signals.
 
-Required env:
-- SUPABASE_URL
-- SUPABASE_SERVICE_ROLE_KEY
-- API_TENNIS_KEY or APITENNIS_API_KEY or API_TENNIS_API_KEY
+Important parser rules:
+- API Tennis may represent a tiebreak set as score_first="6.3", score_second="7.7".
+  That means set score 6:7, tiebreak 3:7. We grade the set score only.
+- event_status="Set 1" means the first set is still live, so do not settle yet.
+- event_status="Set 2" or later means the first set is complete, so we can settle from scores[0].
 */
 
 import fs from 'node:fs';
@@ -71,8 +72,8 @@ async function sbFetch(tablePath, options = {}) {
 
 async function fetchOpenSignals() {
   const cutoffIso = new Date(now.getTime() + maxFutureHours * 3600 * 1000).toISOString();
-  const path = `live_signals?select=id,signal_key,event_key,event_date,event_time,starts_at,match_name,score_cluster,strategy_lane,status&status=eq.open&starts_at=lte.${encodeURIComponent(cutoffIso)}&order=starts_at.asc&limit=${limit}`;
-  return await sbFetch(path, { method: 'GET' });
+  const queryPath = `live_signals?select=id,signal_key,event_key,event_date,event_time,starts_at,match_name,score_cluster,strategy_lane,status&status=eq.open&starts_at=lte.${encodeURIComponent(cutoffIso)}&order=starts_at.asc&limit=${limit}`;
+  return await sbFetch(queryPath, { method: 'GET' });
 }
 
 async function updateSignal(id, patch) {
@@ -118,17 +119,25 @@ function normalizeArray(value) {
   return Object.values(value);
 }
 
-function isFinishedFixture(fixture) {
-  const status = clean(fixture?.event_status || fixture?.event_status_info || fixture?.event_live).toLowerCase();
+function statusText(fixture) {
+  return clean(fixture?.event_status || fixture?.event_status_info || fixture?.event_live).toLowerCase();
+}
+
+function hasFirstSetCompleted(fixture) {
+  const status = statusText(fixture);
+  if (status.includes('set 1') || status.includes('1st set')) return false;
+  if (['set 2', 'set 3', 'set 4', 'set 5'].some((s) => status.includes(s))) return true;
   if (['finished', 'finished.', 'ft', 'ended', 'complete', 'completed'].some((s) => status.includes(s))) return true;
   if (clean(fixture?.event_final_result) || clean(fixture?.event_winner)) return true;
-  const scores = normalizeArray(fixture?.scores || fixture?.score || fixture?.event_score);
-  return scores.length > 0 && scores.some((s) => clean(s?.score_first || s?.score_second || s?.score || s?.set_score));
+  return false;
 }
 
 function normalizeScorePart(a, b) {
-  const x = Number(clean(a));
-  const y = Number(clean(b));
+  const rawA = clean(a);
+  const rawB = clean(b);
+  // API Tennis can use decimal tiebreak notation: 6.3 and 7.7 means 6:7.
+  const x = Number(rawA.split('.')[0]);
+  const y = Number(rawB.split('.')[0]);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   const score = `${x}:${y}`;
   return VALID_FIRST_SET_SCORES.has(score) ? score : null;
@@ -137,8 +146,7 @@ function normalizeScorePart(a, b) {
 function parseScoreString(s) {
   const text = clean(s);
   if (!text) return null;
-  // Prefer first explicit tennis set score, e.g. "6-4", "6:4", "6/4".
-  const m = text.match(/(^|[^0-9])([0-7])\s*[:/-]\s*([0-7])([^0-9]|$)/);
+  const m = text.match(/(^|[^0-9])([0-7])(?:\.[0-9]+)?\s*[:/-]\s*([0-7])(?:\.[0-9]+)?([^0-9]|$)/);
   if (!m) return null;
   return normalizeScorePart(m[2], m[3]);
 }
@@ -151,8 +159,12 @@ function parseFirstSetScore(fixture) {
     const setNo = clean(s?.score_set || s?.set || s?.set_number || s?.number || s?.score_name).toLowerCase();
     return setNo === '1' || setNo === 'set 1' || setNo === '1st set';
   }) || scores[0];
+
   if (set1 && typeof set1 === 'object') {
-    const direct = normalizeScorePart(set1.score_first ?? set1.home_score ?? set1.player1_score ?? set1.first ?? set1.score_home, set1.score_second ?? set1.away_score ?? set1.player2_score ?? set1.second ?? set1.score_away);
+    const direct = normalizeScorePart(
+      set1.score_first ?? set1.home_score ?? set1.player1_score ?? set1.first ?? set1.score_home,
+      set1.score_second ?? set1.away_score ?? set1.player2_score ?? set1.second ?? set1.score_away
+    );
     if (direct) return direct;
     const fromStr = parseScoreString(set1.score || set1.set_score || set1.result || set1.name);
     if (fromStr) return fromStr;
@@ -187,7 +199,7 @@ async function main() {
     generated_at: new Date().toISOString(),
     open_signals_checked: 0,
     fixtures_found: 0,
-    finished_fixtures: 0,
+    first_set_completed: 0,
     settled: 0,
     still_open: 0,
     parse_failed: 0,
@@ -210,7 +222,7 @@ async function main() {
       strategy_lane: signal.strategy_lane,
       score_cluster: signal.score_cluster,
       fixture_found: 'false',
-      fixture_finished: 'false',
+      first_set_completed: 'false',
       first_set_score: '',
       settled_win: '',
       action: '',
@@ -226,15 +238,16 @@ async function main() {
       }
       summary.fixtures_found += 1;
       row.fixture_found = 'true';
-      const finished = isFinishedFixture(fixture);
-      row.fixture_finished = String(finished);
-      if (!finished) {
-        row.action = 'not_finished';
+
+      if (!hasFirstSetCompleted(fixture)) {
+        row.action = 'first_set_not_finished';
         summary.still_open += 1;
         rows.push(row);
         continue;
       }
-      summary.finished_fixtures += 1;
+      summary.first_set_completed += 1;
+      row.first_set_completed = 'true';
+
       const firstSetScore = parseFirstSetScore(fixture);
       if (!firstSetScore) {
         row.action = 'parse_failed';
@@ -266,7 +279,7 @@ async function main() {
     }
   }
 
-  const fields = ['signal_key','event_key','event_date','event_time','match_name','strategy_lane','score_cluster','fixture_found','fixture_finished','first_set_score','settled_win','action','error'];
+  const fields = ['signal_key','event_key','event_date','event_time','match_name','strategy_lane','score_cluster','fixture_found','first_set_completed','first_set_score','settled_win','action','error'];
   writeCsv(path.join(outDir, 'first_set_lab_settlement_log.csv'), rows, fields);
   writeJson(path.join(outDir, 'first_set_lab_settlement_summary.json'), summary);
 
@@ -276,7 +289,7 @@ async function main() {
     `Generated: ${summary.generated_at}`,
     `Open signals checked: ${summary.open_signals_checked}`,
     `Fixtures found: ${summary.fixtures_found}`,
-    `Finished fixtures: ${summary.finished_fixtures}`,
+    `First sets completed: ${summary.first_set_completed}`,
     `Settled: ${summary.settled}`,
     `Winners: ${summary.winners}`,
     `Losers: ${summary.losers}`,
