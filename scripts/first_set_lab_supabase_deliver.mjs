@@ -130,55 +130,89 @@ function signalPayload(row) {
   };
 }
 
+function formatStartWindow(minutesValue) {
+  const minutes = Number(minutesValue);
+  if (!Number.isFinite(minutes)) return 'n/a';
+  if (minutes <= 0) return 'starting soon';
+  if (minutes < 90) return `~${Math.round(minutes)} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  return mins ? `~${hours}h ${mins}m` : `~${hours}h`;
+}
+
+function scoreClusterText(row) {
+  const cluster = clean(row.score_cluster);
+  if (cluster) return cluster.replaceAll(',', ' / ');
+  const target = clean(row.public_target);
+  const scores = target.match(/\b\d:\d\b/g);
+  return scores && scores.length ? scores.join(' / ') : target || 'n/a';
+}
+
+function scoreBandSide(scoreText) {
+  const first = (scoreText.match(/\b(\d):(\d)\b/) || []).slice(1).map(Number);
+  if (first.length !== 2 || first.some((v) => !Number.isFinite(v))) return 'First-set score band';
+  return first[0] > first[1] ? 'Player 1 first-set score band' : 'Player 2 first-set score band';
+}
+
 function telegramMessage(row) {
   const pct = (v) => v === null || v === undefined || v === '' ? 'n/a' : `${(Number(v) * 100).toFixed(1)}%`;
   const odds = (v) => v === null || v === undefined || v === '' ? 'n/a' : Number(v).toFixed(2);
   const edge = row.model_edge_vs_breakeven ? `${(Number(row.model_edge_vs_breakeven) * 100).toFixed(1)} pts` : 'n/a';
   const dateTime = `${row.event_date || ''} ${row.event_time || ''} UTC`.trim();
-  const mins = row.minutes_to_start || 'n/a';
+  const windowText = formatStartWindow(row.minutes_to_start);
+  const tournament = row.tournament_name || row.tournament_group || 'n/a';
+
   if (row.signal_type === 'first_set_winner') {
     return [
-      '🎾 SlipIQ First Set Lab Comfort Signal',
+      '🎾 First Set Lab — Comfort',
       '',
-      `Room: ${row.telegram_room}`,
-      `Signal: ${row.public_signal_name}`,
-      `Match: ${row.match_name}`,
-      `Tournament: ${row.tournament_name || row.tournament_group}`,
-      `Start: ${dateTime}`,
-      `Time to start: ${mins} min`,
+      `${row.match_name}`,
+      `Tournament: ${tournament}`,
+      `Starts: ${dateTime}`,
+      `Window: ${windowText}`,
       '',
-      'Target:',
+      'Signal:',
       row.public_target,
       '',
-      `Approx Odds: ${odds(row.selected_side_odds || row.grouped_odds)}`,
-      `Break-even: ${pct(row.break_even_hit_rate)}`,
-      `Historical Comfort Hit Rate: ${pct(row.historical_hit_rate)}`,
-      `Historical Edge: +${edge}`,
-      `Historical Sample: ${row.historical_sample || 'n/a'} signals`,
+      `Price: ${odds(row.selected_side_odds || row.grouped_odds)}`,
       '',
-      'Paper-tracked signal. Probability edge, not a guaranteed pick.',
+      'Model context:',
+      `Break-even: ${pct(row.break_even_hit_rate)}`,
+      `Historical hit rate: ${pct(row.historical_hit_rate)}`,
+      `Historical edge: +${edge}`,
+      `Sample: ${row.historical_sample || 'n/a'} signals`,
+      '',
+      'Paper-tracked. No guarantees.',
     ].join('\n');
   }
+
+  const scores = scoreClusterText(row);
+  const signalText = scoreBandSide(scores);
+  const tier = row.public_tier ? `${row.public_tier}-Tier` : 'Signal';
+
   return [
-    `🎾 SlipIQ First Set Lab ${row.public_tier || ''}-Tier`.trim(),
+    `🎾 First Set Lab — ${tier}`,
     '',
-    `Room: ${row.telegram_room}`,
-    `Signal: ${row.public_signal_name}`,
-    `Match: ${row.match_name}`,
-    `Tournament: ${row.tournament_name || row.tournament_group}`,
-    `Start: ${dateTime}`,
-    `Time to start: ${mins} min`,
+    `${row.match_name}`,
+    `Tournament: ${tournament}`,
+    `Starts: ${dateTime}`,
+    `Window: ${windowText}`,
     '',
-    'Target Cluster:',
-    row.public_target,
+    'Signal:',
+    signalText,
     '',
-    `Grouped Odds: ${odds(row.grouped_odds)}`,
+    'Covered scores:',
+    scores,
+    '',
+    `Grouped price: ${odds(row.grouped_odds)}`,
+    '',
+    'Model context:',
     `Break-even: ${pct(row.break_even_hit_rate)}`,
-    `Historical Room Hit Rate: ${pct(row.historical_hit_rate)}`,
-    `Historical Edge: +${edge}`,
-    `Historical Sample: ${row.historical_sample || 'n/a'} signals`,
+    `Historical hit rate: ${pct(row.historical_hit_rate)}`,
+    `Historical edge: +${edge}`,
+    `Sample: ${row.historical_sample || 'n/a'} signals`,
     '',
-    'Paper-tracked signal. Probability edge, not a guaranteed pick.',
+    'Paper-tracked. No guarantees.',
   ].join('\n');
 }
 
