@@ -8,7 +8,8 @@ sends Telegram only for room deliveries that were not successfully sent before,
 then writes delivery rows back to Supabase and artifact logs.
 
 Important: dry-run rows have sent_ok=false. Those must not block a later real
-send_telegram=true run.
+send_telegram=true run. Successful sent_ok=true rows must not be overwritten by
+later duplicate skips.
 
 Supports both:
 - exact_score_cluster signals
@@ -316,13 +317,17 @@ async function main() {
           duplicate = true;
           result = { ok: false, skipped_duplicate: true, existing_delivery_id: existing.id, existing_message_id: existing.telegram_message_id || null };
           summary.duplicate_deliveries_skipped += 1;
+          delivery = existing;
         } else if (sendTelegram) {
           summary.telegram_attempted += 1;
           result = await sendTelegramMessage(chatId, message);
           if (result.ok) summary.telegram_sent += 1;
+          delivery = await insertDelivery(signal, row, result, message);
+          summary.delivery_rows_written += 1;
+        } else {
+          delivery = await insertDelivery(signal, row, result, message);
+          summary.delivery_rows_written += 1;
         }
-        delivery = await insertDelivery(signal, row, duplicate ? { ...result, skipped_duplicate: true } : result, message);
-        summary.delivery_rows_written += 1;
       } else if (sendTelegram) {
         summary.telegram_attempted += 1;
         result = await sendTelegramMessage(chatId, message);
