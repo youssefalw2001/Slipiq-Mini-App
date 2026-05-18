@@ -99,7 +99,6 @@ async function fetchApiTennis(method, apiParams = {}) {
 }
 
 async function fetchFixtureByEvent(signal) {
-  // API Tennis get_fixtures accepts event_key in most accounts. If not, fallback to date range.
   try {
     const direct = await fetchApiTennis('get_fixtures', { event_key: signal.event_key });
     const arr = normalizeArray(direct);
@@ -139,7 +138,7 @@ function parseScoreString(s) {
   const text = clean(s);
   if (!text) return null;
   // Prefer first explicit tennis set score, e.g. "6-4", "6:4", "6/4".
-  const m = text.match(/(^|[^0-9])([0-7])\s*[:-/]\s*([0-7])([^0-9]|$)/);
+  const m = text.match(/(^|[^0-9])([0-7])\s*[:/-]\s*([0-7])([^0-9]|$)/);
   if (!m) return null;
   return normalizeScorePart(m[2], m[3]);
 }
@@ -147,7 +146,6 @@ function parseScoreString(s) {
 function parseFirstSetScore(fixture) {
   if (!fixture || typeof fixture !== 'object') return null;
 
-  // API Tennis fixtures often have scores: [{score_first: '6', score_second: '4', score_set: '1'}]
   const scores = normalizeArray(fixture.scores || fixture.score || fixture.event_score);
   const set1 = scores.find((s) => {
     const setNo = clean(s?.score_set || s?.set || s?.set_number || s?.number || s?.score_name).toLowerCase();
