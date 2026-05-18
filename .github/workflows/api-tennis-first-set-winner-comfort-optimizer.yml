@@ -62,19 +62,18 @@ jobs:
           find artifacts/input/warehouse/extracted -maxdepth 1 -type f | sort
           echo ""
           echo "CSV headers:"
-          for f in artifacts/input/warehouse/extracted/*.csv; do
-            echo "--- $f"
-            python - <<'PY' "$f"
-import csv, sys
-path = sys.argv[1]
-try:
-    with open(path, newline='', encoding='utf-8') as fh:
-        reader = csv.reader(fh)
-        print(next(reader, []))
-except Exception as exc:
-    print(f"header read failed: {exc}")
-PY
-          done
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          for path in sorted(Path('artifacts/input/warehouse/extracted').glob('*.csv')):
+              print(f"--- {path}")
+              try:
+                  with path.open(newline='', encoding='utf-8') as fh:
+                      reader = csv.reader(fh)
+                      print(next(reader, []))
+              except Exception as exc:
+                  print(f"header read failed: {exc}")
+          PY
 
       - name: Run first set winner comfort optimizer
         shell: bash
