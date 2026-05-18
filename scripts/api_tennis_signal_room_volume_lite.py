@@ -2,6 +2,7 @@
 """Signal Room Volume Lite for SlipIQ First Set Lab.
 
 Focused historical test for the exact Core/VIP live scanner lanes.
+Invalid/incomplete first-set scores such as 0:0, 0:5, 2:5, 3:5, 5:6 are excluded.
 """
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+VALID_FIRST_SET_SCORES = {"6:0","6:1","6:2","6:3","6:4","7:5","7:6","0:6","1:6","2:6","3:6","4:6","5:7","6:7"}
 SCORE_COLS = {
     "6:3": "odds_6_3", "6:4": "odds_6_4", "7:5": "odds_7_5",
     "3:6": "odds_3_6", "4:6": "odds_4_6", "5:7": "odds_5_7",
@@ -73,8 +75,13 @@ def norm(r):
 
 def build(rows):
     out=[]
+    invalid_score_counts=defaultdict(int)
     for r in rows:
-        if not r.get("first_set_score"): continue
+        if not r.get("first_set_score"):
+            continue
+        if r["first_set_score"] not in VALID_FIRST_SET_SCORES:
+            invalid_score_counts[r["first_set_score"]] += 1
+            continue
         for lane in LANES:
             if r["bookmaker"] not in lane["books"]: continue
             if lane["tour"]!="ANY" and r["tour"]!=lane["tour"]: continue
@@ -90,7 +97,7 @@ def build(rows):
                 "lane":lane["lane"],"access":lane["access"],"scores":"/".join(lane["scores"]),"trigger_score":lane["trigger"],"trigger_odds":trig,
                 "grouped_odds":go,"first_set_score":r["first_set_score"],"won":r["first_set_score"] in set(lane["scores"])
             })
-    return out
+    return out, dict(sorted(invalid_score_counts.items()))
 
 def dedupe(rows):
     g=defaultdict(list)
@@ -124,7 +131,7 @@ def metrics(rows, start, risk):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--first-set-wide", required=True); ap.add_argument("--out", default="artifacts/output/api-tennis-signal-room-volume-lite"); ap.add_argument("--start-bankroll", type=float, default=5000); ap.add_argument("--risk-pct", type=float, default=.02); ap.add_argument("--dream-risk-pct", type=float, default=.04); ap.add_argument("--train-ratio", type=float, default=.70)
     a=ap.parse_args(); out=Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    wide=[norm(r) for r in read_csv(a.first_set_wide)]; raw=build(wide); sig=dedupe(raw); tr,te,cut=split_dates(sig,a.train_ratio)
+    wide=[norm(r) for r in read_csv(a.first_set_wide)]; raw,invalid_counts=build(wide); sig=dedupe(raw); tr,te,cut=split_dates(sig,a.train_ratio)
     signal_fields=["event_key","event_date","event_time","match_name","bookmaker","tour","tournament_group","tournament_name","lane","access","scores","trigger_score","trigger_odds","grouped_odds","first_set_score","won"]
     write_csv(out/"signal_room_volume_lite_signals.csv", sig, signal_fields)
     results=[]; tt=[]
@@ -136,11 +143,11 @@ def main():
     fields=["portfolio","risk_pct","split_cutoff_date","bets","wins","losses","hit_rate","avg_odds","breakeven_hit_rate","edge_vs_breakeven","flat_profit_units","flat_roi","months","active_days","positive_months","positive_month_ratio","bets_per_month","bets_per_active_day","final_bankroll","compound_profit","compound_return_pct","max_drawdown_pct","worst_losing_streak","lane_mix","book_mix"]
     write_csv(out/"signal_room_volume_lite_results.csv", results, fields)
     write_csv(out/"signal_room_volume_lite_train_test.csv", tt, ["portfolio","split","split_cutoff_date"]+[f for f in fields if f not in {"portfolio","risk_pct","split_cutoff_date"}])
-    cards={"generated_at":datetime.utcnow().isoformat()+"Z","wide_rows":len(wide),"raw_candidate_rows":len(raw),"deduped_signals":len(sig),"split_cutoff_date":cut,"results":results,"train_test":tt}
+    cards={"generated_at":datetime.utcnow().isoformat()+"Z","wide_rows":len(wide),"invalid_first_set_score_counts":invalid_counts,"raw_candidate_rows":len(raw),"deduped_signals":len(sig),"split_cutoff_date":cut,"results":results,"train_test":tt}
     (out/"signal_room_volume_lite_cards.json").write_text(json.dumps(cards,indent=2),encoding="utf-8")
     def pc(v): return "n/a" if v is None else f"{v*100:.2f}%"
     def mo(v): return "n/a" if v is None else f"${v:,.0f}"
-    lines=["# Signal Room Volume Lite","",f"Wide rows: {len(wide)}",f"Raw candidate rows: {len(raw)}",f"Deduped signals: {len(sig)}",f"Train/test cutoff: {cut}","","## Results"]
+    lines=["# Signal Room Volume Lite","",f"Wide rows: {len(wide)}",f"Invalid first-set score counts excluded: {json.dumps(invalid_counts, sort_keys=True)}",f"Raw candidate rows: {len(raw)}",f"Deduped signals: {len(sig)}",f"Train/test cutoff: {cut}","","## Results"]
     for r in results:
         avg="n/a" if r["avg_odds"] is None else f"{r['avg_odds']:.2f}"
         bpm="n/a" if r["bets_per_month"] is None else f"{r['bets_per_month']:.1f}"
