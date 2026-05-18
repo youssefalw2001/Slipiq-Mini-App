@@ -6,8 +6,9 @@ Reads first_set_lab_live_signals.csv from the scanner artifact, upserts each sig
 into Supabase, checks telegram_signal_deliveries for duplicates, sends Telegram
 only for new room deliveries, then writes delivery rows back to Supabase and artifact logs.
 
-This script is intentionally separate from the scanner so the scanner can remain a dry-run
-candidate generator and this script owns production delivery/proof-ledger logic.
+Supports both:
+- exact_score_cluster signals
+- first_set_winner comfort signals
 */
 
 import fs from 'node:fs';
@@ -32,7 +33,6 @@ const nval = (v) => {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 };
-const bval = (v) => String(v ?? '').toLowerCase() === 'true';
 const nullable = (v) => clean(v) === '' ? null : clean(v);
 const csvEscape = (v) => {
   const s = String(v ?? '');
@@ -87,6 +87,10 @@ function parseJsonField(v) {
 function signalPayload(row) {
   return {
     signal_key: clean(row.signal_key),
+    signal_type: nullable(row.signal_type) || 'exact_score_cluster',
+    selected_side: nullable(row.selected_side),
+    selected_side_odds: nval(row.selected_side_odds),
+    market_source: nullable(row.market_source),
     scanned_at: nullable(row.scanned_at) || new Date().toISOString(),
     event_key: clean(row.event_key),
     event_date: nullable(row.event_date),
@@ -127,6 +131,30 @@ function telegramMessage(row) {
   const odds = (v) => v === null || v === undefined || v === '' ? 'n/a' : Number(v).toFixed(2);
   const edge = row.model_edge_vs_breakeven ? `${(Number(row.model_edge_vs_breakeven) * 100).toFixed(1)} pts` : 'n/a';
   const dateTime = `${row.event_date || ''} ${row.event_time || ''} UTC`.trim();
+  const mins = row.minutes_to_start || 'n/a';
+  if (row.signal_type === 'first_set_winner') {
+    return [
+      '🎾 SlipIQ First Set Lab Comfort Signal',
+      '',
+      `Room: ${row.telegram_room}`,
+      `Signal: ${row.public_signal_name}`,
+      `Match: ${row.match_name}`,
+      `Tournament: ${row.tournament_name || row.tournament_group}`,
+      `Start: ${dateTime}`,
+      `Time to start: ${mins} min`,
+      '',
+      'Target:',
+      row.public_target,
+      '',
+      `Approx Odds: ${odds(row.selected_side_odds || row.grouped_odds)}`,
+      `Break-even: ${pct(row.break_even_hit_rate)}`,
+      `Historical Comfort Hit Rate: ${pct(row.historical_hit_rate)}`,
+      `Historical Edge: +${edge}`,
+      `Historical Sample: ${row.historical_sample || 'n/a'} signals`,
+      '',
+      'Paper-tracked signal. Probability edge, not a guaranteed pick.',
+    ].join('\n');
+  }
   return [
     `🎾 SlipIQ First Set Lab ${row.public_tier || ''}-Tier`.trim(),
     '',
@@ -135,7 +163,7 @@ function telegramMessage(row) {
     `Match: ${row.match_name}`,
     `Tournament: ${row.tournament_name || row.tournament_group}`,
     `Start: ${dateTime}`,
-    `Time to start: ${row.minutes_to_start || 'n/a'} min`,
+    `Time to start: ${mins} min`,
     '',
     'Target Cluster:',
     row.public_target,
@@ -221,28 +249,17 @@ async function sendTelegramMessage(chatId, text) {
 async function main() {
   ensureDir(outDir);
   const summary = {
-    generated_at: new Date().toISOString(),
-    input_csv: inputCsv,
-    send_telegram: sendTelegram,
-    supabase_enabled: Boolean(supabaseUrl && supabaseKey),
-    require_supabase_for_send: requireSupabaseForSend,
-    rows_read: 0,
-    signals_upserted: 0,
-    duplicate_deliveries_skipped: 0,
-    telegram_attempted: 0,
-    telegram_sent: 0,
-    delivery_rows_written: 0,
-    errors: [],
+    generated_at: new Date().toISOString(), input_csv: inputCsv, send_telegram: sendTelegram,
+    supabase_enabled: Boolean(supabaseUrl && supabaseKey), require_supabase_for_send: requireSupabaseForSend,
+    rows_read: 0, signals_upserted: 0, duplicate_deliveries_skipped: 0,
+    telegram_attempted: 0, telegram_sent: 0, delivery_rows_written: 0, errors: [],
   };
-
   if (!fs.existsSync(inputCsv)) throw new Error(`Missing input CSV: ${inputCsv}`);
   const rows = parseCsv(fs.readFileSync(inputCsv, 'utf8'));
   summary.rows_read = rows.length;
-
   if (sendTelegram && requireSupabaseForSend && (!supabaseUrl || !supabaseKey)) {
     throw new Error('Refusing to send Telegram without Supabase duplicate guard. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY or set REQUIRE_SUPABASE_FOR_SEND=false for testing only.');
   }
-
   const outRows = [];
   for (const row of rows) {
     const message = telegramMessage(row);
@@ -268,12 +285,10 @@ async function main() {
         }
         delivery = await insertDelivery(signal, row, duplicate ? { ...result, skipped_duplicate: true } : result, message);
         summary.delivery_rows_written += 1;
-      } else {
-        if (sendTelegram) {
-          summary.telegram_attempted += 1;
-          result = await sendTelegramMessage(chatId, message);
-          if (result.ok) summary.telegram_sent += 1;
-        }
+      } else if (sendTelegram) {
+        summary.telegram_attempted += 1;
+        result = await sendTelegramMessage(chatId, message);
+        if (result.ok) summary.telegram_sent += 1;
       }
     } catch (err) {
       result = { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -281,27 +296,10 @@ async function main() {
     }
     outRows.push({ ...row, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: delivery?.id || '', duplicate_skipped: String(duplicate), telegram_sent: String(result.ok === true), telegram_result_json: JSON.stringify(result), telegram_message_preview: message });
   }
-
   const fields = Object.keys(outRows[0] || { signal_key: '', telegram_room: '', telegram_sent: '' });
   writeCsv(path.join(outDir, 'first_set_lab_supabase_delivery_log.csv'), outRows, fields);
   writeJson(path.join(outDir, 'first_set_lab_supabase_delivery_summary.json'), summary);
-
-  const lines = [
-    '# First Set Lab Supabase Delivery Guard',
-    '',
-    `Generated: ${summary.generated_at}`,
-    `Rows read: ${summary.rows_read}`,
-    `Supabase enabled: ${summary.supabase_enabled}`,
-    `Telegram sending: ${summary.send_telegram}`,
-    `Signals upserted: ${summary.signals_upserted}`,
-    `Duplicate deliveries skipped: ${summary.duplicate_deliveries_skipped}`,
-    `Telegram attempted: ${summary.telegram_attempted}`,
-    `Telegram sent: ${summary.telegram_sent}`,
-    `Delivery rows written: ${summary.delivery_rows_written}`,
-    '',
-    '## Errors',
-    summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None',
-  ];
+  const lines = ['# First Set Lab Supabase Delivery Guard', '', `Generated: ${summary.generated_at}`, `Rows read: ${summary.rows_read}`, `Supabase enabled: ${summary.supabase_enabled}`, `Telegram sending: ${summary.send_telegram}`, `Signals upserted: ${summary.signals_upserted}`, `Duplicate deliveries skipped: ${summary.duplicate_deliveries_skipped}`, `Telegram attempted: ${summary.telegram_attempted}`, `Telegram sent: ${summary.telegram_sent}`, `Delivery rows written: ${summary.delivery_rows_written}`, '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
   fs.writeFileSync(path.join(outDir, 'first_set_lab_supabase_delivery_report.md'), lines.join('\n'), 'utf8');
 }
 
