@@ -1,0 +1,102 @@
+name: API Tennis First Set Winner Comfort Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: Name of combined warehouse artifact.
+        required: false
+        default: 'api-tennis-full-historical-odds-warehouse-combined'
+      start_bankroll:
+        description: Starting bankroll.
+        required: false
+        default: '5000'
+      train_ratio:
+        description: Chronological train split ratio.
+        required: false
+        default: '0.70'
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest combined warehouse artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: api-tennis-full-historical-odds-warehouse.yml
+          workflow_conclusion: completed
+          name: ${{ github.event.inputs.artifact_name }}
+          path: artifacts/input/warehouse
+          if_no_artifact_found: fail
+
+      - name: Extract warehouse zip
+        shell: bash
+        run: |
+          ZIP_PATH=$(find artifacts/input/warehouse -type f -name 'api-tennis-full-historical-odds-warehouse-combined.zip' | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "Warehouse zip not found. Files available:"
+            find artifacts/input/warehouse -type f | sort
+            exit 2
+          fi
+          mkdir -p artifacts/input/warehouse/extracted
+          unzip -q "$ZIP_PATH" -d artifacts/input/warehouse/extracted
+
+      - name: Inspect warehouse files and headers
+        shell: bash
+        run: |
+          echo "Extracted files:"
+          find artifacts/input/warehouse/extracted -maxdepth 1 -type f | sort
+          echo ""
+          echo "CSV headers:"
+          for f in artifacts/input/warehouse/extracted/*.csv; do
+            echo "--- $f"
+            python - <<'PY' "$f"
+import csv, sys
+path = sys.argv[1]
+try:
+    with open(path, newline='', encoding='utf-8') as fh:
+        reader = csv.reader(fh)
+        print(next(reader, []))
+except Exception as exc:
+    print(f"header read failed: {exc}")
+PY
+          done
+
+      - name: Run first set winner comfort optimizer
+        shell: bash
+        run: |
+          python scripts/api_tennis_first_set_winner_comfort_optimizer.py \
+            --warehouse-dir=artifacts/input/warehouse/extracted \
+            --out=artifacts/output/api-tennis-first-set-winner-comfort-optimizer \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --train-ratio='${{ github.event.inputs.train_ratio }}'
+
+      - name: Upload first set winner comfort optimizer artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-tennis-first-set-winner-comfort-optimizer
+          path: |
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_market_audit.json
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_report.md
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_cards.json
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_results.csv
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_high_hit_positive_roi.csv
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_train_test.csv
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_risk_sims.csv
+            artifacts/output/api-tennis-first-set-winner-comfort-optimizer/first_set_winner_comfort_candidates.csv
+          if-no-files-found: warn
