@@ -97,14 +97,27 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CORE_CHAT_ID: ${{ secrets.TELEGRAM_CORE_CHAT_ID }}
           TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
-          SEND_TELEGRAM: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.send_telegram }}
+          ENABLE_LIVE_TELEGRAM_SEND: ${{ secrets.ENABLE_LIVE_TELEGRAM_SEND }}
+          MANUAL_SEND_TELEGRAM: ${{ github.event.inputs.send_telegram }}
           REQUIRE_SUPABASE_FOR_SEND: 'true'
         shell: bash
         run: |
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            if [ "${ENABLE_LIVE_TELEGRAM_SEND}" = "true" ]; then
+              EFFECTIVE_SEND_TELEGRAM=true
+            else
+              EFFECTIVE_SEND_TELEGRAM=false
+            fi
+          else
+            EFFECTIVE_SEND_TELEGRAM="${MANUAL_SEND_TELEGRAM:-false}"
+          fi
+
+          echo "Effective Telegram sending: ${EFFECTIVE_SEND_TELEGRAM}"
+
           node scripts/first_set_lab_supabase_deliver.mjs \
             --input=artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_signals.csv \
             --out=artifacts/output/api-tennis-live-first-set-lab-scanner \
-            --send-telegram="${SEND_TELEGRAM}" \
+            --send-telegram="${EFFECTIVE_SEND_TELEGRAM}" \
             --require-supabase-for-send=true
 
       - name: Upload live First Set Lab artifact
