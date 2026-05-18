@@ -2,8 +2,12 @@
 /*
 SlipIQ / First Set Lab live scanner.
 
-Scans API Tennis first-set correct-score odds, builds Core/VIP signals,
-hides bookmaker names in Telegram, and stores bookmaker internally in artifacts.
+Optimized launch version from Signal Room Risk Optimizer:
+- Core WTA Mirror grouped gate raised to 2.60
+- VIP P2 V3 grouped gate raised to 3.50
+- Core room capped at 10 signals/day
+- VIP room capped at 5 signals/day
+- Bookmaker names hidden in Telegram, stored internally only
 */
 
 import fs from 'node:fs';
@@ -21,6 +25,8 @@ const marketName = params.market || 'Correct Score 1st Half';
 const eventTypeKeys = (params['event-type-keys'] || process.env.API_TENNIS_EVENT_TYPE_KEYS || '265,266').split(',').map((s) => s.trim()).filter(Boolean);
 const maxMinutesToStart = Number(params['max-minutes-to-start'] ?? process.env.MAX_MINUTES_TO_START ?? '2160');
 const minMinutesToStart = Number(params['min-minutes-to-start'] ?? process.env.MIN_MINUTES_TO_START ?? '0');
+const coreDailyCap = Number(params['core-daily-cap'] ?? process.env.CORE_DAILY_CAP ?? '10');
+const vipDailyCap = Number(params['vip-daily-cap'] ?? process.env.VIP_DAILY_CAP ?? '5');
 const now = new Date();
 
 const isoDate = (offsetDays = 0) => {
@@ -119,10 +125,10 @@ function breakEven(odds) {
 }
 function historicalStatsForLane(laneKey) {
   const stats = {
-    CORE_P1_ATP_GS_BET365: { hit: 0.4321, roi: 0.2764, sample: 162 },
-    CORE_P1_MIRROR_WTA_OTHER: { hit: 0.4704, roi: 0.2144, sample: 270 },
-    VIP_P1_ATP_GS_MULTI: { hit: 0.4188, roi: 0.2072, sample: 320 },
-    VIP_P2_V3_SHAPE: { hit: 0.5758, roi: 0.3432, sample: 99 },
+    CORE_P1_ATP_GS_BET365: { hit: 0.3934, roi: 0.1704, sample: 544 },
+    CORE_P1_MIRROR_WTA_OTHER: { hit: 0.3934, roi: 0.1704, sample: 544 },
+    VIP_P1_ATP_GS_MULTI: { hit: 0.3853, roi: 0.1760, sample: 571 },
+    VIP_P2_V3_SHAPE: { hit: 0.3853, roi: 0.1760, sample: 571 },
   };
   return stats[laneKey] || { hit: null, roi: null, sample: 0 };
 }
@@ -131,22 +137,22 @@ const lanes = [
   {
     key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:3', '6:4'],
     sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25,
-    minGrouped: 2.50, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster'
+    minGrouped: 2.50, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4
   },
   {
     key: 'CORE_P1_MIRROR_WTA_OTHER', access: 'CORE_AND_VIP', books: ['bet365', '1xBet'], scores: ['6:3', '6:4', '7:5'],
     sideText: 'Player 1 wins first set 6:3, 6:4, or 7:5', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 8.00,
-    minGrouped: 2.30, tierFloorA: 2.35, tierFloorS: 2.60, tour: 'WTA', tournamentGroup: 'OTHER_TOUR', publicLabel: 'Mirror Cluster'
+    minGrouped: 2.60, tierFloorA: 2.60, tierFloorS: 2.90, tour: 'WTA', tournamentGroup: 'OTHER_TOUR', publicLabel: 'Mirror Cluster', quality: 2
   },
   {
     key: 'VIP_P1_ATP_GS_MULTI', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['6:3', '6:4'],
     sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25,
-    minGrouped: 2.60, tierFloorA: 2.60, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster Plus'
+    minGrouped: 2.60, tierFloorA: 2.60, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster Plus', quality: 3
   },
   {
     key: 'VIP_P2_V3_SHAPE', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['3:6', '4:6', '5:7'],
     sideText: 'Player 2 wins first set 6:3, 6:4, or 7:5', triggerScore: '4:6', triggerMin: 6.25, triggerMax: 6.99,
-    minGrouped: 3.05, tierFloorA: 3.20, tierFloorS: 3.30, tour: 'ANY', tournamentGroup: 'ANY', publicLabel: 'V3 Cluster'
+    minGrouped: 3.50, tierFloorA: 3.50, tierFloorS: 3.75, tour: 'ANY', tournamentGroup: 'ANY', publicLabel: 'V3 Cluster', quality: 2
   },
 ];
 
@@ -239,7 +245,7 @@ function buildCandidateRows(oddsResult, fixturesByKey) {
           access: lane.access, score_cluster: lane.scores.join('/'), public_target: lane.sideText, trigger_score: lane.triggerScore,
           trigger_odds: triggerOdds, score_odds_json: JSON.stringify(Object.fromEntries(lane.scores.map((s, i) => [s, odds[i]]))),
           grouped_odds: grouped, break_even_hit_rate: be, historical_hit_rate: hist.hit, historical_roi: hist.roi,
-          historical_sample: hist.sample, model_edge_vs_breakeven: edge, public_tier: tier,
+          historical_sample: hist.sample, model_edge_vs_breakeven: edge, public_tier: tier, signal_quality: lane.quality,
         };
         row.signal_key = [row.event_key, row.strategy_lane, row.access, row.score_cluster, row.public_tier].join(':');
         rows.push(row);
@@ -253,21 +259,54 @@ function dedupeSignals(rows) {
   for (const r of rows) {
     const key = [r.event_key, r.strategy_lane, r.access, r.score_cluster].join(':');
     const prev = groups.get(key);
-    if (!prev || Number(r.grouped_odds) > Number(prev.grouped_odds)) groups.set(key, r);
+    if (!prev || signalRank(r) > signalRank(prev)) groups.set(key, r);
   }
-  return [...groups.values()].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || Number(b.grouped_odds) - Number(a.grouped_odds));
+  return [...groups.values()].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || signalRank(b) - signalRank(a));
 }
-function telegramMessage(row, roomName) {
+function tierRank(tier) {
+  return { S: 3, A: 2, B: 1 }[tier] || 0;
+}
+function signalRank(row) {
+  return tierRank(row.public_tier) * 1000000 + Number(row.signal_quality || 0) * 100000 + Number(row.model_edge_vs_breakeven || 0) * 10000 + Number(row.grouped_odds || 0) * 100 + Number(row.trigger_odds || 0);
+}
+function capSignalsForRoom(rows, roomName, cap) {
+  const byDay = new Map();
+  for (const r of rows) {
+    const day = r.event_date || 'unknown';
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(r);
+  }
+  const selected = [];
+  for (const [day, arr] of [...byDay.entries()].sort()) {
+    const ranked = arr.sort((a, b) => signalRank(b) - signalRank(a));
+    const keep = [];
+    const usedEvents = new Set();
+    for (const r of ranked) {
+      if (usedEvents.has(r.event_key)) continue;
+      usedEvents.add(r.event_key);
+      keep.push({ ...r, telegram_room: roomName });
+      if (cap > 0 && keep.length >= cap) break;
+    }
+    selected.push(...keep);
+  }
+  return selected.sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || signalRank(b) - signalRank(a));
+}
+function buildSelectedRoomSignals(signals) {
+  const coreRows = capSignalsForRoom(signals.filter((r) => r.access === 'CORE_AND_VIP'), 'Core', coreDailyCap);
+  const vipRows = capSignalsForRoom(signals, 'VIP', vipDailyCap);
+  return [...coreRows, ...vipRows].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || String(a.telegram_room).localeCompare(String(b.telegram_room)) || signalRank(b) - signalRank(a));
+}
+function telegramMessage(row) {
   const be = row.break_even_hit_rate ? pct(row.break_even_hit_rate) : 'n/a';
   const hist = row.historical_hit_rate ? pct(row.historical_hit_rate) : 'n/a';
   const edge = row.model_edge_vs_breakeven !== null && row.model_edge_vs_breakeven !== undefined ? `${(row.model_edge_vs_breakeven * 100).toFixed(1)} pts` : 'n/a';
   const dateTime = `${row.event_date || ''} ${row.event_time || ''} UTC`.trim();
   const mins = row.minutes_to_start !== null && row.minutes_to_start !== undefined ? `${row.minutes_to_start} min` : 'n/a';
   return [
-    `🎾 SlipIQ First Set Lab ${row.public_tier}-Tier`, '', `Room: ${roomName}`, `Signal: ${row.public_signal_name}`,
+    `🎾 SlipIQ First Set Lab ${row.public_tier}-Tier`, '', `Room: ${row.telegram_room}`, `Signal: ${row.public_signal_name}`,
     `Match: ${row.match_name}`, `Tournament: ${row.tournament_name || row.tournament_group}`, `Start: ${dateTime}`,
     `Time to start: ${mins}`, '', 'Target Cluster:', row.public_target, '', `Grouped Odds: ${fmtOdds(row.grouped_odds)}`,
-    `Break-even: ${be}`, `Historical Hit Rate: ${hist}`, `Historical Edge: +${edge}`, `Historical Sample: ${row.historical_sample || 'n/a'} signals`, '',
+    `Break-even: ${be}`, `Historical Room Hit Rate: ${hist}`, `Historical Edge: +${edge}`, `Historical Sample: ${row.historical_sample || 'n/a'} signals`, '',
     'Paper-tracked signal. Probability edge, not a guaranteed pick.'
   ].join('\n');
 }
@@ -279,26 +318,25 @@ async function sendTelegramMessage(chatId, text) {
   if (!res.ok || payload.ok !== true) return { ok: false, status: res.status, payload };
   return { ok: true, message_id: payload.result?.message_id };
 }
-async function routeAndSend(rows) {
+async function routeAndSend(selectedRows) {
   const sent = [];
-  for (const row of rows) {
-    const targets = row.access === 'CORE_AND_VIP' ? [{ room: 'Core', chatId: coreChatId }, { room: 'VIP', chatId: vipChatId }] : [{ room: 'VIP', chatId: vipChatId }];
-    for (const target of targets) {
-      const message = telegramMessage(row, target.room);
-      let result = { ok: false, skipped: true, reason: 'SEND_TELEGRAM=false' };
-      if (sendTelegram) result = await sendTelegramMessage(target.chatId, message);
-      sent.push({ ...row, telegram_room: target.room, telegram_sent: String(result.ok === true), telegram_result_json: JSON.stringify(result), telegram_message_preview: message });
-    }
+  for (const row of selectedRows) {
+    const chatId = row.telegram_room === 'Core' ? coreChatId : vipChatId;
+    const message = telegramMessage(row);
+    let result = { ok: false, skipped: true, reason: 'SEND_TELEGRAM=false' };
+    if (sendTelegram) result = await sendTelegramMessage(chatId, message);
+    sent.push({ ...row, telegram_sent: String(result.ok === true), telegram_result_json: JSON.stringify(result), telegram_message_preview: message });
   }
   return sent;
 }
 
-const fields = ['scanned_at', 'signal_key', 'event_key', 'starts_at', 'event_date', 'event_time', 'minutes_to_start', 'event_status', 'player1', 'player2', 'match_name', 'tour', 'tournament_group', 'tournament_name', 'internal_bookmaker', 'market_name', 'strategy_lane', 'public_signal_name', 'access', 'score_cluster', 'public_target', 'trigger_score', 'trigger_odds', 'score_odds_json', 'grouped_odds', 'break_even_hit_rate', 'historical_hit_rate', 'historical_roi', 'historical_sample', 'model_edge_vs_breakeven', 'public_tier'];
-const sentFields = [...fields, 'telegram_room', 'telegram_sent', 'telegram_result_json', 'telegram_message_preview'];
+const fields = ['scanned_at', 'signal_key', 'event_key', 'starts_at', 'event_date', 'event_time', 'minutes_to_start', 'event_status', 'player1', 'player2', 'match_name', 'tour', 'tournament_group', 'tournament_name', 'internal_bookmaker', 'market_name', 'strategy_lane', 'public_signal_name', 'access', 'score_cluster', 'public_target', 'trigger_score', 'trigger_odds', 'score_odds_json', 'grouped_odds', 'break_even_hit_rate', 'historical_hit_rate', 'historical_roi', 'historical_sample', 'model_edge_vs_breakeven', 'public_tier', 'signal_quality'];
+const selectedFields = [...fields, 'telegram_room'];
+const sentFields = [...selectedFields, 'telegram_sent', 'telegram_result_json', 'telegram_message_preview'];
 
 async function main() {
   ensureDir(outDir);
-  const summary = { generated_at: new Date().toISOString(), date_start: dateStart, date_stop: dateStop, market_name: marketName, send_telegram: sendTelegram, bookmaker_names_hidden_in_telegram: true, min_minutes_to_start: minMinutesToStart, max_minutes_to_start: maxMinutesToStart, fixture_count: 0, odds_match_count: 0, raw_candidate_rows: 0, deduped_signals: 0, core_signals: 0, vip_only_signals: 0, telegram_messages_attempted: 0, telegram_messages_sent: 0, by_lane: {}, by_tier: {}, errors: [] };
+  const summary = { generated_at: new Date().toISOString(), date_start: dateStart, date_stop: dateStop, market_name: marketName, send_telegram: sendTelegram, bookmaker_names_hidden_in_telegram: true, core_daily_cap: coreDailyCap, vip_daily_cap: vipDailyCap, min_minutes_to_start: minMinutesToStart, max_minutes_to_start: maxMinutesToStart, fixture_count: 0, odds_match_count: 0, raw_candidate_rows: 0, deduped_candidate_signals: 0, selected_room_signals: 0, core_signals: 0, vip_signals: 0, vip_only_signals: 0, telegram_messages_attempted: 0, telegram_messages_sent: 0, by_room: {}, by_lane: {}, by_tier: {}, errors: [] };
   const fixtureFetch = await fetchCombined('get_fixtures', { date_start: dateStart, date_stop: dateStop });
   summary.errors.push(...fixtureFetch.errors);
   const fixtures = mergeFixtures(fixtureFetch.chunks);
@@ -309,23 +347,27 @@ async function main() {
   const oddsResult = mergeOdds(oddsFetch.chunks);
   summary.odds_match_count = Object.keys(oddsResult).length;
   const rawRows = buildCandidateRows(oddsResult, fixturesByKey);
-  const signals = dedupeSignals(rawRows);
-  const sentRows = await routeAndSend(signals);
+  const candidateSignals = dedupeSignals(rawRows);
+  const selectedSignals = buildSelectedRoomSignals(candidateSignals);
+  const sentRows = await routeAndSend(selectedSignals);
   summary.raw_candidate_rows = rawRows.length;
-  summary.deduped_signals = signals.length;
-  summary.core_signals = signals.filter((r) => r.access === 'CORE_AND_VIP').length;
-  summary.vip_only_signals = signals.filter((r) => r.access === 'VIP_ONLY').length;
+  summary.deduped_candidate_signals = candidateSignals.length;
+  summary.selected_room_signals = selectedSignals.length;
+  summary.core_signals = selectedSignals.filter((r) => r.telegram_room === 'Core').length;
+  summary.vip_signals = selectedSignals.filter((r) => r.telegram_room === 'VIP').length;
+  summary.vip_only_signals = selectedSignals.filter((r) => r.telegram_room === 'VIP' && r.access === 'VIP_ONLY').length;
   summary.telegram_messages_attempted = sentRows.length;
   summary.telegram_messages_sent = sentRows.filter((r) => r.telegram_sent === 'true').length;
-  for (const r of signals) {
+  for (const r of selectedSignals) {
+    summary.by_room[r.telegram_room] = (summary.by_room[r.telegram_room] || 0) + 1;
     summary.by_lane[r.strategy_lane] = (summary.by_lane[r.strategy_lane] || 0) + 1;
     summary.by_tier[r.public_tier] = (summary.by_tier[r.public_tier] || 0) + 1;
   }
   writeCsv(path.join(outDir, 'first_set_lab_live_raw_candidates.csv'), rawRows, fields);
-  writeCsv(path.join(outDir, 'first_set_lab_live_signals.csv'), signals, fields);
+  writeCsv(path.join(outDir, 'first_set_lab_live_signals.csv'), selectedSignals, selectedFields);
   writeCsv(path.join(outDir, 'first_set_lab_live_telegram_log.csv'), sentRows, sentFields);
   writeJson(path.join(outDir, 'first_set_lab_live_summary.json'), summary);
-  const lines = ['# SlipIQ First Set Lab Live Scanner', '', `Generated: ${summary.generated_at}`, `Date range: ${dateStart} to ${dateStop}`, `Market: ${marketName}`, `Telegram sending: ${sendTelegram ? 'ON' : 'OFF / dry-run'}`, 'Bookmaker names hidden in Telegram: yes', '', '## Counts', `Fixtures: ${summary.fixture_count}`, `Odds matches: ${summary.odds_match_count}`, `Raw candidate rows: ${summary.raw_candidate_rows}`, `Deduped public signals: ${summary.deduped_signals}`, `Core signals: ${summary.core_signals}`, `VIP-only signals: ${summary.vip_only_signals}`, `Telegram messages attempted: ${summary.telegram_messages_attempted}`, `Telegram messages sent: ${summary.telegram_messages_sent}`, '', '## Lane counts', '```json', JSON.stringify(summary.by_lane, null, 2), '```', '', '## Signals', ...(signals.length ? signals.map((r) => `- ${r.public_tier} | ${r.access} | ${r.public_signal_name} | ${r.match_name} | ${r.tournament_name} | ${r.event_date} ${r.event_time} UTC | grouped=${fmtOdds(r.grouped_odds)} | target=${r.public_target}`) : ['None']), '', '## Notes', 'Telegram messages intentionally hide bookmaker names. Internal CSV keeps bookmaker for paper tracking and grading.', 'This workflow is a probability/price-intelligence alert system, not automatic betting.', '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
+  const lines = ['# SlipIQ First Set Lab Live Scanner', '', `Generated: ${summary.generated_at}`, `Date range: ${dateStart} to ${dateStop}`, `Market: ${marketName}`, `Telegram sending: ${sendTelegram ? 'ON' : 'OFF / dry-run'}`, 'Bookmaker names hidden in Telegram: yes', `Core daily cap: ${coreDailyCap}`, `VIP daily cap: ${vipDailyCap}`, '', '## Counts', `Fixtures: ${summary.fixture_count}`, `Odds matches: ${summary.odds_match_count}`, `Raw candidate rows: ${summary.raw_candidate_rows}`, `Deduped candidate signals before room caps: ${summary.deduped_candidate_signals}`, `Selected room signals after caps: ${summary.selected_room_signals}`, `Core signals: ${summary.core_signals}`, `VIP signals: ${summary.vip_signals}`, `VIP-only signals: ${summary.vip_only_signals}`, `Telegram messages attempted: ${summary.telegram_messages_attempted}`, `Telegram messages sent: ${summary.telegram_messages_sent}`, '', '## Room counts', '```json', JSON.stringify(summary.by_room, null, 2), '```', '', '## Lane counts', '```json', JSON.stringify(summary.by_lane, null, 2), '```', '', '## Signals', ...(selectedSignals.length ? selectedSignals.map((r) => `- ${r.public_tier} | ${r.telegram_room} | ${r.public_signal_name} | ${r.match_name} | ${r.tournament_name} | ${r.event_date} ${r.event_time} UTC | grouped=${fmtOdds(r.grouped_odds)} | target=${r.public_target}`) : ['None']), '', '## Notes', 'Telegram messages intentionally hide bookmaker names. Internal CSV keeps bookmaker for paper tracking and grading.', 'This workflow is a probability/price-intelligence alert system, not automatic betting.', '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
   fs.writeFileSync(path.join(outDir, 'first_set_lab_live_report.md'), lines.join('\n'), 'utf8');
 }
 
