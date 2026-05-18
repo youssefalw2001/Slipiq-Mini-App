@@ -3,8 +3,12 @@
 SlipIQ / First Set Lab Supabase delivery guard.
 
 Reads first_set_lab_live_signals.csv from the scanner artifact, upserts each signal
-into Supabase, checks telegram_signal_deliveries for duplicates, sends Telegram
-only for new room deliveries, then writes delivery rows back to Supabase and artifact logs.
+into Supabase, checks telegram_signal_deliveries for successful prior sends,
+sends Telegram only for room deliveries that were not successfully sent before,
+then writes delivery rows back to Supabase and artifact logs.
+
+Important: dry-run rows have sent_ok=false. Those must not block a later real
+send_telegram=true run.
 
 Supports both:
 - exact_score_cluster signals
@@ -207,9 +211,9 @@ async function upsertSignal(row) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-async function existingDelivery(signalId, roomKey) {
+async function existingSuccessfulDelivery(signalId, roomKey) {
   const room = encodeURIComponent(roomKey);
-  const data = await sbFetch(`telegram_signal_deliveries?select=id,telegram_message_id,sent_ok,skipped_duplicate&signal_id=eq.${signalId}&room_key=eq.${room}&limit=1`, { method: 'GET' });
+  const data = await sbFetch(`telegram_signal_deliveries?select=id,telegram_message_id,sent_ok,skipped_duplicate&signal_id=eq.${signalId}&room_key=eq.${room}&sent_ok=eq.true&limit=1`, { method: 'GET' });
   return Array.isArray(data) && data.length ? data[0] : null;
 }
 
@@ -273,7 +277,7 @@ async function main() {
       if (supabaseUrl && supabaseKey) {
         signal = await upsertSignal(row);
         summary.signals_upserted += 1;
-        const existing = await existingDelivery(signal.id, roomKey);
+        const existing = await existingSuccessfulDelivery(signal.id, roomKey);
         if (existing) {
           duplicate = true;
           result = { ok: false, skipped_duplicate: true, existing_delivery_id: existing.id, existing_message_id: existing.telegram_message_id || null };
