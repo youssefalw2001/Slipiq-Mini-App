@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       send_telegram:
-        description: Send Telegram messages. Use false for dry-run.
+        description: Send Telegram messages through Supabase duplicate guard. Use false for dry-run.
         required: false
         default: 'false'
       date_start:
@@ -27,13 +27,21 @@ on:
         description: ATP/WTA event type keys.
         required: false
         default: '265,266'
+      core_daily_cap:
+        description: Core signals per day cap.
+        required: false
+        default: '10'
+      vip_daily_cap:
+        description: VIP signals per day cap.
+        required: false
+        default: '5'
   schedule:
     - cron: '17 */2 * * *'
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repo
@@ -44,25 +52,23 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run live First Set Lab scanner
+      - name: Generate live First Set Lab signals
         env:
           API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
           APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
           API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CORE_CHAT_ID: ${{ secrets.TELEGRAM_CORE_CHAT_ID }}
-          TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
-          SEND_TELEGRAM: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.send_telegram }}
           API_TENNIS_DATE_START: ${{ github.event.inputs.date_start }}
           API_TENNIS_DATE_STOP: ${{ github.event.inputs.date_stop }}
           API_TENNIS_EVENT_TYPE_KEYS: ${{ github.event.inputs.event_type_keys }}
           MAX_MINUTES_TO_START: ${{ github.event.inputs.max_minutes_to_start }}
           MIN_MINUTES_TO_START: ${{ github.event.inputs.min_minutes_to_start }}
+          CORE_DAILY_CAP: ${{ github.event.inputs.core_daily_cap }}
+          VIP_DAILY_CAP: ${{ github.event.inputs.vip_daily_cap }}
         shell: bash
         run: |
           ARGS=(
             --out=artifacts/output/api-tennis-live-first-set-lab-scanner
-            --send-telegram="${SEND_TELEGRAM}"
+            --send-telegram=false
           )
           if [ -n "${API_TENNIS_DATE_START}" ]; then
             ARGS+=(--date-start="${API_TENNIS_DATE_START}")
@@ -76,7 +82,30 @@ jobs:
           if [ -n "${MIN_MINUTES_TO_START}" ]; then
             ARGS+=(--min-minutes-to-start="${MIN_MINUTES_TO_START}")
           fi
+          if [ -n "${CORE_DAILY_CAP}" ]; then
+            ARGS+=(--core-daily-cap="${CORE_DAILY_CAP}")
+          fi
+          if [ -n "${VIP_DAILY_CAP}" ]; then
+            ARGS+=(--vip-daily-cap="${VIP_DAILY_CAP}")
+          fi
           node scripts/api_tennis_live_first_set_lab_scanner.mjs "${ARGS[@]}"
+
+      - name: Deliver through Supabase duplicate guard
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CORE_CHAT_ID: ${{ secrets.TELEGRAM_CORE_CHAT_ID }}
+          TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
+          SEND_TELEGRAM: ${{ github.event_name == 'schedule' && 'true' || github.event.inputs.send_telegram }}
+          REQUIRE_SUPABASE_FOR_SEND: 'true'
+        shell: bash
+        run: |
+          node scripts/first_set_lab_supabase_deliver.mjs \
+            --input=artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_signals.csv \
+            --out=artifacts/output/api-tennis-live-first-set-lab-scanner \
+            --send-telegram="${SEND_TELEGRAM}" \
+            --require-supabase-for-send=true
 
       - name: Upload live First Set Lab artifact
         if: always()
@@ -90,4 +119,8 @@ jobs:
             artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_raw_candidates.csv
             artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_telegram_log.csv
             artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_live_fatal_error.json
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_supabase_delivery_report.md
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_supabase_delivery_summary.json
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_supabase_delivery_log.csv
+            artifacts/output/api-tennis-live-first-set-lab-scanner/first_set_lab_supabase_delivery_fatal_error.json
           if-no-files-found: warn
