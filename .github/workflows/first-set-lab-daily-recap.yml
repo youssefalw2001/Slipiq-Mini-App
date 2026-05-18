@@ -1,0 +1,78 @@
+name: First Set Lab Daily Proof Vault Recap
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_telegram:
+        description: Send recap to Telegram channels.
+        required: false
+        default: 'false'
+      lookback_hours:
+        description: Recap settlement lookback window in hours.
+        required: false
+        default: '24'
+      send_free_proof:
+        description: Send public/free recap if TELEGRAM_FREE_CHAT_ID exists.
+        required: false
+        default: 'false'
+  schedule:
+    # Daily recap after most tennis settlement checks have run.
+    - cron: '30 23 * * *'
+
+jobs:
+  recap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Send Proof Vault recap
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CORE_CHAT_ID: ${{ secrets.TELEGRAM_CORE_CHAT_ID }}
+          TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
+          TELEGRAM_FREE_CHAT_ID: ${{ secrets.TELEGRAM_FREE_CHAT_ID }}
+          ENABLE_LIVE_TELEGRAM_SEND: ${{ secrets.ENABLE_LIVE_TELEGRAM_SEND }}
+          SEND_TELEGRAM: ${{ github.event.inputs.send_telegram }}
+          SEND_FREE_PROOF_RECAP: ${{ github.event.inputs.send_free_proof }}
+          RECAP_LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours }}
+        shell: bash
+        run: |
+          # Scheduled runs only send if ENABLE_LIVE_TELEGRAM_SEND=true.
+          # Manual workflow_dispatch uses the send_telegram input.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            SEND_FLAG="${ENABLE_LIVE_TELEGRAM_SEND:-false}"
+            LOOKBACK="24"
+            FREE_FLAG="${SEND_FREE_PROOF_RECAP:-false}"
+          else
+            SEND_FLAG="${SEND_TELEGRAM:-false}"
+            LOOKBACK="${RECAP_LOOKBACK_HOURS:-24}"
+            FREE_FLAG="${SEND_FREE_PROOF_RECAP:-false}"
+          fi
+
+          node scripts/first_set_lab_daily_recap.mjs \
+            --out=artifacts/output/first-set-lab-daily-recap \
+            --send-telegram="$SEND_FLAG" \
+            --send-free-proof="$FREE_FLAG" \
+            --lookback-hours="$LOOKBACK"
+
+      - name: Upload recap artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-daily-recap
+          path: |
+            artifacts/output/first-set-lab-daily-recap/first_set_lab_daily_recap_report.md
+            artifacts/output/first-set-lab-daily-recap/first_set_lab_daily_recap_summary.json
+            artifacts/output/first-set-lab-daily-recap/first_set_lab_daily_recap_messages.csv
+            artifacts/output/first-set-lab-daily-recap/first_set_lab_daily_recap_fatal_error.json
+          if-no-files-found: warn
