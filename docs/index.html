@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>First Set Lab by SlipIQ - Tennis First-Set Price Intelligence</title>
+  <meta name="description" content="First Set Lab is a private tennis market intelligence terminal powered by SlipIQ. Synthetic odds grouping, live scanner signals, and timestamped proof ledger architecture for first-set derivative markets." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            obsidian: '#0B0F19',
+            slatePanel: '#111827',
+            slateLine: '#1F2937',
+            softLine: '#273244',
+            dataGreen: '#10B981',
+            electricBlue: '#3B82F6',
+            mutedText: '#9CA3AF',
+            coldWhite: '#F9FAFB'
+          },
+          boxShadow: {
+            terminal: '0 0 0 1px rgba(31,41,55,.9), 0 24px 80px rgba(0,0,0,.45)',
+            glowBlue: '0 0 40px rgba(59,130,246,.25)',
+            glowGreen: '0 0 40px rgba(16,185,129,.18)'
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'SFMono-Regular', 'Consolas', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <script>
+    window.MathJax = { tex: { inlineMath: [['\\(', '\\)'], ['$', '$']] }, svg: { fontCache: 'global' } };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="bg-obsidian text-coldWhite antialiased selection:bg-electricBlue/30 selection:text-white">
+  <div class="pointer-events-none fixed inset-0 -z-10">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,.12),transparent_26%),linear-gradient(180deg,#0B0F19_0%,#070A12_100%)]"></div>
+    <div class="absolute inset-0 opacity-[0.055] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:56px_56px]"></div>
+  </div>
+
+  <header class="sticky top-0 z-50 border-b border-slateLine/80 bg-obsidian/82 backdrop-blur-xl">
+    <nav class="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-4 lg:px-8">
+      <a href="#" class="group flex items-center gap-3">
+        <div class="grid h-10 w-10 place-items-center rounded-xl border border-slateLine bg-slatePanel shadow-terminal transition group-hover:border-electricBlue/60">
+          <span class="font-mono text-sm font-bold text-dataGreen">FSL</span>
+        </div>
+        <div>
+          <div class="text-sm font-bold tracking-tight">First Set Lab</div>
+          <div class="font-mono text-[10px] uppercase tracking-[0.24em] text-mutedText">Powered by SlipIQ</div>
+        </div>
+      </a>
+      <div class="hidden items-center gap-8 lg:flex">
+        <a href="#matrix" class="text-sm text-mutedText transition hover:text-white">Strategy Matrix</a>
+        <a href="#method" class="text-sm text-mutedText transition hover:text-white">Methodology</a>
+        <a href="#ledger" class="text-sm text-mutedText transition hover:text-white">Proof Ledger</a>
+        <a href="#access" class="text-sm text-mutedText transition hover:text-white">Access</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="hidden rounded-full border border-dataGreen/25 bg-dataGreen/10 px-3 py-2 font-mono text-[11px] text-dataGreen sm:flex">
+          <span class="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-dataGreen"></span>
+          Scanner Pipeline: Operational
+        </div>
+        <a href="https://whop.com/your-first-set-lab-checkout" class="rounded-xl bg-electricBlue px-4 py-2.5 text-sm font-bold text-white shadow-glowBlue transition hover:-translate-y-0.5 hover:bg-blue-400">Access Terminal</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="mx-auto grid max-w-[1440px] gap-12 px-5 pb-20 pt-16 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-28 lg:pt-24">
+      <div class="flex flex-col justify-center">
+        <div class="mb-6 inline-flex w-fit items-center rounded-full border border-slateLine bg-slatePanel/70 px-3 py-2 font-mono text-xs text-mutedText">PRIVATE TENNIS DERIVATIVES TERMINAL - FIRST-SET MARKETS ONLY</div>
+        <h1 class="max-w-5xl text-5xl font-black tracking-[-0.055em] text-white sm:text-6xl lg:text-7xl xl:text-8xl">
+          Not picks. Not hype.
+          <span class="block bg-gradient-to-r from-dataGreen via-white to-electricBlue bg-clip-text text-transparent">First-set price intelligence.</span>
+        </h1>
+        <p class="mt-8 max-w-3xl text-lg leading-8 text-gray-300 sm:text-xl">SlipIQ scans first-set correct-score matrices and Grand Slam first-set winner markets, builds synthetic grouped prices, and routes capped signals into First Set Lab's timestamped proof architecture before settlement.</p>
+        <div class="mt-9 flex flex-col gap-4 sm:flex-row">
+          <a href="https://whop.com/your-first-set-lab-checkout" class="group rounded-2xl bg-electricBlue px-7 py-4 text-center text-sm font-black uppercase tracking-[0.18em] text-white shadow-glowBlue transition hover:-translate-y-1 hover:bg-blue-400">Access Terminal <span class="ml-2 transition group-hover:translate-x-1">-></span></a>
+          <a href="#ledger" class="rounded-2xl border border-slateLine bg-slatePanel/70 px-7 py-4 text-center text-sm font-black uppercase tracking-[0.18em] text-white transition hover:-translate-y-1 hover:border-dataGreen/50 hover:bg-dataGreen/10">View Public Ledger</a>
+        </div>
+        <div class="mt-10 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-2xl border border-slateLine bg-slatePanel/45 p-4"><div class="font-mono text-2xl font-bold text-dataGreen">2</div><div class="mt-1 text-xs text-mutedText">Market types scanned</div></div>
+          <div class="rounded-2xl border border-slateLine bg-slatePanel/45 p-4"><div class="font-mono text-2xl font-bold text-white">0.5-1%</div><div class="mt-1 text-xs text-mutedText">Flat staking framework</div></div>
+          <div class="rounded-2xl border border-slateLine bg-slatePanel/45 p-4"><div class="font-mono text-2xl font-bold text-electricBlue">2h</div><div class="mt-1 text-xs text-mutedText">Scanner cadence</div></div>
+          <div class="rounded-2xl border border-slateLine bg-slatePanel/45 p-4"><div class="font-mono text-2xl font-bold text-white">0</div><div class="mt-1 text-xs text-mutedText">Deleted ledger rows</div></div>
+        </div>
+      </div>
+
+      <div class="relative">
+        <div class="absolute -inset-6 -z-10 rounded-[2rem] bg-electricBlue/10 blur-3xl"></div>
+        <div class="overflow-hidden rounded-3xl border border-slateLine bg-slatePanel/80 shadow-terminal backdrop-blur-xl">
+          <div class="flex items-center justify-between border-b border-slateLine px-5 py-4">
+            <div><div class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">SlipIQ Live Matrix</div><div class="mt-1 text-sm font-semibold text-white">Synthetic Grouping Engine</div></div>
+            <div class="rounded-full border border-dataGreen/30 bg-dataGreen/10 px-3 py-1 font-mono text-xs text-dataGreen">Online</div>
+          </div>
+          <div class="space-y-3 p-5">
+            <div class="grid grid-cols-4 gap-2 rounded-2xl border border-slateLine bg-obsidian/60 p-4 font-mono text-xs text-mutedText">
+              <div>MARKET</div><div>LANE</div><div>ODDS</div><div>STATE</div>
+              <div class="text-white">Correct Score 1st Half</div><div class="text-white">6:3 / 6:4</div><div class="text-dataGreen">3.04 avg</div><div class="text-electricBlue">tracked</div>
+              <div class="text-white">Correct Score 1st Half</div><div class="text-white">3:6 / 4:6 / 5:7</div><div class="text-dataGreen">3.50 gate</div><div class="text-electricBlue">capped</div>
+              <div class="text-white">Home/Away 1st Set</div><div class="text-white">GS favorite</div><div class="text-dataGreen">1.50-1.65</div><div class="text-electricBlue">comfort</div>
+            </div>
+            <div class="rounded-2xl border border-slateLine bg-obsidian/60 p-5">
+              <div class="mb-4 flex items-center justify-between"><div class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Current Signal Object</div><div class="font-mono text-xs text-dataGreen">status=open</div></div>
+              <pre class="overflow-x-auto text-xs leading-6 text-gray-300"><code>{
+  "signal_type": "first_set_winner",
+  "market_source": "Home/Away (1st Set)",
+  "strategy_lane": "COMFORT_FIRST_SET_FAVORITE_GS_1XBET",
+  "selected_side_odds": 1.63,
+  "break_even_hit_rate": 0.6135,
+  "historical_hit_rate": 0.7517,
+  "bookmaker_public": "hidden",
+  "ledger": "timestamped"
+}</code></pre>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="rounded-2xl border border-slateLine bg-obsidian/60 p-4"><div class="font-mono text-xs text-mutedText">Pipeline</div><div class="mt-2 text-lg font-bold text-dataGreen">Live</div></div>
+              <div class="rounded-2xl border border-slateLine bg-obsidian/60 p-4"><div class="font-mono text-xs text-mutedText">Telegram</div><div class="mt-2 text-lg font-bold text-white">Locked</div></div>
+              <div class="rounded-2xl border border-slateLine bg-obsidian/60 p-4"><div class="font-mono text-xs text-mutedText">Ledger</div><div class="mt-2 text-lg font-bold text-electricBlue">Writing</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="matrix" class="border-y border-slateLine/80 bg-slatePanel/25 py-20">
+      <div class="mx-auto max-w-[1440px] px-5 lg:px-8">
+        <div class="mb-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div><p class="font-mono text-xs uppercase tracking-[0.26em] text-dataGreen">Strategy Portfolio</p><h2 class="mt-3 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Three layers. Different jobs. One proof architecture.</h2></div>
+          <p class="max-w-2xl text-sm leading-7 text-mutedText">Core and Pro target higher-odds first-set derivative inefficiencies. Comfort is a separate Grand Slam first-set winner layer designed to reduce psychological variance without replacing the edge engine.</p>
+        </div>
+        <div class="grid gap-5 lg:grid-cols-3">
+          <article class="group rounded-3xl border border-slateLine bg-obsidian/80 p-6 shadow-terminal transition duration-300 hover:-translate-y-2 hover:border-dataGreen/50 hover:shadow-glowGreen">
+            <div class="flex items-center justify-between"><div><p class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Core Strategy</p><h3 class="mt-2 text-2xl font-black text-white">Exact-Score Edge Lanes</h3></div><div class="rounded-full border border-dataGreen/25 bg-dataGreen/10 px-3 py-1 font-mono text-xs text-dataGreen">Core</div></div>
+            <p class="mt-5 text-sm leading-7 text-gray-300">The main paid engine: capped first-set correct-score clusters built around synthetic grouped odds and disciplined daily exposure.</p>
+            <div class="mt-6 grid grid-cols-2 gap-3">
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Flat ROI</div><div class="mt-2 font-mono text-2xl font-bold text-dataGreen">+17.04%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Hit Rate</div><div class="mt-2 font-mono text-2xl font-bold text-white">39.34%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Avg Odds</div><div class="mt-2 font-mono text-2xl font-bold text-white">3.04</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Max DD</div><div class="mt-2 font-mono text-2xl font-bold text-white">17.5%</div></div>
+            </div>
+          </article>
+          <article class="group rounded-3xl border border-electricBlue/35 bg-obsidian/90 p-6 shadow-terminal transition duration-300 hover:-translate-y-2 hover:border-electricBlue hover:shadow-glowBlue">
+            <div class="flex items-center justify-between"><div><p class="font-mono text-xs uppercase tracking-[0.22em] text-electricBlue">Pro / Quant Layer</p><h3 class="mt-2 text-2xl font-black text-white">Stacked Confidence Lanes</h3></div><div class="rounded-full border border-electricBlue/35 bg-electricBlue/10 px-3 py-1 font-mono text-xs text-blue-300">Quant</div></div>
+            <p class="mt-5 text-sm leading-7 text-gray-300">Premium access for stricter lane routing, advanced signal contexts, deeper reporting, and stacked confidence when multiple models agree.</p>
+            <div class="mt-6 grid grid-cols-2 gap-3">
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Flat ROI</div><div class="mt-2 font-mono text-2xl font-bold text-dataGreen">+17.60%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Avg Odds</div><div class="mt-2 font-mono text-2xl font-bold text-white">3.13</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Max DD</div><div class="mt-2 font-mono text-2xl font-bold text-white">15.8%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Signals / Month</div><div class="mt-2 font-mono text-2xl font-bold text-white">~38</div></div>
+            </div>
+          </article>
+          <article class="group rounded-3xl border border-slateLine bg-obsidian/80 p-6 shadow-terminal transition duration-300 hover:-translate-y-2 hover:border-dataGreen/50 hover:shadow-glowGreen">
+            <div class="flex items-center justify-between"><div><p class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Comfort Layer</p><h3 class="mt-2 text-2xl font-black text-white">Grand Slam Variance Smoother</h3></div><div class="rounded-full border border-dataGreen/25 bg-dataGreen/10 px-3 py-1 font-mono text-xs text-dataGreen">Comfort</div></div>
+            <p class="mt-5 text-sm leading-7 text-gray-300">A separate first-set winner model built for emotional stability during Grand Slams. It is not the money engine; it is the trust layer.</p>
+            <div class="mt-6 grid grid-cols-2 gap-3">
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Flat ROI</div><div class="mt-2 font-mono text-2xl font-bold text-dataGreen">+19.92%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Hit Rate</div><div class="mt-2 font-mono text-2xl font-bold text-white">75.17%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Max DD @ 0.5%</div><div class="mt-2 font-mono text-2xl font-bold text-white">1.82%</div></div>
+              <div class="rounded-2xl border border-slateLine bg-slatePanel/60 p-4"><div class="font-mono text-xs text-mutedText">Worst Streak</div><div class="mt-2 font-mono text-2xl font-bold text-white">2</div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="method" class="mx-auto max-w-[1440px] px-5 py-20 lg:px-8">
+      <div class="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-start">
+        <div><p class="font-mono text-xs uppercase tracking-[0.26em] text-electricBlue">Methodology</p><h2 class="mt-3 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Synthetic odds grouping for markets most bettors never price correctly.</h2><p class="mt-6 text-base leading-8 text-gray-300">SlipIQ clusters adjacent first-set outcomes, then converts bookmaker prices into a single synthetic grouped price. The engine compares that grouped price against historical break-even behavior, route eligibility, bookmaker context, and daily cap limits.</p><p class="mt-4 text-base leading-8 text-gray-300">The objective is not to predict tennis. The objective is to detect when derivative-market pricing is misaligned before the line collapses.</p></div>
+        <div class="rounded-3xl border border-slateLine bg-slatePanel/70 p-6 shadow-terminal">
+          <div class="mb-5 flex items-center justify-between border-b border-slateLine pb-4"><div><div class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Grouped Odds Formula</div><div class="mt-1 text-sm text-white">Synthetic matrix pricing</div></div><div class="rounded-full border border-dataGreen/25 bg-dataGreen/10 px-3 py-1 font-mono text-xs text-dataGreen">Python validated</div></div>
+          <div class="rounded-2xl border border-slateLine bg-obsidian/70 p-6 text-center"><div class="overflow-x-auto text-lg text-white">\( O_{grouped} = \frac{1}{\frac{1}{O_{6:3}} + \frac{1}{O_{6:4}} + \frac{1}{O_{7:5}}} \)</div></div>
+          <div class="mt-5 rounded-2xl border border-slateLine bg-obsidian/70 p-5"><pre class="overflow-x-auto text-xs leading-6 text-gray-300"><code>cluster = ["6:3", "6:4"]
+grouped_odds = 1 / sum(1 / score_odds[s] for s in cluster)
+break_even = 1 / grouped_odds
+edge = historical_hit_rate - break_even
+
+if edge > model_threshold and daily_cap_available:
+    route_to_ledger(signal)</code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ledger" class="border-y border-slateLine/80 bg-slatePanel/25 py-20">
+      <div class="mx-auto max-w-[1440px] px-5 lg:px-8">
+        <div class="mb-10 max-w-4xl"><p class="font-mono text-xs uppercase tracking-[0.26em] text-dataGreen">Immutable Proof Ledger</p><h2 class="mt-3 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Every signal should survive the audit.</h2><p class="mt-6 text-base leading-8 text-gray-300">First Set Lab is built around a zero-deletion proof ledger. Signals are timestamped before the event, stored with market source and odds, then graded after the first set settles.</p></div>
+        <div class="overflow-hidden rounded-3xl border border-slateLine bg-obsidian shadow-terminal">
+          <div class="flex flex-col justify-between gap-4 border-b border-slateLine px-5 py-4 sm:flex-row sm:items-center"><div><div class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Supabase Table</div><div class="mt-1 text-sm font-semibold text-white">public.live_signals</div></div><div class="rounded-full border border-dataGreen/25 bg-dataGreen/10 px-3 py-1 font-mono text-xs text-dataGreen">Zero Deletion Architecture</div></div>
+          <div class="overflow-x-auto"><table class="w-full min-w-[980px] text-left font-mono text-xs"><thead class="border-b border-slateLine bg-slatePanel/70 text-mutedText"><tr><th class="px-5 py-4 font-medium">signal_timestamp</th><th class="px-5 py-4 font-medium">fixture_id</th><th class="px-5 py-4 font-medium">market_source</th><th class="px-5 py-4 font-medium">grouped_odds</th><th class="px-5 py-4 font-medium">status</th><th class="px-5 py-4 font-medium">settled_win</th></tr></thead><tbody class="divide-y divide-slateLine text-gray-300"><tr class="transition hover:bg-slatePanel/45"><td class="px-5 py-4">2026-05-18 16:35:11 UTC</td><td class="px-5 py-4">evt_983721</td><td class="px-5 py-4 text-white">Correct Score 1st Half</td><td class="px-5 py-4 text-dataGreen">3.04</td><td class="px-5 py-4 text-electricBlue">settled</td><td class="px-5 py-4">false</td></tr><tr class="transition hover:bg-slatePanel/45"><td class="px-5 py-4">2026-05-18 16:35:16 UTC</td><td class="px-5 py-4">evt_983744</td><td class="px-5 py-4 text-white">Home/Away (1st Set)</td><td class="px-5 py-4 text-dataGreen">1.63</td><td class="px-5 py-4 text-electricBlue">open</td><td class="px-5 py-4">pending</td></tr></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="access" class="mx-auto max-w-[1440px] px-5 py-20 lg:px-8">
+      <div class="mx-auto mb-12 max-w-3xl text-center"><p class="font-mono text-xs uppercase tracking-[0.26em] text-electricBlue">Terminal Access</p><h2 class="mt-3 text-4xl font-black tracking-[-0.04em] text-white sm:text-5xl">Controlled access. Capped exposure. No signal spam.</h2><p class="mt-6 text-base leading-8 text-gray-300">First Set Lab is intentionally capped. The product is designed for disciplined market intelligence, not endless betting volume.</p></div>
+      <div class="mx-auto grid max-w-5xl gap-6 lg:grid-cols-2">
+        <article class="rounded-3xl border border-slateLine bg-slatePanel/65 p-7 shadow-terminal transition hover:-translate-y-2 hover:border-dataGreen/45"><div class="flex items-start justify-between gap-4"><div><p class="font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Core Terminal</p><h3 class="mt-2 text-3xl font-black text-white">Core Access</h3></div><div class="text-right"><div class="text-4xl font-black text-white">$29</div><div class="text-sm text-mutedText">per month</div></div></div><p class="mt-6 text-sm leading-7 text-gray-300">Built for members who want the primary exact-score edge model, capped signal flow, one comfort lane per day, and clean public-ledger tracking.</p><ul class="mt-7 space-y-4 text-sm text-gray-300"><li class="flex gap-3"><span class="font-mono text-dataGreen">01</span> Up to 10 capped exact-score edge lanes per day</li><li class="flex gap-3"><span class="font-mono text-dataGreen">02</span> Up to 1 Grand Slam comfort signal per day</li><li class="flex gap-3"><span class="font-mono text-dataGreen">03</span> Timestamped ledger tracking and settled-result recaps</li><li class="flex gap-3"><span class="font-mono text-dataGreen">04</span> No bookmaker names shown publicly; internal tracking retained</li></ul><a href="https://whop.com/your-first-set-lab-checkout" class="mt-8 block rounded-2xl border border-dataGreen/35 bg-dataGreen/10 px-6 py-4 text-center text-sm font-black uppercase tracking-[0.18em] text-dataGreen transition hover:-translate-y-1 hover:bg-dataGreen hover:text-obsidian">Start Core Access</a></article>
+        <article class="relative overflow-hidden rounded-3xl border border-electricBlue/45 bg-obsidian p-7 shadow-terminal transition hover:-translate-y-2 hover:border-electricBlue hover:shadow-glowBlue"><div class="absolute right-6 top-6 rounded-full border border-electricBlue/35 bg-electricBlue/10 px-3 py-1 font-mono text-xs text-blue-300">Most Advanced</div><div class="flex items-start justify-between gap-4 pr-28"><div><p class="font-mono text-xs uppercase tracking-[0.22em] text-electricBlue">Quant Terminal</p><h3 class="mt-2 text-3xl font-black text-white">Pro / Quant Access</h3></div><div class="text-right"><div class="text-4xl font-black text-white">$79</div><div class="text-sm text-mutedText">per month</div></div></div><p class="mt-6 text-sm leading-7 text-gray-300">For serious users who want Core plus stricter premium lanes, stacked-confidence contexts, expanded comfort coverage, and deeper performance reporting.</p><ul class="mt-7 space-y-4 text-sm text-gray-300"><li class="flex gap-3"><span class="font-mono text-electricBlue">01</span> Core exact-score signals included</li><li class="flex gap-3"><span class="font-mono text-electricBlue">02</span> Premium P1 Core Plus and P2 V3 lanes</li><li class="flex gap-3"><span class="font-mono text-electricBlue">03</span> Up to 2 Grand Slam comfort signals per day</li><li class="flex gap-3"><span class="font-mono text-electricBlue">04</span> Stacked Confidence notation when multiple models align</li><li class="flex gap-3"><span class="font-mono text-electricBlue">05</span> Deep analytics reports and lane-level breakdowns</li></ul><a href="https://whop.com/your-first-set-lab-checkout" class="mt-8 block rounded-2xl bg-electricBlue px-6 py-4 text-center text-sm font-black uppercase tracking-[0.18em] text-white shadow-glowBlue transition hover:-translate-y-1 hover:bg-blue-400">Access Quant Terminal</a></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-slateLine bg-[#070A12] px-5 py-12 lg:px-8">
+    <div class="mx-auto max-w-[1440px]">
+      <div class="grid gap-8 lg:grid-cols-[.8fr_1.2fr]"><div><div class="text-xl font-black text-white">First Set Lab</div><div class="mt-2 font-mono text-xs uppercase tracking-[0.22em] text-mutedText">Powered by SlipIQ</div></div><div class="space-y-4 text-sm leading-7 text-mutedText"><p>First Set Lab provides market intelligence, paper-tracked signals, and historical model research for tennis first-set derivative markets. It does not provide guaranteed outcomes, financial advice, or risk-free betting instructions.</p><p>Public staking guidance is strictly limited to a conservative 0.5%-1.0% flat stake framework. No martingale systems, chasing losses, or aggressive compounding claims are part of the product. Historical performance is not a promise of future results.</p><p>Every user is responsible for complying with local laws and platform rules. First Set Lab is a decision-support and research product. If betting creates financial stress or loss of control, stop immediately and seek professional support.</p></div></div>
+      <div class="mt-10 flex flex-col justify-between gap-4 border-t border-slateLine pt-6 font-mono text-xs text-mutedText sm:flex-row"><div>© 2026 First Set Lab / SlipIQ. All rights reserved.</div><div>No hype. No guarantees. Timestamped proof only.</div></div>
+    </div>
+  </footer>
+</body>
+</html>
