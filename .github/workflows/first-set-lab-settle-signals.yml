@@ -1,0 +1,57 @@
+name: First Set Lab Settle Signals
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Maximum open signals to check.
+        required: false
+        default: '250'
+      max_future_hours:
+        description: Only check signals starting no more than this many hours in the future.
+        required: false
+        default: '1'
+  schedule:
+    - cron: '47 */2 * * *'
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Settle First Set Lab signals
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SETTLEMENT_LIMIT: ${{ github.event.inputs.limit }}
+          SETTLEMENT_MAX_FUTURE_HOURS: ${{ github.event.inputs.max_future_hours }}
+        shell: bash
+        run: |
+          node scripts/first_set_lab_settle_signals.mjs \
+            --out=artifacts/output/first-set-lab-settlement \
+            --limit="${SETTLEMENT_LIMIT:-250}" \
+            --max-future-hours="${SETTLEMENT_MAX_FUTURE_HOURS:-1}"
+
+      - name: Upload settlement artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-settlement
+          path: |
+            artifacts/output/first-set-lab-settlement/first_set_lab_settlement_report.md
+            artifacts/output/first-set-lab-settlement/first_set_lab_settlement_summary.json
+            artifacts/output/first-set-lab-settlement/first_set_lab_settlement_log.csv
+            artifacts/output/first-set-lab-settlement/first_set_lab_settlement_fatal_error.json
+          if-no-files-found: warn
