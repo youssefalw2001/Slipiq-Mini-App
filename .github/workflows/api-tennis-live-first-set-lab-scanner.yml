@@ -28,13 +28,21 @@ on:
         required: false
         default: '265,266'
       core_daily_cap:
-        description: Core signals per day cap.
+        description: Core exact-score edge signals per day cap.
         required: false
         default: '10'
       vip_daily_cap:
-        description: VIP signals per day cap.
+        description: VIP exact-score edge signals per day cap.
         required: false
         default: '5'
+      core_comfort_daily_cap:
+        description: Core comfort signals per day cap.
+        required: false
+        default: '1'
+      vip_comfort_daily_cap:
+        description: VIP comfort signals per day cap.
+        required: false
+        default: '2'
   schedule:
     - cron: '17 */2 * * *'
 
@@ -64,6 +72,8 @@ jobs:
           MIN_MINUTES_TO_START: ${{ github.event.inputs.min_minutes_to_start }}
           CORE_DAILY_CAP: ${{ github.event.inputs.core_daily_cap }}
           VIP_DAILY_CAP: ${{ github.event.inputs.vip_daily_cap }}
+          CORE_COMFORT_DAILY_CAP: ${{ github.event.inputs.core_comfort_daily_cap }}
+          VIP_COMFORT_DAILY_CAP: ${{ github.event.inputs.vip_comfort_daily_cap }}
         shell: bash
         run: |
           ARGS=(
@@ -87,6 +97,12 @@ jobs:
           fi
           if [ -n "${VIP_DAILY_CAP}" ]; then
             ARGS+=(--vip-daily-cap="${VIP_DAILY_CAP}")
+          fi
+          if [ -n "${CORE_COMFORT_DAILY_CAP}" ]; then
+            ARGS+=(--core-comfort-daily-cap="${CORE_COMFORT_DAILY_CAP}")
+          fi
+          if [ -n "${VIP_COMFORT_DAILY_CAP}" ]; then
+            ARGS+=(--vip-comfort-daily-cap="${VIP_COMFORT_DAILY_CAP}")
           fi
           node scripts/api_tennis_live_first_set_lab_scanner.mjs "${ARGS[@]}"
 
