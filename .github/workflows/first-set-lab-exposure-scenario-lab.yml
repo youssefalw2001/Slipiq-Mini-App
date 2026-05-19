@@ -1,0 +1,60 @@
+name: First Set Lab Exposure Scenario Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      starting_balance:
+        description: "Starting balance for scenario analysis"
+        required: false
+        default: "1000"
+      days:
+        description: "Scenario length in days"
+        required: false
+        default: "365"
+      runs:
+        description: "Monte Carlo runs. Keep 500-3000 for fast tests."
+        required: false
+        default: "1000"
+      sources:
+        description: "Allowed price sources"
+        required: false
+        default: "bet365,1xBet"
+      use_supabase:
+        description: "Use Supabase unique settled results when sample is sufficient"
+        required: false
+        default: "true"
+
+jobs:
+  exposure-scenario-lab:
+    name: Run exposure scenario lab
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run scenario lab
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python scripts/first_set_lab_exposure_scenario_lab.py \
+            --starting-balance "${{ github.event.inputs.starting_balance }}" \
+            --days "${{ github.event.inputs.days }}" \
+            --runs "${{ github.event.inputs.runs }}" \
+            --sources "${{ github.event.inputs.sources }}" \
+            --use-supabase "${{ github.event.inputs.use_supabase }}"
+
+      - name: Upload scenario artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-set-lab-exposure-scenario-lab
+          path: artifacts/output/first-set-lab-exposure-scenario-lab
+          if-no-files-found: error
+          retention-days: 14
