@@ -23,6 +23,10 @@ on:
         description: Minimum bets in month-8 validate period.
         required: false
         default: '15'
+      min_future_bets:
+        description: Minimum bets in future holdout period.
+        required: false
+        default: '20'
       max_rules:
         description: Number of strongest aggregate rules to fully simulate after fast pre-score.
         required: false
@@ -104,6 +108,7 @@ jobs:
             --min-bets='${{ github.event.inputs.min_bets }}' \
             --min-test-bets='${{ github.event.inputs.min_test_bets }}' \
             --min-validate-bets='${{ github.event.inputs.min_validate_bets }}' \
+            --min-future-bets='${{ github.event.inputs.min_future_bets }}' \
             --max-rules='${{ github.event.inputs.max_rules }}' \
             --books='${{ github.event.inputs.books }}'
 
@@ -118,6 +123,7 @@ jobs:
             artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_cards.json
             artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_leaderboard.csv
             artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_top_snipers.csv
+            artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_research_watchlist.csv
             artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_train_test.csv
             artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_risk_sims.csv
             artifacts/output/api-tennis-wide-net-strategy-discovery/wide_net_strategy_monthly.csv
