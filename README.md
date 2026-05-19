@@ -1,500 +1,335 @@
-# SlipIQ Mini App
+# SlipIQ / First Set Lab
 
-**SlipIQ** is a Telegram Mini App and research engine for tennis first-set price intelligence.
+**First Set Lab** is a private tennis first-set price-intelligence system powered by **SlipIQ**.
 
-**Tagline:** Don't guess. Calculate.
-
-SlipIQ is not a tipster product. It is a probability/price-intelligence system built to compare first-set score patterns against real bookmaker prices, especially niche first-set tennis correct-score markets.
-
----
-
-## Current Status: First Set Lab Signal Room
-
-SlipIQ has evolved from a single V3 backtest into a **First Set Lab live signal engine**.
-
-The current product direction is:
+It is not a traditional tipster project. The product is built around live scanning, timestamped signal receipts, Supabase proof tracking, automatic settlement, and disciplined risk language.
 
 ```txt
-Free proof channel -> Core Signal Chat -> VIP First Set Lab
-```
-
-The live scanner now supports:
-
-```txt
-Core Chat:
-- Core P1 ATP Grand Slam Cluster: 6:3 / 6:4
-- Core P1 Mirror WTA Other Tour: 6:3 / 6:4 / 7:5
-
-VIP Chat:
-- Everything Core receives
-- VIP ATP Grand Slam multi-source Core Cluster Plus: 6:3 / 6:4
-- VIP P2 V3 Cluster: 3:6 / 4:6 / 5:7
-```
-
-Telegram messages intentionally **do not show bookmaker names**. Bookmaker names are stored only in internal artifacts/logs for audit, paper tracking, and grading.
-
-Current live scanner:
-
-```txt
-.github/workflows/api-tennis-live-first-set-lab-scanner.yml
-scripts/api_tennis_live_first_set_lab_scanner.mjs
-```
-
-Current focused signal-room historical test:
-
-```txt
-.github/workflows/api-tennis-signal-room-volume-lite.yml
-scripts/api_tennis_signal_room_volume_lite.py
-```
-
-Why this is called **Signal Room Volume Lite**:
-
-```txt
-It replaces the cancelled/heavy V3 Pro Volume workflow.
-It tests the same business question, but only against the actual Core/VIP signal-room lanes.
-It answers: what does Core get, what does VIP get, hit rate, ROI, volume, drawdown, and 2%/4% compounding.
+Brand: First Set Lab
+Engine: SlipIQ
+Positioning: The hedge fund of tennis markets
+Core niche: tennis first-set derivative markets
+Main live markets:
+- First-set correct-score clusters
+- Grand Slam first-set winner comfort signals
+- Shadow-tracked research lanes
 ```
 
 ---
 
-## Market Definition
-
-API Tennis labels the tennis first-set correct score market as:
+## Current System Architecture
 
 ```txt
-Correct Score 1st Half
+API Tennis
+  -> GitHub Actions scanner
+  -> Supabase live_signals ledger
+  -> Supabase duplicate delivery guard
+  -> Telegram Core / Quant channels
+  -> Supabase settlement workflow
+  -> Daily/mature Proof Vault recap
+  -> Whop checkout + member dashboard
 ```
 
-For tennis, this is treated as **first-set correct score**. The market contains:
+### What each platform does
 
 ```txt
-6:0, 6:1, 6:2, 6:3, 6:4, 7:5, 7:6
-0:6, 1:6, 2:6, 3:6, 4:6, 5:7, 6:7
-```
+GitHub Actions
+- Runs the scanner every 2 hours
+- Runs settlement every 2 hours
+- Runs daily Proof Vault recaps
+- Runs historical research / strategy discovery workflows
 
----
+API Tennis
+- Upcoming fixtures
+- First-set correct-score odds
+- First-set winner odds
+- Results used for settlement
 
-## Main Strategy Families
+Supabase
+- Permanent proof ledger
+- Open/settled signal state
+- Telegram delivery log
+- Deduped proof / ROI queries
 
-### P2 V3
+Telegram
+- Fast live delivery terminal
+- Core and Quant private signal channels
+- Free proof channel later for delayed proof/education
 
-P2 V3 means **Player 2 wins the first set** by:
-
-```txt
-3:6 / 4:6 / 5:7
-```
-
-Grouped odds:
-
-```txt
-p2_grouped_odds = 1 / (1/odds_3_6 + 1/odds_4_6 + 1/odds_5_7)
-```
-
-### P1 Mirror
-
-P1 Mirror means **Player 1 wins the first set** by:
-
-```txt
-6:3 / 6:4 / 7:5
-```
-
-Grouped odds:
-
-```txt
-p1_grouped_odds = 1 / (1/odds_6_3 + 1/odds_6_4 + 1/odds_7_5)
-```
-
-### P1 Core
-
-Discovery Turbo found a stronger simplified family:
-
-```txt
-P1_CORE_7_10 = 6:3 / 6:4
-```
-
-Grouped odds:
-
-```txt
-p1_core_grouped_odds = 1 / (1/odds_6_3 + 1/odds_6_4)
-```
-
-This is now the cleanest public-facing strategy family because it is simple and historically strong.
-
----
-
-## Current API Tennis Warehouse
-
-Historical warehouse range:
-
-```txt
-2025-02-17 to 2026-05-17
-roughly 15 months
-```
-
-Warehouse summary:
-
-```txt
-fixtures_full rows: 11,116
-odds_full_long rows: 2,568,641
-first_set_correct_score_wide rows: 55,502
-moneyline_favorite rows: 285,784
-first-set correct-score wide settled rows: 46,979
-settled side candidates: 93,578
-errors: 0
-```
-
-Historical data is useful for research, but it does **not fully prove odds timing**. Final trust requires live pre-match paper tracking with:
-
-```txt
-scanned_at
-event_time
-minutes_to_start
-market_name
-score odds
-grouped odds
-internal bookmaker
-Telegram room routed
-settled result
+Whop
+- Checkout
+- Paid access instructions
+- Telegram onboarding links
+- Proof Vault / Signal Receipt archive
+- Future API-based member audits and access automation
 ```
 
 ---
 
-## Major Findings
+## Product Tiers
 
-### 1. Old dream was inflated by assumed odds
+### Free Proof Vault
 
-Old blind simulation dream:
+Purpose:
 
 ```txt
-P2 V3 trigger
-~2,690 bets
-~906 wins
-~33.68% hit rate
-assumed grouped odds around 3.50
-$5,000 with 2% compounding showed a massive/million-style output
+- delayed proof highlights
+- education
+- weekly recap posts
+- no live private signals
 ```
 
-Reality check:
+### Core Terminal
+
+Core receives:
 
 ```txt
-The hit-rate pattern existed, but the old run used scenario odds around 3.50.
-Real reconstructed grouped odds averaged closer to ~2.65 and raw P2 V3 lost without price/model filters.
+- Core exact-score signals
+- Grand Slam Comfort signals
+- mature proof recaps
+- simple signal format
+- no bookmaker names shown publicly
 ```
 
-P2 V3 scenario-vs-real audit:
+### Quant Terminal
+
+Quant receives:
 
 ```txt
-Trigger: P2 4:6 odds between 6.25 and 6.99
-
-Scenario odds version:
-6,819 settled book-row triggers
-2,248 wins
-32.97% hit rate
-assumed odds: 3.50
-+15.38% flat ROI
-
-Real grouped odds version:
-6,817 real-available rows
-2,246 wins
-32.95% hit rate
-average real grouped odds: ~2.65
--13.83% flat ROI
+- everything Core receives
+- VIP-only exact-score lanes
+- deeper proof recaps
+- future Stacked Confidence notes
+- later: Research Watchlist summaries after enough proof
 ```
 
-Conclusion:
+### Research Watchlist
+
+Research lanes are **not sent to Core or Quant by default**.
+
+They are tracked in Supabase only until enough live proof exists.
+
+---
+
+## Live Strategy Lanes
+
+### Core exact-score lane
 
 ```txt
-The old dream did not die, but it evolved.
-The real strategy must use price gates, model scoring, and live pre-match proof.
+Lane: CORE_P1_ATP_GS_BET365
+Access: CORE_AND_VIP
+Market: Correct Score 1st Half
+Cluster: 6:3 / 6:4
+Book stored internally: bet365
+Tournament group: GRAND_SLAM
 ```
 
-### 2. Grouped odds math is correct
-
-Grouped odds validation passed:
+### WTA mirror lane
 
 ```txt
-P2 rows with all three scores: 55,168
-P1 rows with all three scores: 55,399
-P2 mismatches > 0.001: 0
-P1 mismatches > 0.001: 0
+Lane: CORE_P1_MIRROR_WTA_OTHER
+Access: CORE_AND_VIP
+Market: Correct Score 1st Half
+Cluster: 6:3 / 6:4 / 7:5
+Tour: WTA
+Tournament group: OTHER_TOUR
 ```
 
-The issue is not the dutching formula. The issue is finding the right price/timing/filter.
-
-### 3. Missing first-set results bug was fixed
-
-Earlier weak results were partly caused by missing/ungraded first-set scores being counted as losses.
-
-Corrected broad both-side result:
+### Quant / VIP Core Plus lane
 
 ```txt
-ATP
-bet365 + 10Bet
-both-side 9-12 cluster
-cluster odds 3.00-3.50
-middle score odds 7.00-9.00
-
-1,085 settled bets
-360 wins
-33.18% hit rate
-avg odds ~3.26
-+7.88% flat ROI
+Lane: VIP_P1_ATP_GS_MULTI
+Access: VIP_ONLY
+Market: Correct Score 1st Half
+Cluster: 6:3 / 6:4
+Books stored internally: bet365 / 1xBet / 10Bet
+Tournament group: GRAND_SLAM
 ```
 
-### 4. V3 Pro changed the direction
-
-V3 Pro found that the edge is probably not just:
+### Original realistic V3 lane
 
 ```txt
-P2 V3 + high grouped odds
+Lane: VIP_P2_V3_SHAPE
+Access: VIP_ONLY
+Market: Correct Score 1st Half
+Cluster: 3:6 / 4:6 / 5:7
+Minimum grouped odds: 3.50
+Trigger score: 4:6
+Trigger odds range: 6.25 to 6.99
 ```
 
-It is more likely:
+This is the corrected realistic V3 version. The older dream version based on assumed ~7.0 grouped odds is not used as production logic.
+
+### Comfort lane
 
 ```txt
-side-aware cluster model + market shape + book/tournament context + price gate
+Lane: COMFORT_FIRST_SET_FAVORITE_GS_1XBET
+Access: CORE_AND_VIP
+Market: Home/Away (1st Set)
+Tournament group: GRAND_SLAM
+Favorite odds range: 1.50 to 1.65
+Historical model context: 75.17% hit rate over 149 historical signals
 ```
 
-V3 Pro run summary:
+The Comfort lane is the lower-variance trust layer. It is treated separately from exact-score lanes.
+
+### Research P2 Grand Slam sniper lane
 
 ```txt
-generated: 2026-05-17T18:51:44Z
-split cutoff: 2026-01-13
-wide rows: 55,502
-candidate rows: 93,578
-train candidates: 69,755
-rules tested: 32,882
+Lane: RESEARCH_P2_GS_26_46_BET365
+Access: RESEARCH_ONLY
+Market: Correct Score 1st Half
+Cluster: 2:6 / 4:6
+Book stored internally: bet365
+Tournament group: GRAND_SLAM
+Grouped odds: 2.50 to 4.50
+Required skew: EXTREME
+Telegram: disabled by design
+Supabase: enabled
 ```
 
-Best overall V3 Pro:
+This was added after the fast wide-net future-holdout audit found a promising P2 Grand Slam cluster. It is shadow-tracked only until more live proof exists.
+
+---
+
+## Confidence Layer Plan
+
+Signals should eventually display one of these branded confidence labels:
 
 ```txt
-P2_V3_9_12
-ALL_BOOKS
-ATP Grand Slam
-score threshold 70
+Core Edge
+- normal exact-score price edge
 
-99 bets
-57 wins
-57.58% hit rate
-avg odds 2.379
-+34.32% flat ROI
-6/6 positive months
-max drawdown 10.76%
-worst losing streak 5
-no overfit flags
+Comfort Confidence
+- lower-variance Grand Slam first-set winner edge
+
+Stacked Confidence
+- exact-score edge and Comfort model align on the same match/side
+
+Research Watchlist
+- shadow-tracked strategy under live validation
 ```
 
-Best scalable V3 Pro:
+Important rule:
 
 ```txt
-P1_MIRROR_9_12
-1xBet + bet365
-WTA Other Tour
-score threshold 41.48
-daily cap 3
-
-270 bets
-127 wins
-47.04% hit rate
-avg odds 2.584
-+21.44% flat ROI
-12/15 positive months
-max drawdown 14.23%
-worst losing streak 6
-no overfit flags
-```
-
-Best single-book V3 Pro:
-
-```txt
-P1_MIRROR_9_12
-10Bet
-ATP Strong 500/250
-score threshold 70
-
-90 bets
-50 wins
-55.56% hit rate
-avg odds 2.309
-+27.45% flat ROI
-8/11 positive months
-max drawdown 7.76%
-worst losing streak 4
-no overfit flags
-```
-
-Important feature weights:
-
-```txt
-P1_MIRROR_9_12: +5.98
-P2_V3_9_12: -6.08
-bet365: +7.72
-10Bet: +6.96
-Betano: +6.57
-WilliamHill: +5.61
-1xBet: +1.45
-ATP: +9.30
-WTA: -9.48 globally, but WTA works in specific pockets
-STRONG_500_250: +4.60
-MID_GROUP_RATIO_MIXED: +19.30
-HIGH_GROUP_RATIO_OUTERS_LONG: +14.76
-LOW_GROUP_RATIO_BALANCED: -30.00
-```
-
-Main V3 Pro insight:
-
-```txt
-Old idea: 33% hit at 3.30-3.50 odds.
-New idea: 47%-58% hit at 2.30-2.60 odds using score/shape filters.
-```
-
-### 5. Strategy Discovery Turbo found P1 Core
-
-Strategy Discovery Turbo replaced the cancelled broad discovery engine with a faster focused search.
-
-It tested:
-
-```txt
-wide rows: 55,502
-settled wide rows: 46,979
-candidate rows: 374,332
-rules tested: 200,000 safety cap
-families: P1_CORE, P1_MID_LATE, P1_MIRROR, P1_TIGHT, P2_CORE, P2_MID_LATE, P2_TIGHT, P2_V3
-```
-
-Best overall / best bet365:
-
-```txt
-TURBO005764
-P1_CORE_7_10
-bet365
-ATP Grand Slam
-trigger: 6:4 odds 5.00-6.25
-minimum grouped odds: 2.50
-daily cap: 10
-
-162 bets
-70 wins
-43.21% hit rate
-avg odds 3.12
-break-even 32.03%
-edge +11.18 points
-+27.64% flat ROI
-5/6 positive months
-2% compounding: $5,000 -> $11,389
-max drawdown 13.4%
-worst losing streak 6
-no overfit flags
-```
-
-Best scalable Turbo:
-
-```txt
-P1_CORE_7_10
-bet365 + 1xBet
-ATP Grand Slam
-trigger: 6:4 odds 5.00-6.25
-minimum grouped odds: 2.60
-
-320 bets
-134 wins
-41.88% hit rate
-avg odds 2.97
-+20.72% flat ROI
-6/6 positive months
-2% compounding: $5,000 -> $16,500
-max drawdown 22.6%
-worst losing streak 10
-no overfit flags
-```
-
-Best three-book Turbo:
-
-```txt
-P1_CORE_7_10
-bet365 + 1xBet + 10Bet
-ATP Grand Slam
-minimum grouped odds: 2.60
-
-383 bets
-159 wins
-41.51% hit rate
-avg odds 2.99
-+20.19% flat ROI
-6/6 positive months
-2% compounding: $5,000 -> $20,030
-max drawdown 33.5%
-worst losing streak 14
-```
-
-Important warning:
-
-```txt
-Highest-volume positive/no-flag candidate had 4,230 bets but only +0.14% flat ROI.
-2% compounding collapsed to about $129 with ~98% drawdown.
-Volume alone is not king. Volume + edge + drawdown control is king.
+Do not use fake percentages like 95% confidence.
+Use branded model labels, not guaranteed claims.
 ```
 
 ---
 
-## Live Scanner V1
+## Current Live Proof Snapshot
 
+Example latest observed state from Supabase during launch tracking:
+
+```txt
+Raw settled signal rows: 24
+Wins: 12
+Losses: 12
+Hit rate: 50.00%
+Average odds: 2.920
+Profit: +10.1669u
+Flat ROI: +42.36%
+
+Deduped unique settled ideas: 16
+Wins: 8
+Losses: 8
+Hit rate: 50.00%
+Average odds: 2.905
+Profit: +6.9813u
+Flat ROI: +43.63%
+```
+
+Use deduped unique ideas for public proof whenever possible. Raw signal rows can include repeated scan windows for the same match/lane idea.
+
+Risk language:
+
+```txt
+Live proof is early.
+Historical and live results do not guarantee future performance.
+Use 0.5% to 1.0% flat staking for public guidance.
+```
+
+---
+
+## Main Workflows
+
+### 1. Live scanner and Telegram delivery
+
+```txt
 Workflow:
+.github/workflows/api-tennis-live-first-set-lab-scanner.yml
+
+Scripts:
+scripts/api_tennis_live_first_set_lab_scanner.mjs
+scripts/first_set_lab_supabase_deliver.mjs
+```
+
+Schedule:
 
 ```txt
-.github/workflows/api-tennis-live-first-set-lab-scanner.yml
-scripts/api_tennis_live_first_set_lab_scanner.mjs
+Every 2 hours at minute 17
 ```
 
 What it does:
 
 ```txt
-1. Pulls upcoming fixtures.
-2. Pulls Correct Score 1st Half odds.
-3. Calculates grouped odds for each lane.
-4. Applies Core/VIP filters.
-5. Dedupes public-facing signals by event/lane/access.
-6. Routes signals to Telegram Core and VIP chats.
-7. Hides bookmaker names from Telegram.
-8. Stores bookmaker names internally in artifact CSV/JSON.
+1. Pulls API Tennis fixtures.
+2. Pulls API Tennis odds.
+3. Builds exact-score, comfort, and research candidate rows.
+4. Dedupes candidates into signal rows.
+5. Writes artifact CSV/JSON files.
+6. Upserts every signal into Supabase live_signals.
+7. Uses telegram_signal_deliveries as a duplicate guard.
+8. Sends Core/Quant Telegram alerts only when allowed.
+9. Skips Telegram for RESEARCH_ONLY rows.
 ```
 
-Required GitHub Secrets:
-
-```txt
-API_TENNIS_KEY
-TELEGRAM_BOT_TOKEN
-TELEGRAM_CORE_CHAT_ID
-TELEGRAM_VIP_CHAT_ID
-```
-
-Dry-run:
+Manual run:
 
 ```txt
 Actions -> API Tennis Live First Set Lab Scanner -> Run workflow
-send_telegram: false
 ```
 
-Live send:
+Manual defaults:
 
 ```txt
 send_telegram: true
 ```
 
-Scheduled runs:
+For dry-run testing, manually set:
 
 ```txt
-every 2 hours
+send_telegram: false
 ```
 
-Output artifact:
+Important implementation detail:
 
 ```txt
-api-tennis-live-first-set-lab-scanner
+The scanner step itself always runs with --send-telegram=false.
+That is intentional.
+The real sending happens in the Supabase delivery guard step.
+Check first_set_lab_supabase_delivery_summary.json for the true send result.
 ```
 
-Important files:
+Successful delivery should show:
+
+```txt
+telegram_attempted > 0
+telegram_sent > 0
+errors: []
+```
+
+Scheduled live sending requires this GitHub Secret:
+
+```txt
+ENABLE_LIVE_TELEGRAM_SEND=true
+```
+
+If scheduled runs are scanning but not sending, check this secret first.
+
+Artifacts:
 
 ```txt
 first_set_lab_live_report.md
@@ -502,431 +337,787 @@ first_set_lab_live_summary.json
 first_set_lab_live_signals.csv
 first_set_lab_live_raw_candidates.csv
 first_set_lab_live_telegram_log.csv
+first_set_lab_supabase_delivery_report.md
+first_set_lab_supabase_delivery_summary.json
+first_set_lab_supabase_delivery_log.csv
 ```
-
-First dry run result before Core widening:
-
-```txt
-Fixtures: 203
-Odds matches: 193
-Raw candidate rows: 15
-Deduped public signals: 14
-Core signals: 0
-VIP-only signals: 14
-Telegram sent: 0 because dry-run
-Errors: 0
-```
-
-After that, Core was widened to include the WTA Other Tour P1 Mirror lane so Core is not too quiet.
 
 ---
 
-## Signal Room Volume Lite
-
-Workflow:
+### 2. Signal settlement workflow
 
 ```txt
+Workflow:
+.github/workflows/first-set-lab-settle-signals.yml
+
+Script:
+scripts/first_set_lab_settle_signals.mjs
+```
+
+Schedule:
+
+```txt
+Every 2 hours at minute 47
+```
+
+What it does:
+
+```txt
+1. Reads open Supabase live_signals.
+2. Checks API Tennis results.
+3. Extracts first-set score.
+4. Grades exact-score clusters and first-set winner signals.
+5. Updates status = settled.
+6. Writes first_set_score, settled_win, settled_at.
+7. Exports settlement artifact logs.
+```
+
+Manual run:
+
+```txt
+Actions -> First Set Lab Settle Signals -> Run workflow
+```
+
+Inputs:
+
+```txt
+limit: 250
+max_future_hours: 1
+```
+
+Artifacts:
+
+```txt
+first_set_lab_settlement_report.md
+first_set_lab_settlement_summary.json
+first_set_lab_settlement_log.csv
+```
+
+---
+
+### 3. Daily Proof Vault recap
+
+```txt
+Workflow:
+.github/workflows/first-set-lab-daily-recap.yml
+
+Script:
+scripts/first_set_lab_daily_recap.mjs
+```
+
+Schedule:
+
+```txt
+Daily at 23:30 UTC
+```
+
+Purpose:
+
+```txt
+The Supabase ledger updates instantly.
+Telegram recaps wait until the window is mature enough.
+```
+
+Default gates:
+
+```txt
+min_paid_settled: 10
+max_paid_open: 3
+core_min_units: 0
+vip_min_units: -1
+force_final: false
+send_free_proof: false
+```
+
+This prevents ugly partial recaps like:
+
+```txt
+2W / 6L
+-2.45u
+18 open signals
+```
+
+from being blasted too early.
+
+Manual run:
+
+```txt
+Actions -> First Set Lab Daily Proof Vault Recap -> Run workflow
+```
+
+Testing settings:
+
+```txt
+send_telegram: false
+lookback_hours: 24
+send_free_proof: false
+force_final: false
+min_paid_settled: 10
+max_paid_open: 3
+core_min_units: 0
+vip_min_units: -1
+```
+
+Force a final honest recap even if red:
+
+```txt
+force_final: true
+```
+
+Artifacts:
+
+```txt
+first_set_lab_daily_recap_report.md
+first_set_lab_daily_recap_summary.json
+first_set_lab_daily_recap_messages.csv
+```
+
+---
+
+### 4. Historical full odds warehouse
+
+```txt
+Workflow:
+.github/workflows/api-tennis-full-historical-odds-warehouse.yml
+```
+
+Purpose:
+
+```txt
+Builds the historical API Tennis odds warehouse used by research workflows.
+```
+
+Main output artifact:
+
+```txt
+api-tennis-full-historical-odds-warehouse-combined
+```
+
+This artifact feeds the wide-net strategy discovery workflow.
+
+---
+
+### 5. Fast wide-net strategy discovery
+
+```txt
+Workflow:
+.github/workflows/api-tennis-wide-net-strategy-discovery.yml
+
+Script:
+scripts/api_tennis_wide_net_strategy_discovery.py
+```
+
+Purpose:
+
+```txt
+Find new 2-score and 3-score first-set correct-score clusters.
+Test price buckets, skew buckets, tournament groups, tour, book groups, and favorite/underdog status.
+Run walk-forward + future-holdout validation.
+Simulate daily caps and 1% / 2% / 4% compounding.
+```
+
+Default inputs:
+
+```txt
+artifact_name: api-tennis-full-historical-odds-warehouse-combined
+start_bankroll: 5000
+min_bets: 100
+min_test_bets: 15
+min_validate_bets: 15
+min_future_bets: 20
+max_rules: 800
+books: bet365,1xBet
+```
+
+Main outputs:
+
+```txt
+wide_net_strategy_report.md
+wide_net_strategy_audit.json
+wide_net_strategy_cards.json
+wide_net_strategy_leaderboard.csv
+wide_net_strategy_top_snipers.csv
+wide_net_strategy_research_watchlist.csv
+wide_net_strategy_train_test.csv
+wide_net_strategy_risk_sims.csv
+wide_net_strategy_monthly.csv
+wide_net_strategy_bankroll_curves.json
+```
+
+Interpretation:
+
+```txt
+wide_net_strategy_top_snipers.csv
+- rules that pass the clean future-holdout checks
+
+wide_net_strategy_research_watchlist.csv
+- promising rules that hit old sniper thresholds but are not production-ready
+```
+
+Current research result that became a shadow lane:
+
+```txt
+RESEARCH_P2_GS_26_46_BET365
+P2 2:6 / 4:6
+Grand Slam
+bet365
+Grouped odds 2.50 to 4.50
+Research-only until enough live proof exists
+```
+
+---
+
+### 6. Signal Room Volume Lite
+
+```txt
+Workflow:
 .github/workflows/api-tennis-signal-room-volume-lite.yml
+
+Script:
 scripts/api_tennis_signal_room_volume_lite.py
 ```
 
 Purpose:
 
 ```txt
-This is the focused replacement for the cancelled V3 Pro Volume workflow.
-It tests the exact current Core/VIP live scanner lanes, not a massive optimizer grid.
+Focused historical test for current Core/Quant room logic.
+It answers: what does Core get, what does Quant get, what is the volume, ROI, drawdown, and compounding profile?
 ```
 
-It reports:
-
-```txt
-CORE_ROOM
-VIP_ROOM_ALL
-VIP_EXTRA_ONLY
-
-bets
-wins
-hit rate
-average grouped odds
-break-even rate
-flat ROI
-active days
-bets/month
-2% compounding from $5,000
-4% compounding from $5,000
-max drawdown
-worst losing streak
-train/test split
-lane mix
-book mix
-```
-
-Run:
-
-```txt
-Actions -> API Tennis Signal Room Volume Lite -> Run workflow
-
-artifact_name: api-tennis-full-historical-odds-warehouse-combined
-start_bankroll: 5000
-risk_pct: 0.02
-dream_risk_pct: 0.04
-train_ratio: 0.70
-```
-
-Output artifact:
-
-```txt
-api-tennis-signal-room-volume-lite
-```
-
-Important files:
-
-```txt
-signal_room_volume_lite_report.md
-signal_room_volume_lite_cards.json
-signal_room_volume_lite_results.csv
-signal_room_volume_lite_train_test.csv
-signal_room_volume_lite_signals.csv
-```
+Use this to understand the room-level business model, not to discover brand-new lanes.
 
 ---
 
-## Current Core / VIP Product Structure
+## Required GitHub Secrets
 
-### Free Proof Channel
+### API Tennis
 
-Purpose:
-
-```txt
-education
-weekly proof
-selected delayed recaps
-public trust building
-```
-
-### Core Signal Chat
-
-Proposed launch price:
+Use at least one valid key name:
 
 ```txt
-$19/month at launch
-$29/month after proof
+API_TENNIS_KEY
+APITENNIS_API_KEY
+API_TENNIS_API_KEY
 ```
 
-Core receives:
+### Telegram
 
 ```txt
-Core P1 ATP Grand Slam Cluster
-Core P1 Mirror WTA Other Tour
-B-tier and A-tier signals
-simple explanation
-no bookmaker names shown
-paper-tracked results
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CORE_CHAT_ID
+TELEGRAM_VIP_CHAT_ID
+TELEGRAM_FREE_CHAT_ID   # optional / only needed for free proof recaps
 ```
 
-### VIP First Set Lab
-
-Proposed launch price:
-
-```txt
-$49/month early
-$79/month after proof
-$99/month if live tracking is strong
-```
-
-VIP receives:
-
-```txt
-All Core signals
-VIP P1 ATP Grand Slam multi-source Core Cluster Plus
-VIP P2 V3 Cluster
-A/S-tier premium signals
-higher-confidence lanes
-early alerts
-weekly model/report breakdown
-```
-
-Important rule:
-
-```txt
-Core must not be bad leftovers.
-Core should be solid filtered signals.
-VIP gets more complete, earlier, and stronger premium access.
-```
-
----
-
-## Supabase Plan
-
-Supabase should become the permanent live signal ledger, result grader, and app backend.
-
-### Required tables
-
-#### users
-
-```sql
-create table users (
-  id uuid primary key default gen_random_uuid(),
-  telegram_user_id text unique,
-  telegram_username text,
-  tier text default 'free',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-```
-
-#### signal_rooms
-
-```sql
-create table signal_rooms (
-  id uuid primary key default gen_random_uuid(),
-  key text unique not null,
-  name text not null,
-  tier text not null,
-  telegram_chat_id text,
-  is_active boolean default true,
-  created_at timestamptz default now()
-);
-```
-
-Recommended room keys:
-
-```txt
-free_proof
-core_signals
-vip_first_set_lab
-```
-
-#### live_signals
-
-```sql
-create table live_signals (
-  id uuid primary key default gen_random_uuid(),
-  signal_key text unique not null,
-  scanned_at timestamptz not null default now(),
-  event_key text not null,
-  event_date date,
-  event_time text,
-  starts_at timestamptz,
-  minutes_to_start int,
-  match_name text,
-  player1 text,
-  player2 text,
-  tour text,
-  tournament_group text,
-  tournament_name text,
-  market_name text default 'Correct Score 1st Half',
-  strategy_lane text not null,
-  public_signal_name text,
-  access text not null,
-  score_cluster text,
-  public_target text,
-  internal_bookmaker text,
-  trigger_score text,
-  trigger_odds numeric,
-  score_odds_json jsonb,
-  grouped_odds numeric,
-  break_even_hit_rate numeric,
-  historical_hit_rate numeric,
-  historical_roi numeric,
-  historical_sample int,
-  model_edge_vs_breakeven numeric,
-  public_tier text,
-  status text default 'open',
-  first_set_score text,
-  settled_win boolean,
-  settled_at timestamptz,
-  created_at timestamptz default now()
-);
-```
-
-#### telegram_signal_deliveries
-
-```sql
-create table telegram_signal_deliveries (
-  id uuid primary key default gen_random_uuid(),
-  signal_id uuid references live_signals(id) on delete cascade,
-  room_key text not null,
-  telegram_chat_id text,
-  telegram_message_id text,
-  sent_at timestamptz default now(),
-  sent_ok boolean default false,
-  error_json jsonb,
-  message_preview text
-);
-```
-
-#### signal_results_daily
-
-```sql
-create table signal_results_daily (
-  id uuid primary key default gen_random_uuid(),
-  result_date date not null,
-  room_key text not null,
-  strategy_lane text,
-  bets int default 0,
-  wins int default 0,
-  losses int default 0,
-  hit_rate numeric,
-  avg_odds numeric,
-  flat_roi numeric,
-  profit_units numeric,
-  created_at timestamptz default now(),
-  unique(result_date, room_key, strategy_lane)
-);
-```
-
-#### subscriptions
-
-```sql
-create table subscriptions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id) on delete cascade,
-  tier text not null,
-  status text default 'active',
-  provider text default 'telegram_stars',
-  provider_payment_id text,
-  started_at timestamptz default now(),
-  expires_at timestamptz,
-  created_at timestamptz default now()
-);
-```
-
-### Supabase environment variables
-
-GitHub Secrets needed later:
+### Supabase
 
 ```txt
 SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 ```
 
-App frontend env:
+### Live send control
 
 ```txt
-VITE_SUPABASE_URL
-VITE_SUPABASE_ANON_KEY
+ENABLE_LIVE_TELEGRAM_SEND=true
 ```
 
-### Supabase workflow plan
+If this is not true, scheduled scanner runs will not send Telegram messages even if they generate signals.
 
-Live scanner V2 should:
+### Whop / future access automation
 
 ```txt
-1. Scan API Tennis.
-2. Build signal rows.
-3. Upsert into live_signals by signal_key.
-4. Send Telegram only if signal is new and not already delivered.
-5. Insert telegram_signal_deliveries row.
-6. Later, settlement workflow fetches fixtures/results.
-7. Update first_set_score, settled_win, settled_at.
-8. Aggregate daily/weekly results into signal_results_daily.
+WHOP_API_KEY
+WHOP_CORE_PRODUCT_ID
+WHOP_QUANT_PRODUCT_ID
 ```
 
-This is critical because GitHub Actions artifacts are not enough for a paid product. Supabase becomes the proof ledger.
+Never commit API keys to the repository. Never paste active API keys into public files or screenshots. If a key is exposed, rotate it immediately.
 
 ---
 
-## Important Workflows
+## Supabase Tables
 
-### Historical warehouse
+The current live system depends on at least these tables.
+
+### live_signals
+
+Purpose:
 
 ```txt
-.github/workflows/api-tennis-full-historical-odds-warehouse.yml
+Permanent signal ledger.
+Every signal becomes a timestamped receipt.
 ```
 
-### Grouped odds validation
+Important columns:
 
 ```txt
-.github/workflows/api-tennis-grouped-odds-validation-audit.yml
-scripts/api_tennis_grouped_odds_validation_audit.py
+signal_key
+signal_type
+selected_side
+selected_side_odds
+market_source
+scanned_at
+event_key
+event_date
+event_time
+starts_at
+minutes_to_start
+event_status
+match_name
+player1
+player2
+tour
+tournament_group
+tournament_name
+internal_bookmaker
+market_name
+strategy_lane
+public_signal_name
+access
+score_cluster
+public_target
+trigger_score
+trigger_odds
+score_odds_json
+grouped_odds
+break_even_hit_rate
+historical_hit_rate
+historical_roi
+historical_sample
+model_edge_vs_breakeven
+public_tier
+signal_quality
+status
+first_set_score
+settled_win
+settled_at
+created_at
+updated_at
 ```
 
-### P2 V3 scenario vs real audit
+### telegram_signal_deliveries
+
+Purpose:
 
 ```txt
-.github/workflows/api-tennis-p2-v3-scenario-vs-real-audit.yml
-scripts/api_tennis_p2_v3_scenario_vs_real_audit.py
+Duplicate guard for Telegram sends.
+Prevents the same signal/room pair from sending twice after successful delivery.
 ```
 
-### P2 V3 price gate optimizer
+Important columns:
 
 ```txt
-.github/workflows/api-tennis-p2-v3-price-gate-optimizer.yml
-scripts/api_tennis_p2_v3_price_gate_optimizer.py
+signal_id
+signal_key
+room_key
+telegram_chat_id
+telegram_message_id
+sent_ok
+skipped_duplicate
+error_json
+message_preview
 ```
 
-### P2 V3 deep grid optimizer
+Recommended future tables:
 
 ```txt
-.github/workflows/api-tennis-p2-v3-deep-grid-optimizer.yml
-scripts/api_tennis_p2_v3_deep_grid_optimizer.py
-```
-
-### V3 Pro model optimizer
-
-```txt
-.github/workflows/api-tennis-v3-pro-model-optimizer.yml
-scripts/api_tennis_v3_pro_model_optimizer.py
-```
-
-### Strategy Discovery Turbo
-
-```txt
-.github/workflows/api-tennis-strategy-discovery-turbo.yml
-scripts/api_tennis_strategy_discovery_turbo.py
-```
-
-### Live First Set Lab scanner
-
-```txt
-.github/workflows/api-tennis-live-first-set-lab-scanner.yml
-scripts/api_tennis_live_first_set_lab_scanner.mjs
-```
-
-### Signal Room Volume Lite
-
-```txt
-.github/workflows/api-tennis-signal-room-volume-lite.yml
-scripts/api_tennis_signal_room_volume_lite.py
+whop_members
+telegram_members
+access_logs
+signal_results_daily
+proof_vault_windows
 ```
 
 ---
 
-## Safety / Product Rules
+## Useful Supabase Queries
 
-SlipIQ is a decision-support tool, not a guarantee engine.
+### Current live status
 
-Do not use:
+```sql
+select
+  count(*) as total_signals,
+  count(*) filter (where status = 'open') as open_signals,
+  count(*) filter (where status = 'settled') as settled_signals,
+  count(*) filter (where status = 'settled' and settled_win = true) as settled_wins,
+  count(*) filter (where status = 'settled' and settled_win = false) as settled_losses,
+  max(scanned_at) as latest_scan,
+  max(settled_at) as latest_settlement
+from public.live_signals;
+```
+
+### Raw settled ROI
+
+```sql
+select
+  count(*) as bets,
+  count(*) filter (where settled_win = true) as wins,
+  count(*) filter (where settled_win = false) as losses,
+  round(avg(coalesce(selected_side_odds::numeric, grouped_odds::numeric)), 3) as avg_odds,
+  round(sum(case when settled_win then coalesce(selected_side_odds::numeric, grouped_odds::numeric) - 1 else -1 end), 4) as profit_units,
+  round((sum(case when settled_win then coalesce(selected_side_odds::numeric, grouped_odds::numeric) - 1 else -1 end) / nullif(count(*), 0)) * 100, 2) as flat_roi_pct
+from public.live_signals
+where status = 'settled';
+```
+
+### Deduped unique idea ROI
+
+```sql
+with settled as (
+  select
+    *,
+    coalesce(selected_side_odds::numeric, grouped_odds::numeric) as odds,
+    case when settled_win then coalesce(selected_side_odds::numeric, grouped_odds::numeric) - 1 else -1 end as profit_units
+  from public.live_signals
+  where status = 'settled'
+), deduped as (
+  select distinct on (
+    match_name,
+    event_date,
+    strategy_lane,
+    signal_type,
+    coalesce(score_cluster, ''),
+    coalesce(selected_side, '')
+  )
+    *
+  from settled
+  order by
+    match_name,
+    event_date,
+    strategy_lane,
+    signal_type,
+    coalesce(score_cluster, ''),
+    coalesce(selected_side, ''),
+    settled_at asc,
+    scanned_at asc
+)
+select
+  count(*) as unique_ideas,
+  count(*) filter (where settled_win = true) as wins,
+  count(*) filter (where settled_win = false) as losses,
+  round(avg(odds), 3) as avg_odds,
+  round(sum(profit_units), 4) as profit_units,
+  round((sum(profit_units) / nullif(count(*), 0)) * 100, 2) as flat_roi_pct
+from deduped;
+```
+
+---
+
+## Testing and Sending Playbook
+
+### Test live scanner without Telegram
+
+```txt
+Actions -> API Tennis Live First Set Lab Scanner
+send_telegram: false
+```
+
+Check:
+
+```txt
+first_set_lab_live_summary.json
+first_set_lab_live_report.md
+first_set_lab_live_signals.csv
+first_set_lab_supabase_delivery_summary.json
+```
+
+Expected dry-run behavior:
+
+```txt
+signals_upserted > 0 if candidates exist
+telegram_attempted = 0
+telegram_sent = 0
+errors = []
+```
+
+### Send live Telegram signals manually
+
+```txt
+Actions -> API Tennis Live First Set Lab Scanner
+send_telegram: true
+```
+
+Check:
+
+```txt
+first_set_lab_supabase_delivery_summary.json
+```
+
+Expected live-send behavior:
+
+```txt
+telegram_attempted > 0
+telegram_sent > 0
+errors = []
+```
+
+If there are signals but no Telegram messages:
+
+```txt
+1. Check send_telegram input.
+2. Check ENABLE_LIVE_TELEGRAM_SEND for scheduled runs.
+3. Check TELEGRAM_BOT_TOKEN.
+4. Check TELEGRAM_CORE_CHAT_ID / TELEGRAM_VIP_CHAT_ID.
+5. Check first_set_lab_supabase_delivery_summary.json.
+6. Check telegram_signal_deliveries for duplicate guard rows.
+```
+
+### Settle results manually
+
+```txt
+Actions -> First Set Lab Settle Signals
+limit: 250
+max_future_hours: 1
+```
+
+If results are missing, wait for API Tennis to publish first-set scores and rerun later.
+
+### Test recap gates
+
+```txt
+Actions -> First Set Lab Daily Proof Vault Recap
+send_telegram: false
+```
+
+Check:
+
+```txt
+first_set_lab_daily_recap_report.md
+first_set_lab_daily_recap_summary.json
+```
+
+If a recap is held, check the gate reason. This is intentional when the proof window is immature or too many signals are still open.
+
+---
+
+## How to Test New Strategies / Systems
+
+Do not add a new strategy straight into Core or Quant.
+
+Use this path:
+
+### Step 1: Research historically
+
+Run:
+
+```txt
+API Tennis Wide-Net Strategy Discovery
+```
+
+Look for:
+
+```txt
+ROI > 15%
+Hit rate > 38% for exact-score sniper lanes
+Max drawdown < 20% at 2% staking
+Enough future-holdout sample
+No future ROI collapse flag
+```
+
+### Step 2: Put promising strategies into Research Watchlist
+
+Add the strategy to the live scanner as:
+
+```txt
+access: RESEARCH_ONLY
+telegram_room: Research
+Telegram delivery: disabled
+Supabase tracking: enabled
+```
+
+### Step 3: Let it settle live
+
+Track:
+
+```txt
+open count
+settled count
+wins/losses
+flat units
+flat ROI
+average odds
+deduped unique idea ROI
+```
+
+### Step 4: Require live proof before graduation
+
+Minimum before considering Core/Quant:
+
+```txt
+20+ live settled unique ideas for early watch
+50+ live settled unique ideas for serious review
+100+ live settled unique ideas before heavy marketing
+```
+
+### Step 5: Graduate carefully
+
+If a research lane survives live proof:
+
+```txt
+Research Watchlist -> Quant-only beta -> Core/Quant production
+```
+
+Never graduate a strategy based on one big win.
+
+---
+
+## Whop Setup
+
+Whop is the checkout and paid member dashboard.
+
+Current intended flow:
+
+```txt
+Website / social
+  -> Whop checkout
+  -> Whop post-purchase instructions
+  -> private Telegram invite link
+  -> Telegram live signal terminal
+  -> Whop Proof Vault / Signal Receipt archive
+```
+
+### Core Telegram link handling
+
+Core buyers should only see the Core private Telegram invite after purchase.
+
+### Quant Telegram link handling
+
+Quant buyers should only see the Quant private Telegram invite after purchase.
+
+### Whop API future use
+
+The Whop API should eventually support:
+
+```txt
+- active member audit
+- Core vs Quant buyer verification
+- cancellation/refund checks
+- Telegram access mismatch reports
+- possible Signal Receipt / Proof Vault automation if Whop allows content posting
+```
+
+Do not paste active Whop API keys into chat or commit them to the repo. Use GitHub Secrets only.
+
+### Recommended Whop dashboard sections
+
+```txt
+Start Here
+Telegram Access
+Signal Receipt System
+Confidence Layer
+Proof Vault
+$5K Lab
+Weekly Calibration Reports
+Risk Rules
+FAQ
+```
+
+Signal Receipt concept:
+
+```txt
+Every signal gets archived with:
+- match
+- market
+- target
+- covered score cluster or selected side
+- grouped price
+- confidence layer
+- timestamp
+- final first-set score
+- win/loss result
+```
+
+---
+
+## API Tennis Market Notes
+
+API Tennis labels tennis first-set correct score as:
+
+```txt
+Correct Score 1st Half
+```
+
+For tennis, this is treated as first-set correct score.
+
+Score labels:
+
+```txt
+P1 scores:
+6:0, 6:1, 6:2, 6:3, 6:4, 7:5, 7:6
+
+P2 scores:
+0:6, 1:6, 2:6, 3:6, 4:6, 5:7, 6:7
+```
+
+Grouped odds formula:
+
+```txt
+grouped_odds = 1 / sum(1 / individual_score_odds)
+```
+
+Example:
+
+```txt
+P1 6:3 / 6:4 grouped odds
+= 1 / (1/odds_6_3 + 1/odds_6_4)
+```
+
+Comfort market:
+
+```txt
+Home/Away (1st Set)
+```
+
+---
+
+## Risk and Compliance Rules
+
+Use this language:
+
+```txt
+price intelligence
+probability edge
+historical model context
+break-even rate
+paper-tracked signal
+no-deletion proof ledger
+flat staking
+18+ decision-support only
+```
+
+Avoid this language:
 
 ```txt
 guaranteed
 lock
-sure win
-automatic profit
 risk-free
+automatic profit
+sure win
+get rich
 ```
 
-Use:
+Public staking guidance:
 
 ```txt
-probability edge
-fair odds vs market odds
-positive EV candidate
-price confirmation required
-historical hit rate
-break-even hit rate
-paper-tracked signal
-decision-support tool
+0.5% to 1.0% flat stake per signal
 ```
 
-This repository is for research, data extraction, backtesting, paper tracking, and alerts. It should not include code that places bets automatically or bypasses sportsbook protections.
+Internal/aggressive research simulations can test:
+
+```txt
+2% compounding
+4% compounding
+5% compounding for Comfort-only simulations
+```
+
+Do not promote aggressive compounding as guaranteed or safe.
 
 ---
 
-## Original App Build Direction
+## Local Development
 
-The Telegram Mini App stack remains:
+Frontend app stack:
 
 ```txt
 React + Vite
@@ -936,26 +1127,9 @@ Telegram Web App SDK
 Zustand
 Recharts
 Supabase/PostgreSQL
-Telegram Stars payments later
 ```
 
-Current priority is the live signal and proof ledger because the math and price intelligence are the product.
-
-MVP build order after live signal tracking stabilizes:
-
-```txt
-1. Supabase live_signals ledger
-2. Telegram Core/VIP alert routing
-3. Settlement/grading workflow
-4. Signal history dashboard
-5. First Set Lab opportunity cards
-6. Telegram Mini App profile/payments
-7. Premium / Telegram Stars gating
-```
-
----
-
-## Local Commands
+Commands:
 
 ```bash
 npm install
@@ -964,4 +1138,29 @@ npm run build
 npm run test
 ```
 
-Python and Node workflow scripts are designed mainly for GitHub Actions, but can be run locally if inputs, API keys, and artifacts are available.
+Most scanner/research scripts are designed for GitHub Actions, but can be run locally if API keys, Supabase credentials, and input artifacts are available.
+
+---
+
+## Current Priorities
+
+```txt
+1. Keep scanner and settlement stable.
+2. Keep scheduled Telegram sending live only through Supabase duplicate guard.
+3. Track deduped proof, not just raw rows.
+4. Keep research lanes shadow-only until enough live proof exists.
+5. Build Whop as a premium Proof Vault / Signal Receipt dashboard.
+6. Add Confidence Layer fields to signals.
+7. Add Whop member audit once WHOP_API_KEY is safely stored in GitHub Secrets.
+```
+
+---
+
+## Operator Rule
+
+```txt
+Ledger updates instantly.
+Signals send through the duplicate guard.
+Recaps wait until the proof window is meaningful.
+Research tracks silently before it sells.
+```
