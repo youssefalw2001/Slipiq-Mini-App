@@ -11,9 +11,10 @@ Important: dry-run rows have sent_ok=false. Those must not block a later real
 send_telegram=true run. Successful sent_ok=true rows must not be overwritten by
 later duplicate skips.
 
-Supports both:
+Supports:
 - exact_score_cluster signals
 - first_set_winner comfort signals
+- RESEARCH_ONLY shadow signals, which are upserted to live_signals only and never delivered to Telegram
 */
 
 import fs from 'node:fs';
@@ -290,8 +291,8 @@ async function main() {
   const summary = {
     generated_at: new Date().toISOString(), input_csv: inputCsv, send_telegram: sendTelegram,
     supabase_enabled: Boolean(supabaseUrl && supabaseKey), require_supabase_for_send: requireSupabaseForSend,
-    rows_read: 0, signals_upserted: 0, duplicate_deliveries_skipped: 0,
-    telegram_attempted: 0, telegram_sent: 0, delivery_rows_written: 0, errors: [],
+    rows_read: 0, signals_upserted: 0, research_signals_upserted: 0, duplicate_deliveries_skipped: 0,
+    telegram_attempted: 0, telegram_sent: 0, delivery_rows_written: 0, research_delivery_skipped: 0, errors: [],
   };
   if (!fs.existsSync(inputCsv)) throw new Error(`Missing input CSV: ${inputCsv}`);
   const rows = parseCsv(fs.readFileSync(inputCsv, 'utf8'));
@@ -301,17 +302,24 @@ async function main() {
   }
   const outRows = [];
   for (const row of rows) {
-    const message = telegramMessage(row);
-    const roomKey = row.telegram_room === 'Core' ? 'core' : 'vip';
-    const chatId = row.telegram_room === 'Core' ? coreChatId : vipChatId;
+    const isResearchOnly = clean(row.access) === 'RESEARCH_ONLY' || clean(row.telegram_room) === 'Research';
+    const message = isResearchOnly ? '' : telegramMessage(row);
+    const roomKey = row.telegram_room === 'Core' ? 'core' : row.telegram_room === 'VIP' ? 'vip' : 'research';
+    const chatId = row.telegram_room === 'Core' ? coreChatId : row.telegram_room === 'VIP' ? vipChatId : '';
     let signal = null;
     let delivery = null;
-    let result = { ok: false, skipped: true, reason: 'SEND_TELEGRAM=false' };
+    let result = isResearchOnly ? { ok: false, skipped: true, reason: 'RESEARCH_ONLY_SUPABASE_ONLY' } : { ok: false, skipped: true, reason: 'SEND_TELEGRAM=false' };
     let duplicate = false;
     try {
       if (supabaseUrl && supabaseKey) {
         signal = await upsertSignal(row);
         summary.signals_upserted += 1;
+        if (isResearchOnly) {
+          summary.research_signals_upserted += 1;
+          summary.research_delivery_skipped += 1;
+          outRows.push({ ...row, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: '', duplicate_skipped: 'false', telegram_sent: 'false', telegram_result_json: JSON.stringify(result), telegram_message_preview: '' });
+          continue;
+        }
         const existing = await existingSuccessfulDelivery(signal.id, roomKey);
         if (existing) {
           duplicate = true;
@@ -328,7 +336,7 @@ async function main() {
           delivery = await insertDelivery(signal, row, result, message);
           summary.delivery_rows_written += 1;
         }
-      } else if (sendTelegram) {
+      } else if (sendTelegram && !isResearchOnly) {
         summary.telegram_attempted += 1;
         result = await sendTelegramMessage(chatId, message);
         if (result.ok) summary.telegram_sent += 1;
@@ -342,7 +350,7 @@ async function main() {
   const fields = Object.keys(outRows[0] || { signal_key: '', telegram_room: '', telegram_sent: '' });
   writeCsv(path.join(outDir, 'first_set_lab_supabase_delivery_log.csv'), outRows, fields);
   writeJson(path.join(outDir, 'first_set_lab_supabase_delivery_summary.json'), summary);
-  const lines = ['# First Set Lab Supabase Delivery Guard', '', `Generated: ${summary.generated_at}`, `Rows read: ${summary.rows_read}`, `Supabase enabled: ${summary.supabase_enabled}`, `Telegram sending: ${summary.send_telegram}`, `Signals upserted: ${summary.signals_upserted}`, `Duplicate deliveries skipped: ${summary.duplicate_deliveries_skipped}`, `Telegram attempted: ${summary.telegram_attempted}`, `Telegram sent: ${summary.telegram_sent}`, `Delivery rows written: ${summary.delivery_rows_written}`, '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
+  const lines = ['# First Set Lab Supabase Delivery Guard', '', `Generated: ${summary.generated_at}`, `Rows read: ${summary.rows_read}`, `Supabase enabled: ${summary.supabase_enabled}`, `Telegram sending: ${summary.send_telegram}`, `Signals upserted: ${summary.signals_upserted}`, `Research signals upserted: ${summary.research_signals_upserted}`, `Research deliveries skipped: ${summary.research_delivery_skipped}`, `Duplicate deliveries skipped: ${summary.duplicate_deliveries_skipped}`, `Telegram attempted: ${summary.telegram_attempted}`, `Telegram sent: ${summary.telegram_sent}`, `Delivery rows written: ${summary.delivery_rows_written}`, '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
   fs.writeFileSync(path.join(outDir, 'first_set_lab_supabase_delivery_report.md'), lines.join('\n'), 'utf8');
 }
 
