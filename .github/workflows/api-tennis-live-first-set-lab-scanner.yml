@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       send_telegram:
-        description: Send Telegram messages through Supabase duplicate guard. Use false for dry-run.
+        description: Send Telegram messages through Supabase duplicate guard. Set false only for dry-run testing.
         required: false
-        default: 'false'
+        default: 'true'
       date_start:
         description: Start date YYYY-MM-DD. Blank = today UTC.
         required: false
@@ -125,7 +125,7 @@ jobs:
               EFFECTIVE_SEND_TELEGRAM=false
             fi
           else
-            EFFECTIVE_SEND_TELEGRAM="${MANUAL_SEND_TELEGRAM:-false}"
+            EFFECTIVE_SEND_TELEGRAM="${MANUAL_SEND_TELEGRAM:-true}"
           fi
 
           echo "Effective Telegram sending: ${EFFECTIVE_SEND_TELEGRAM}"
