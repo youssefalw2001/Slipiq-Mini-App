@@ -15,6 +15,26 @@ on:
         description: Send public/free recap if TELEGRAM_FREE_CHAT_ID exists.
         required: false
         default: 'false'
+      force_final:
+        description: Force a mature final recap even if red.
+        required: false
+        default: 'false'
+      min_paid_settled:
+        description: Minimum settled signals before paid-room recap can send.
+        required: false
+        default: '10'
+      max_paid_open:
+        description: Maximum open signals before paid-room recap can send.
+        required: false
+        default: '3'
+      core_min_units:
+        description: Core recap minimum flat units unless final forced or rolling positive.
+        required: false
+        default: '0'
+      vip_min_units:
+        description: VIP recap minimum flat units unless final forced or rolling positive.
+        required: false
+        default: '-1'
   schedule:
     # Daily recap after most tennis settlement checks have run.
     - cron: '30 23 * * *'
@@ -45,6 +65,11 @@ jobs:
           SEND_TELEGRAM: ${{ github.event.inputs.send_telegram }}
           SEND_FREE_PROOF_RECAP: ${{ github.event.inputs.send_free_proof }}
           RECAP_LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours }}
+          RECAP_FORCE_FINAL: ${{ github.event.inputs.force_final }}
+          RECAP_MIN_PAID_SETTLED: ${{ github.event.inputs.min_paid_settled }}
+          RECAP_MAX_PAID_OPEN: ${{ github.event.inputs.max_paid_open }}
+          RECAP_CORE_MIN_UNITS: ${{ github.event.inputs.core_min_units }}
+          RECAP_VIP_MIN_UNITS: ${{ github.event.inputs.vip_min_units }}
         shell: bash
         run: |
           # Scheduled runs only send if ENABLE_LIVE_TELEGRAM_SEND=true.
@@ -53,17 +78,32 @@ jobs:
             SEND_FLAG="${ENABLE_LIVE_TELEGRAM_SEND:-false}"
             LOOKBACK="24"
             FREE_FLAG="${SEND_FREE_PROOF_RECAP:-false}"
+            FORCE_FINAL="false"
+            MIN_PAID_SETTLED="10"
+            MAX_PAID_OPEN="3"
+            CORE_MIN_UNITS="0"
+            VIP_MIN_UNITS="-1"
           else
             SEND_FLAG="${SEND_TELEGRAM:-false}"
             LOOKBACK="${RECAP_LOOKBACK_HOURS:-24}"
             FREE_FLAG="${SEND_FREE_PROOF_RECAP:-false}"
+            FORCE_FINAL="${RECAP_FORCE_FINAL:-false}"
+            MIN_PAID_SETTLED="${RECAP_MIN_PAID_SETTLED:-10}"
+            MAX_PAID_OPEN="${RECAP_MAX_PAID_OPEN:-3}"
+            CORE_MIN_UNITS="${RECAP_CORE_MIN_UNITS:-0}"
+            VIP_MIN_UNITS="${RECAP_VIP_MIN_UNITS:--1}"
           fi
 
           node scripts/first_set_lab_daily_recap.mjs \
             --out=artifacts/output/first-set-lab-daily-recap \
             --send-telegram="$SEND_FLAG" \
             --send-free-proof="$FREE_FLAG" \
-            --lookback-hours="$LOOKBACK"
+            --lookback-hours="$LOOKBACK" \
+            --force-final="$FORCE_FINAL" \
+            --min-paid-settled="$MIN_PAID_SETTLED" \
+            --max-paid-open="$MAX_PAID_OPEN" \
+            --core-min-units="$CORE_MIN_UNITS" \
+            --vip-min-units="$VIP_MIN_UNITS"
 
       - name: Upload recap artifact
         if: always()
