@@ -24,14 +24,18 @@ on:
         required: false
         default: '15'
       max_rules:
-        description: Safety cap for rules tested.
+        description: Number of strongest aggregate rules to fully simulate after fast pre-score.
         required: false
-        default: '250000'
+        default: '800'
+      books:
+        description: Comma-separated bookmaker filter for speed.
+        required: false
+        default: 'bet365,1xBet'
 
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 25
     permissions:
       actions: read
       contents: read
@@ -88,7 +92,7 @@ jobs:
           echo "Fixtures: $FIXTURES"
           echo "Moneyline: $MONEYLINE"
 
-      - name: Run wide-net strategy discovery
+      - name: Run fast wide-net strategy discovery
         shell: bash
         run: |
           python scripts/api_tennis_wide_net_strategy_discovery.py \
@@ -100,7 +104,8 @@ jobs:
             --min-bets='${{ github.event.inputs.min_bets }}' \
             --min-test-bets='${{ github.event.inputs.min_test_bets }}' \
             --min-validate-bets='${{ github.event.inputs.min_validate_bets }}' \
-            --max-rules='${{ github.event.inputs.max_rules }}'
+            --max-rules='${{ github.event.inputs.max_rules }}' \
+            --books='${{ github.event.inputs.books }}'
 
       - name: Upload wide-net artifact
         if: always()
