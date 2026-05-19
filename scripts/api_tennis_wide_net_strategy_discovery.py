@@ -3,30 +3,19 @@
 
 Research-only workflow. Does not modify live scanner filters.
 
-Why this version exists:
-The original wide-net engine was mathematically fine but slow because it scanned the
-full candidate table for every possible rule. This version keeps the wide search but
-finishes faster by using a two-stage approach:
+This version adds a proper future-holdout audit.
 
-1. Build candidates once.
-   - all P1/P2 2-score and 3-score first-set correct-score clusters
-   - dutched grouped odds
-   - price range 2.50 to 4.50 by default
-   - bet365 / 1xBet by default, matching the current audit data
+Split behavior:
+- train: first N months, default 6
+- test: next N months, default 1
+- validate: next N months, default 1
+- future: every remaining later month
 
-2. Aggregate rule buckets once.
-   - cluster, book group, tour, tournament group, surface, favorite status, skew,
-     price bucket
-   - includes ALL rollups for broad discovery
-   - keeps train/test/validate counters for walk-forward anti-overfit
-
-3. Simulate only the strongest candidate rules.
-   - daily caps 0/3/5
-   - 1%, 2%, 4% compounding from $5,000
-   - Wilson 95% confidence interval
-   - max drawdown and worst losing streak
-
-Target runtime on GitHub Actions: roughly 8-15 minutes on the combined warehouse.
+Why this matters:
+A rule can look great in train/test/validate but still be overfit if the remaining
+future months collapse. The top sniper list now requires the future holdout to be
+positive with enough sample. Rules that look exciting but fail future-holdout checks
+are still exported as a research watchlist.
 """
 
 from __future__ import annotations
@@ -377,7 +366,14 @@ def assign_periods(candidates: List[Dict], train_months: int, test_months: int, 
         v_start = max(t_end + 1, int(n * 0.85)) if n >= 3 else n
         for i, m in enumerate(months):
             periods[m] = "train" if i < t_end else "test" if i < v_start else "validate"
-    meta = {"months": months, "periods": periods, "train_months": [m for m, p in periods.items() if p == "train"], "test_months": [m for m, p in periods.items() if p == "test"], "validate_months": [m for m, p in periods.items() if p == "validate"]}
+    meta = {
+        "months": months,
+        "periods": periods,
+        "train_months": [m for m, p in periods.items() if p == "train"],
+        "test_months": [m for m, p in periods.items() if p == "test"],
+        "validate_months": [m for m, p in periods.items() if p == "validate"],
+        "future_months": [m for m, p in periods.items() if p == "future"],
+    }
     return periods, meta
 
 
@@ -385,7 +381,7 @@ def book_groups_for(book: str) -> List[str]:
     b = book.lower()
     if b == "bet365":
         return ["bet365", "bet365_1xBet", "ALL"]
-    if b in {"1xbet", "1xbet".lower()} or book == "1xBet":
+    if b == "1xbet":
         return ["1xBet", "bet365_1xBet", "ALL"]
     return ["ALL"]
 
@@ -425,25 +421,20 @@ def build_candidates(rows: List[Dict], moneyline_map: Dict[str, Dict], clusters:
                 continue
             side = cluster_side(cluster)
             fav = favorite_status(row.get("event_key", ""), book, side, moneyline_map)
-            c = {
+            out.append({
                 "event_key": row.get("event_key"), "event_date": row.get("event_date"), "event_time": row.get("event_time"), "ts": row.get("ts", 0),
                 "match_name": row.get("match_name"), "bookmaker": book, "tour": row.get("tour"), "tournament_group": row.get("tournament_group"), "tournament_name": row.get("tournament_name"), "surface": row.get("surface"),
                 "cluster": cluster_name(cluster), "cluster_size": len(cluster), "side": side, "grouped_odds": go, "skew_bucket": skew_bucket([float(x) for x in odds]), "favorite_status": fav,
                 "actual_first_set_score": score, "won": score in set(cluster), "period": "unknown",
-            }
-            out.append(c)
+            })
             funnel["candidate_rows"] += 1
     return out, funnel
-
-
-def profit_units(rows: List[Dict]) -> float:
-    return sum((float(r["grouped_odds"]) - 1.0) if r.get("won") else -1.0 for r in rows)
 
 
 def metrics(rows: List[Dict]) -> Dict:
     n = len(rows)
     wins = sum(1 for r in rows if r.get("won"))
-    profit = profit_units(rows)
+    profit = sum((float(r["grouped_odds"]) - 1.0) if r.get("won") else -1.0 for r in rows)
     avg_odds = sum(float(r["grouped_odds"]) for r in rows) / n if n else 0.0
     hit = wins / n if n else 0.0
     roi = profit / n if n else 0.0
@@ -515,7 +506,7 @@ def agg_metrics(a: Dict, period: str = "") -> Dict:
     return {"bets": n, "wins": wins, "losses": n - wins, "hit_rate": hit, "avg_odds": avg_odds, "breakeven_hit_rate": be, "edge_vs_breakeven": hit - be, "profit_units": profit, "flat_roi": roi, "wilson_low": lo, "wilson_high": hi}
 
 
-def overfit_flags(train: Dict, test: Dict, val: Dict, min_test: int, min_val: int) -> List[str]:
+def overfit_flags(train: Dict, test: Dict, val: Dict, future: Dict, min_test: int, min_val: int, min_future: int) -> List[str]:
     flags = []
     if train["bets"] < 50:
         flags.append("LOW_TRAIN_SAMPLE")
@@ -523,25 +514,32 @@ def overfit_flags(train: Dict, test: Dict, val: Dict, min_test: int, min_val: in
         flags.append("LOW_TEST_SAMPLE")
     if val["bets"] < min_val:
         flags.append("LOW_VALIDATE_SAMPLE")
+    if future["bets"] < min_future:
+        flags.append("LOW_FUTURE_SAMPLE")
     if train["flat_roi"] > 0.10 and test["flat_roi"] < 0:
         flags.append("TEST_ROI_FLIPPED_NEGATIVE")
     if test["flat_roi"] > 0.10 and val["flat_roi"] < 0:
         flags.append("VALIDATE_ROI_FLIPPED_NEGATIVE")
+    if val["flat_roi"] > 0.10 and future["bets"] >= min_future and future["flat_roi"] < 0:
+        flags.append("FUTURE_ROI_FLIPPED_NEGATIVE")
     if train["hit_rate"] - test["hit_rate"] > 0.15:
         flags.append("TRAIN_TEST_HIT_DECAY")
     if test["hit_rate"] - val["hit_rate"] > 0.15:
         flags.append("TEST_VALIDATE_HIT_DECAY")
+    if val["hit_rate"] - future["hit_rate"] > 0.15 and future["bets"] >= min_future:
+        flags.append("VALIDATE_FUTURE_HIT_DECAY")
     return flags
 
 
-def rule_score(all_m: Dict, train_m: Dict, test_m: Dict, val_m: Dict, flags: List[str]) -> float:
-    # Fast pre-score before expensive drawdown sims.
+def rule_score(all_m: Dict, train_m: Dict, test_m: Dict, val_m: Dict, future_m: Dict, flags: List[str]) -> float:
+    future_component = future_m["flat_roi"] * 55 if future_m["bets"] else -20
     return (
-        all_m["flat_roi"] * 120
-        + all_m["hit_rate"] * 30
+        all_m["flat_roi"] * 110
+        + all_m["hit_rate"] * 28
         + min(all_m["bets"], 700) / 120
-        + test_m["flat_roi"] * 35
-        + val_m["flat_roi"] * 35
+        + test_m["flat_roi"] * 30
+        + val_m["flat_roi"] * 30
+        + future_component
         - len(flags) * 12
     )
 
@@ -549,11 +547,12 @@ def rule_score(all_m: Dict, train_m: Dict, test_m: Dict, val_m: Dict, flags: Lis
 def candidate_matches_rule(c: Dict, r: Dict) -> bool:
     if c["cluster"] != r["cluster"]:
         return False
-    if r["book_group"] == "bet365" and c["bookmaker"].lower() != "bet365":
+    cb = c["bookmaker"].lower()
+    if r["book_group"] == "bet365" and cb != "bet365":
         return False
-    if r["book_group"] == "1xBet" and c["bookmaker"].lower() != "1xbet":
+    if r["book_group"] == "1xBet" and cb != "1xbet":
         return False
-    if r["book_group"] == "bet365_1xBet" and c["bookmaker"].lower() not in {"bet365", "1xbet"}:
+    if r["book_group"] == "bet365_1xBet" and cb not in {"bet365", "1xbet"}:
         return False
     if r["tour"] != "ALL" and c["tour"] != r["tour"]:
         return False
@@ -624,6 +623,7 @@ def main() -> None:
     ap.add_argument("--min-bets", type=int, default=100)
     ap.add_argument("--min-test-bets", type=int, default=15)
     ap.add_argument("--min-validate-bets", type=int, default=15)
+    ap.add_argument("--min-future-bets", type=int, default=20)
     ap.add_argument("--max-rules", type=int, default=800, help="Number of promising aggregate rules to fully simulate after fast pre-score.")
     ap.add_argument("--max-bucket-updates", type=int, default=0, help="Optional emergency cap for aggregate bucket updates. 0 = no cap.")
     ap.add_argument("--books", default="bet365,1xBet", help="Comma-separated bookmaker filter. Default targets current audit books.")
@@ -656,12 +656,22 @@ def main() -> None:
         train_m = agg_metrics(a, "train")
         test_m = agg_metrics(a, "test")
         val_m = agg_metrics(a, "validate")
-        flags = overfit_flags(train_m, test_m, val_m, args.min_test_bets, args.min_validate_bets)
+        future_m = agg_metrics(a, "future")
+        flags = overfit_flags(train_m, test_m, val_m, future_m, args.min_test_bets, args.min_validate_bets, args.min_future_bets)
         idx += 1
         rule = key_to_rule(key, idx)
-        pre_rows.append({**rule, **{f"all_{k}": v for k, v in all_m.items()}, "train_bets": train_m["bets"], "train_hit_rate": train_m["hit_rate"], "train_roi": train_m["flat_roi"], "train_wilson_low": train_m["wilson_low"], "test_bets": test_m["bets"], "test_hit_rate": test_m["hit_rate"], "test_roi": test_m["flat_roi"], "test_wilson_low": test_m["wilson_low"], "validate_bets": val_m["bets"], "validate_hit_rate": val_m["hit_rate"], "validate_roi": val_m["flat_roi"], "validate_wilson_low": val_m["wilson_low"], "overfit_flags": ";".join(flags), "pre_score": rule_score(all_m, train_m, test_m, val_m, flags)})
+        pre_rows.append({
+            **rule,
+            **{f"all_{k}": v for k, v in all_m.items()},
+            "train_bets": train_m["bets"], "train_hit_rate": train_m["hit_rate"], "train_roi": train_m["flat_roi"], "train_wilson_low": train_m["wilson_low"],
+            "test_bets": test_m["bets"], "test_hit_rate": test_m["hit_rate"], "test_roi": test_m["flat_roi"], "test_wilson_low": test_m["wilson_low"],
+            "validate_bets": val_m["bets"], "validate_hit_rate": val_m["hit_rate"], "validate_roi": val_m["flat_roi"], "validate_wilson_low": val_m["wilson_low"],
+            "future_bets": future_m["bets"], "future_hit_rate": future_m["hit_rate"], "future_roi": future_m["flat_roi"], "future_wilson_low": future_m["wilson_low"],
+            "overfit_flags": ";".join(flags),
+            "pre_score": rule_score(all_m, train_m, test_m, val_m, future_m, flags),
+        })
 
-    pre_rows.sort(key=lambda r: (r["pre_score"], r["all_flat_roi"], r["all_bets"]), reverse=True)
+    pre_rows.sort(key=lambda r: (r["pre_score"], r["future_roi"], r["all_flat_roi"], r["all_bets"]), reverse=True)
     to_simulate = pre_rows[: max(1, args.max_rules)]
 
     leaderboard = []
@@ -681,7 +691,8 @@ def main() -> None:
             train_m = metrics([x for x in capped if x["period"] == "train"])
             test_m = metrics([x for x in capped if x["period"] == "test"])
             val_m = metrics([x for x in capped if x["period"] == "validate"])
-            flags = overfit_flags(train_m, test_m, val_m, args.min_test_bets, args.min_validate_bets)
+            future_m = metrics([x for x in capped if x["period"] == "future"])
+            flags = overfit_flags(train_m, test_m, val_m, future_m, args.min_test_bets, args.min_validate_bets, args.min_future_bets)
             sim2 = simulate_bankroll(capped, args.start_bankroll, 0.02)
             rule_id = f"{r['rule_id']}_CAP{cap}"
             out = {
@@ -692,12 +703,13 @@ def main() -> None:
                 "train_bets": train_m["bets"], "train_hit_rate": train_m["hit_rate"], "train_roi": train_m["flat_roi"], "train_wilson_low": train_m["wilson_low"],
                 "test_bets": test_m["bets"], "test_hit_rate": test_m["hit_rate"], "test_roi": test_m["flat_roi"], "test_wilson_low": test_m["wilson_low"],
                 "validate_bets": val_m["bets"], "validate_hit_rate": val_m["hit_rate"], "validate_roi": val_m["flat_roi"], "validate_wilson_low": val_m["wilson_low"],
+                "future_bets": future_m["bets"], "future_hit_rate": future_m["hit_rate"], "future_roi": future_m["flat_roi"], "future_wilson_low": future_m["wilson_low"],
                 "final_bankroll_2pct": sim2["final_bankroll"], "return_2pct": sim2["return_pct"], "max_drawdown_2pct": sim2["max_drawdown_pct"], "worst_losing_streak_2pct": sim2["worst_losing_streak"],
                 "overfit_flags": ";".join(flags),
-                "score": all_m["flat_roi"] * 120 + all_m["hit_rate"] * 30 + min(all_m["bets"], 700) / 100 - sim2["max_drawdown_pct"] * 80 - len(flags) * 12 + test_m["flat_roi"] * 30 + val_m["flat_roi"] * 30,
+                "score": rule_score(all_m, train_m, test_m, val_m, future_m, flags) - sim2["max_drawdown_pct"] * 80,
             }
             leaderboard.append(out)
-            train_test_rows.append({"rule_id": rule_id, **{f"train_{k}": v for k, v in train_m.items()}, **{f"test_{k}": v for k, v in test_m.items()}, **{f"validate_{k}": v for k, v in val_m.items()}, "overfit_flags": out["overfit_flags"]})
+            train_test_rows.append({"rule_id": rule_id, **{f"train_{k}": v for k, v in train_m.items()}, **{f"test_{k}": v for k, v in test_m.items()}, **{f"validate_{k}": v for k, v in val_m.items()}, **{f"future_{k}": v for k, v in future_m.items()}, "overfit_flags": out["overfit_flags"]})
             for rp in RISK_PCTS:
                 sim = simulate_bankroll(capped, args.start_bankroll, rp)
                 risk_rows.append({"rule_id": rule_id, "risk_pct": rp, "daily_cap": cap, "bets": len(capped), "final_bankroll": sim["final_bankroll"], "return_pct": sim["return_pct"], "max_drawdown_pct": sim["max_drawdown_pct"], "worst_losing_streak": sim["worst_losing_streak"]})
@@ -709,37 +721,70 @@ def main() -> None:
             for m, rs in by_month.items():
                 monthly_rows.append({"rule_id": rule_id, "month": m, **metrics(rs)})
 
-    leaderboard.sort(key=lambda r: (r["score"], r["all_flat_roi"], r["all_bets"]), reverse=True)
-    sniper = [r for r in leaderboard if r["all_flat_roi"] > 0.15 and r["all_hit_rate"] > 0.38 and r["max_drawdown_2pct"] < 0.20 and "ROI_FLIPPED_NEGATIVE" not in r["overfit_flags"]][:3]
+    leaderboard.sort(key=lambda r: (r["score"], r["future_roi"], r["all_flat_roi"], r["all_bets"]), reverse=True)
+    research_watchlist = [r for r in leaderboard if r["all_flat_roi"] > 0.15 and r["all_hit_rate"] > 0.38 and r["max_drawdown_2pct"] < 0.20][:25]
+    clean_snipers = [
+        r for r in research_watchlist
+        if r["future_bets"] >= args.min_future_bets
+        and r["future_roi"] > 0
+        and "ROI_FLIPPED_NEGATIVE" not in r["overfit_flags"]
+        and "LOW_FUTURE_SAMPLE" not in r["overfit_flags"]
+    ][:3]
 
     base_fields = [
         "rule_id", "cluster", "cluster_size", "side", "book_group", "tour", "tournament_group", "surface", "favorite_status", "skew_bucket", "price_bucket", "price_min", "price_max", "daily_cap",
         "all_bets", "all_wins", "all_losses", "all_hit_rate", "all_avg_odds", "all_breakeven_hit_rate", "all_edge_vs_breakeven", "all_profit_units", "all_flat_roi", "all_wilson_low", "all_wilson_high", "all_months", "all_positive_months", "all_positive_month_ratio",
-        "train_bets", "train_hit_rate", "train_roi", "train_wilson_low", "test_bets", "test_hit_rate", "test_roi", "test_wilson_low", "validate_bets", "validate_hit_rate", "validate_roi", "validate_wilson_low",
+        "train_bets", "train_hit_rate", "train_roi", "train_wilson_low", "test_bets", "test_hit_rate", "test_roi", "test_wilson_low", "validate_bets", "validate_hit_rate", "validate_roi", "validate_wilson_low", "future_bets", "future_hit_rate", "future_roi", "future_wilson_low",
         "final_bankroll_2pct", "return_2pct", "max_drawdown_2pct", "worst_losing_streak_2pct", "overfit_flags", "score",
     ]
     write_csv(out_dir / "wide_net_strategy_leaderboard.csv", leaderboard[:2000], base_fields)
-    write_csv(out_dir / "wide_net_strategy_top_snipers.csv", sniper, base_fields)
+    write_csv(out_dir / "wide_net_strategy_top_snipers.csv", clean_snipers, base_fields)
+    write_csv(out_dir / "wide_net_strategy_research_watchlist.csv", research_watchlist, base_fields)
     write_csv(out_dir / "wide_net_strategy_train_test.csv", train_test_rows[:5000], list(train_test_rows[0].keys()) if train_test_rows else ["rule_id"])
     write_csv(out_dir / "wide_net_strategy_risk_sims.csv", risk_rows[:10000], list(risk_rows[0].keys()) if risk_rows else ["rule_id"])
     write_csv(out_dir / "wide_net_strategy_monthly.csv", monthly_rows[:15000], list(monthly_rows[0].keys()) if monthly_rows else ["rule_id"])
     write_json(out_dir / "wide_net_strategy_bankroll_curves.json", curves)
-    write_json(out_dir / "wide_net_strategy_cards.json", sniper)
-    audit = {"generated_at": datetime.utcnow().isoformat() + "Z", "fast_engine": True, "input_csv": str(input_path), "fixtures_csv": str(fixtures_path) if fixtures_path else "", "moneyline_csv": str(moneyline_path) if moneyline_path else "", "books_filter": sorted(allowed_books), "price_min": args.price_min, "price_max": args.price_max, "ingest": ingest_diag, "funnel": funnel, "clusters_generated": len(clusters), "candidate_rows_after_filter": len(candidates), "bucket_updates": bucket_updates, "bucket_update_cap_hit": stopped_early, "aggregate_buckets": len(aggs), "pre_scored_rules": len(pre_rows), "fully_simulated_base_rules": len(to_simulate), "leaderboard_rows": len(leaderboard), "top_sniper_rows": len(sniper), "split": split_meta}
+    write_json(out_dir / "wide_net_strategy_cards.json", clean_snipers)
+    audit = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "fast_engine": True,
+        "future_holdout_enabled": True,
+        "input_csv": str(input_path),
+        "fixtures_csv": str(fixtures_path) if fixtures_path else "",
+        "moneyline_csv": str(moneyline_path) if moneyline_path else "",
+        "books_filter": sorted(allowed_books),
+        "price_min": args.price_min,
+        "price_max": args.price_max,
+        "min_future_bets": args.min_future_bets,
+        "ingest": ingest_diag,
+        "funnel": funnel,
+        "clusters_generated": len(clusters),
+        "candidate_rows_after_filter": len(candidates),
+        "bucket_updates": bucket_updates,
+        "bucket_update_cap_hit": stopped_early,
+        "aggregate_buckets": len(aggs),
+        "pre_scored_rules": len(pre_rows),
+        "fully_simulated_base_rules": len(to_simulate),
+        "leaderboard_rows": len(leaderboard),
+        "research_watchlist_rows": len(research_watchlist),
+        "clean_top_sniper_rows": len(clean_snipers),
+        "split": split_meta,
+    }
     write_json(out_dir / "wide_net_strategy_audit.json", audit)
 
     lines = [
         "# SlipIQ Fast Wide-Net Strategy Discovery Report", "",
         f"Generated: {audit['generated_at']}", "",
         "## Runtime strategy", "This fast engine builds candidate rows once, pre-scores aggregate rule buckets, then only runs drawdown/compounding simulations on the strongest candidate rules.", "",
-        "## Ingest", f"Input rows: {ingest_diag['input_rows']}", f"Settled rows: {ingest_diag['settled_rows']}", f"Candidate rows after book/price filter: {len(candidates)}", f"Aggregate buckets: {len(aggs)}", f"Pre-scored rules: {len(pre_rows)}", f"Fully simulated base rules: {len(to_simulate)}", f"Leaderboard rows: {len(leaderboard)}", "",
-        "## Walk-forward split", f"Train months: {', '.join(split_meta['train_months']) or 'n/a'}", f"Test months: {', '.join(split_meta['test_months']) or 'n/a'}", f"Validate months: {', '.join(split_meta['validate_months']) or 'n/a'}", "",
-        "## Top 3 Sniper Rules",
+        "## Future-holdout audit", "Top snipers now require the remaining future months to be positive with enough sample. Exciting rules that fail this are exported to `wide_net_strategy_research_watchlist.csv` instead of being treated as production-ready.", "",
+        "## Ingest", f"Input rows: {ingest_diag['input_rows']}", f"Settled rows: {ingest_diag['settled_rows']}", f"Candidate rows after book/price filter: {len(candidates)}", f"Aggregate buckets: {len(aggs)}", f"Pre-scored rules: {len(pre_rows)}", f"Fully simulated base rules: {len(to_simulate)}", f"Leaderboard rows: {len(leaderboard)}", f"Research watchlist rows: {len(research_watchlist)}", f"Clean top sniper rows: {len(clean_snipers)}", "",
+        "## Walk-forward split", f"Train months: {', '.join(split_meta['train_months']) or 'n/a'}", f"Test months: {', '.join(split_meta['test_months']) or 'n/a'}", f"Validate months: {', '.join(split_meta['validate_months']) or 'n/a'}", f"Future holdout months: {', '.join(split_meta['future_months']) or 'n/a'}", "",
+        "## Clean Top 3 Sniper Rules",
     ]
-    if not sniper:
-        lines.append("No rule met ROI > 15%, hit rate > 38%, and max DD < 20% at 2% staking. Check leaderboard for near-misses.")
+    if not clean_snipers:
+        lines.append("No rule met ROI > 15%, hit rate > 38%, max DD < 20%, and positive future-holdout checks. Check `wide_net_strategy_research_watchlist.csv` for promising but unproven rules.")
     else:
-        for i, r in enumerate(sniper, 1):
+        for i, r in enumerate(clean_snipers, 1):
             lines += [
                 f"### {i}. {r['rule_id']}",
                 f"Cluster: `{r['cluster']}` ({r['side']}, {r['cluster_size']}-score)",
@@ -748,11 +793,11 @@ def main() -> None:
                 f"Bets: {r['all_bets']} | Wins: {r['all_wins']} | Hit: {pct(r['all_hit_rate'])} | Avg odds: {r['all_avg_odds']:.3f}",
                 f"Breakeven: {pct(r['all_breakeven_hit_rate'])} | Edge: {pct(r['all_edge_vs_breakeven'])} | Flat ROI: {pct(r['all_flat_roi'])}",
                 f"Wilson 95% hit CI: {pct(r['all_wilson_low'])} - {pct(r['all_wilson_high'])}",
-                f"Train ROI: {pct(r['train_roi'])} | Test ROI: {pct(r['test_roi'])} | Validate ROI: {pct(r['validate_roi'])}",
+                f"Train ROI: {pct(r['train_roi'])} | Test ROI: {pct(r['test_roi'])} | Validate ROI: {pct(r['validate_roi'])} | Future ROI: {pct(r['future_roi'])} on {r['future_bets']} bets",
                 f"2% comp final: ${r['final_bankroll_2pct']:.2f} | Max DD: {pct(r['max_drawdown_2pct'])} | Worst LS: {r['worst_losing_streak_2pct']}",
                 f"Flags: {r['overfit_flags'] or 'None'}", "",
             ]
-    lines += ["## Notes", "This is still research-only. Do not update live filters until a rule survives live pre-match timing and settlement proof."]
+    lines += ["## Research watchlist", "Rules that hit the old sniper thresholds but did not pass clean future-holdout checks are kept in `wide_net_strategy_research_watchlist.csv` for deeper audit.", "", "## Notes", "This is still research-only. Do not update live filters until a rule survives live pre-match timing and settlement proof."]
     (out_dir / "wide_net_strategy_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
