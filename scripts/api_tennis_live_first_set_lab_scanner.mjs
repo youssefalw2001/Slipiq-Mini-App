@@ -11,6 +11,7 @@ Optimized launch version from Signal Room Risk Optimizer plus dry-run comfort la
 - Shadow research lane: P2 Grand Slam 2:6/4:6 bet365 EXTREME skew, Supabase only, no Telegram
 - Comfort cap is separate from exact-score edge caps
 - Bookmaker names hidden in Telegram, stored internally only
+- Stable customer proof keys: one match + one strategy + one target = one customer-facing result
 */
 
 import fs from 'node:fs';
@@ -131,6 +132,18 @@ function getBookOdds(market, scores, book) {
 function breakEven(odds) {
   return odds ? 1 / odds : null;
 }
+function signalTargetKey(row) {
+  return clean(row.score_cluster) || clean(row.selected_side) || 'target';
+}
+function stableSignalKey(row) {
+  return [row.event_key, row.strategy_lane, row.signal_type, signalTargetKey(row)].join(':');
+}
+function assignSignalIdentity(row) {
+  row.customer_proof_key = stableSignalKey(row);
+  row.scanner_signal_version = 'stable_v2';
+  row.signal_key = row.customer_proof_key;
+  return row;
+}
 function scoreSkewBucket(odds) {
   const nums = odds.map(safeNumber);
   if (nums.length < 2 || nums.some((o) => !o || o <= 1)) return 'UNKNOWN';
@@ -155,40 +168,18 @@ function historicalStatsForLane(laneKey) {
 }
 
 const lanes = [
-  {
-    key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:3', '6:4'],
-    sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25,
-    minGrouped: 2.50, maxGrouped: null, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4
-  },
-  {
-    key: 'CORE_P1_MIRROR_WTA_OTHER', access: 'CORE_AND_VIP', books: ['bet365', '1xBet'], scores: ['6:3', '6:4', '7:5'],
-    sideText: 'Player 1 wins first set 6:3, 6:4, or 7:5', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 8.00,
-    minGrouped: 2.60, maxGrouped: null, tierFloorA: 2.60, tierFloorS: 2.90, tour: 'WTA', tournamentGroup: 'OTHER_TOUR', publicLabel: 'Mirror Cluster', quality: 2
-  },
-  {
-    key: 'VIP_P1_ATP_GS_MULTI', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['6:3', '6:4'],
-    sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25,
-    minGrouped: 2.60, maxGrouped: null, tierFloorA: 2.60, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster Plus', quality: 3
-  },
-  {
-    key: 'VIP_P2_V3_SHAPE', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['3:6', '4:6', '5:7'],
-    sideText: 'Player 2 wins first set 6:3, 6:4, or 7:5', triggerScore: '4:6', triggerMin: 6.25, triggerMax: 6.99,
-    minGrouped: 3.50, maxGrouped: null, tierFloorA: 3.50, tierFloorS: 3.75, tour: 'ANY', tournamentGroup: 'ANY', publicLabel: 'V3 Cluster', quality: 2
-  },
-  {
-    key: 'RESEARCH_P2_GS_26_46_BET365', access: 'RESEARCH_ONLY', books: ['bet365'], scores: ['2:6', '4:6'],
-    sideText: 'Player 2 wins first set 2:6 or 4:6', triggerScore: '', triggerMin: null, triggerMax: null,
-    minGrouped: 2.50, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.50, tierFloorS: 3.50, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Research P2 GS Sniper', quality: 1
-  },
+  { key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:3', '6:4'], sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.50, maxGrouped: null, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4 },
+  { key: 'CORE_P1_MIRROR_WTA_OTHER', access: 'CORE_AND_VIP', books: ['bet365', '1xBet'], scores: ['6:3', '6:4', '7:5'], sideText: 'Player 1 wins first set 6:3, 6:4, or 7:5', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 8.00, minGrouped: 2.60, maxGrouped: null, tierFloorA: 2.60, tierFloorS: 2.90, tour: 'WTA', tournamentGroup: 'OTHER_TOUR', publicLabel: 'Mirror Cluster', quality: 2 },
+  { key: 'VIP_P1_ATP_GS_MULTI', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['6:3', '6:4'], sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.60, maxGrouped: null, tierFloorA: 2.60, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster Plus', quality: 3 },
+  { key: 'VIP_P2_V3_SHAPE', access: 'VIP_ONLY', books: ['bet365', '1xBet', '10Bet'], scores: ['3:6', '4:6', '5:7'], sideText: 'Player 2 wins first set 6:3, 6:4, or 7:5', triggerScore: '4:6', triggerMin: 6.25, triggerMax: 6.99, minGrouped: 3.50, maxGrouped: null, tierFloorA: 3.50, tierFloorS: 3.75, tour: 'ANY', tournamentGroup: 'ANY', publicLabel: 'V3 Cluster', quality: 2 },
+  { key: 'RESEARCH_P2_GS_26_46_BET365', access: 'RESEARCH_ONLY', books: ['bet365'], scores: ['2:6', '4:6'], sideText: 'Player 2 wins first set 2:6 or 4:6', triggerScore: '', triggerMin: null, triggerMax: null, minGrouped: 2.50, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.50, tierFloorS: 3.50, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Research P2 GS Sniper', quality: 1 },
 ];
 
 async function fetchApiTennis(method, apiParams = {}) {
   const url = new URL(baseUrl);
   url.searchParams.set('method', method);
   url.searchParams.set('APIkey', apiKey);
-  for (const [key, value] of Object.entries(apiParams)) {
-    if (value !== undefined && value !== null && clean(value) !== '') url.searchParams.set(key, String(value));
-  }
+  for (const [key, value] of Object.entries(apiParams)) if (value !== undefined && value !== null && clean(value) !== '') url.searchParams.set(key, String(value));
   const res = await fetch(url, { headers: { accept: 'application/json' } });
   const text = await res.text();
   let payload;
@@ -200,11 +191,8 @@ async function fetchCombined(method, baseParams) {
   const chunks = [];
   const errors = [];
   for (const eventTypeKey of eventTypeKeys) {
-    try {
-      chunks.push({ eventTypeKey, result: await fetchApiTennis(method, { ...baseParams, event_type_key: eventTypeKey }) });
-    } catch (err) {
-      errors.push({ method, eventTypeKey, error: err instanceof Error ? err.message : String(err) });
-    }
+    try { chunks.push({ eventTypeKey, result: await fetchApiTennis(method, { ...baseParams, event_type_key: eventTypeKey }) }); }
+    catch (err) { errors.push({ method, eventTypeKey, error: err instanceof Error ? err.message : String(err) }); }
   }
   return { chunks, errors };
 }
@@ -280,7 +268,7 @@ function buildExactScoreRows(matchKey, matchOdds, fixture, tour, tGroup, mins) {
       const hist = historicalStatsForLane(lane.key);
       const be = breakEven(grouped);
       const edge = hist.hit !== null && be !== null ? hist.hit - be : null;
-      const row = {
+      const row = assignSignalIdentity({
         signal_type: 'exact_score_cluster', selected_side: '', selected_side_odds: '', market_source: marketName,
         scanned_at: new Date().toISOString(), event_key: String(matchKey), starts_at: startsAtIso(fixture) || '',
         event_date: clean(fixture.event_date), event_time: clean(fixture.event_time), minutes_to_start: mins,
@@ -291,8 +279,7 @@ function buildExactScoreRows(matchKey, matchOdds, fixture, tour, tGroup, mins) {
         trigger_odds: triggerOdds, score_odds_json: JSON.stringify({ ...Object.fromEntries(lane.scores.map((s, i) => [s, odds[i]])), market_skew_bucket: skew }),
         grouped_odds: grouped, break_even_hit_rate: be, historical_hit_rate: hist.hit, historical_roi: hist.roi,
         historical_sample: hist.sample, model_edge_vs_breakeven: edge, public_tier: tier, signal_quality: lane.quality,
-      };
-      row.signal_key = [row.event_key, row.strategy_lane, row.signal_type, row.score_cluster, row.public_tier].join(':');
+      });
       rows.push(row);
     }
   }
@@ -316,7 +303,7 @@ function buildComfortRows(matchKey, matchOdds, fixture, tour, tGroup, mins) {
   const be = breakEven(selectedOdds);
   const edge = hist.hit !== null && be !== null ? hist.hit - be : null;
   const target = selectedSide === 'P1' ? 'Player 1 to win the first set' : 'Player 2 to win the first set';
-  const row = {
+  const row = assignSignalIdentity({
     signal_type: 'first_set_winner', selected_side: selectedSide, selected_side_odds: selectedOdds, market_source: comfortMarketName,
     scanned_at: new Date().toISOString(), event_key: String(matchKey), starts_at: startsAtIso(fixture) || '',
     event_date: clean(fixture.event_date), event_time: clean(fixture.event_time), minutes_to_start: mins,
@@ -327,8 +314,7 @@ function buildComfortRows(matchKey, matchOdds, fixture, tour, tGroup, mins) {
     score_odds_json: JSON.stringify({ P1: p1Odds, P2: p2Odds }), grouped_odds: selectedOdds,
     break_even_hit_rate: be, historical_hit_rate: hist.hit, historical_roi: hist.roi, historical_sample: hist.sample,
     model_edge_vs_breakeven: edge, public_tier: 'Comfort', signal_quality: 6,
-  };
-  row.signal_key = [row.event_key, row.strategy_lane, row.signal_type, row.selected_side, row.public_tier].join(':');
+  });
   rows.push(row);
   return rows;
 }
@@ -348,22 +334,16 @@ function buildCandidateRows(oddsResult, fixturesByKey) {
 function dedupeSignals(rows) {
   const groups = new Map();
   for (const r of rows) {
-    const key = [r.event_key, r.strategy_lane, r.signal_type, r.selected_side || r.score_cluster].join(':');
+    const key = r.customer_proof_key || stableSignalKey(r);
     const prev = groups.get(key);
     if (!prev || signalRank(r) > signalRank(prev)) groups.set(key, r);
   }
   return [...groups.values()].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)) || signalRank(b) - signalRank(a));
 }
-function tierRank(tier) {
-  return { Comfort: 4, S: 3, A: 2, B: 1, Research: 0 }[tier] || 0;
-}
+function tierRank(tier) { return { Comfort: 4, S: 3, A: 2, B: 1, Research: 0 }[tier] || 0; }
 function signalRank(row) {
-  if (row.access === 'RESEARCH_ONLY') {
-    return Number(row.model_edge_vs_breakeven || 0) * 100000 + Number(row.grouped_odds || 0) * 1000;
-  }
-  if (row.signal_type === 'first_set_winner') {
-    return Number(row.historical_hit_rate || 0) * 1000000 + Number(row.model_edge_vs_breakeven || 0) * 100000 + Number(row.signal_quality || 0) * 10000 - Math.abs(Number(row.selected_side_odds || 0) - 1.58) * 100;
-  }
+  if (row.access === 'RESEARCH_ONLY') return Number(row.model_edge_vs_breakeven || 0) * 100000 + Number(row.grouped_odds || 0) * 1000;
+  if (row.signal_type === 'first_set_winner') return Number(row.historical_hit_rate || 0) * 1000000 + Number(row.model_edge_vs_breakeven || 0) * 100000 + Number(row.signal_quality || 0) * 10000 - Math.abs(Number(row.selected_side_odds || 0) - 1.58) * 100;
   return tierRank(row.public_tier) * 1000000 + Number(row.signal_quality || 0) * 100000 + Number(row.model_edge_vs_breakeven || 0) * 10000 + Number(row.grouped_odds || 0) * 100 + Number(row.trigger_odds || 0);
 }
 function capSignalsForRoom(rows, roomName, cap) {
@@ -377,10 +357,11 @@ function capSignalsForRoom(rows, roomName, cap) {
   for (const [day, arr] of [...byDay.entries()].sort()) {
     const ranked = arr.sort((a, b) => signalRank(b) - signalRank(a));
     const keep = [];
-    const usedEvents = new Set();
+    const usedProofKeys = new Set();
     for (const r of ranked) {
-      if (usedEvents.has(r.event_key)) continue;
-      usedEvents.add(r.event_key);
+      const proofKey = r.customer_proof_key || stableSignalKey(r);
+      if (usedProofKeys.has(proofKey)) continue;
+      usedProofKeys.add(proofKey);
       keep.push({ ...r, telegram_room: roomName });
       if (cap > 0 && keep.length >= cap) break;
     }
@@ -405,21 +386,9 @@ function telegramMessage(row) {
   const dateTime = `${row.event_date || ''} ${row.event_time || ''} UTC`.trim();
   const mins = row.minutes_to_start !== null && row.minutes_to_start !== undefined ? `${row.minutes_to_start} min` : 'n/a';
   if (row.signal_type === 'first_set_winner') {
-    return [
-      '🎾 SlipIQ First Set Lab Comfort Signal', '', `Room: ${row.telegram_room}`, `Signal: ${row.public_signal_name}`,
-      `Match: ${row.match_name}`, `Tournament: ${row.tournament_name || row.tournament_group}`, `Start: ${dateTime}`,
-      `Time to start: ${mins}`, '', 'Target:', row.public_target, '', `Approx Odds: ${fmtOdds(row.selected_side_odds || row.grouped_odds)}`,
-      `Break-even: ${be}`, `Historical Comfort Hit Rate: ${hist}`, `Historical Edge: +${edge}`, `Historical Sample: ${row.historical_sample || 'n/a'} signals`, '',
-      'Paper-tracked signal. Probability edge, not a guaranteed pick.'
-    ].join('\n');
+    return ['🎾 SlipIQ First Set Lab Comfort Signal', '', `Room: ${row.telegram_room}`, `Signal: ${row.public_signal_name}`, `Match: ${row.match_name}`, `Tournament: ${row.tournament_name || row.tournament_group}`, `Start: ${dateTime}`, `Time to start: ${mins}`, '', 'Target:', row.public_target, '', `Approx Odds: ${fmtOdds(row.selected_side_odds || row.grouped_odds)}`, `Break-even: ${be}`, `Historical Comfort Hit Rate: ${hist}`, `Historical Edge: +${edge}`, `Historical Sample: ${row.historical_sample || 'n/a'} signals`, '', 'Paper-tracked signal. Probability edge, not a guaranteed pick.'].join('\n');
   }
-  return [
-    `🎾 SlipIQ First Set Lab ${row.public_tier}-Tier`, '', `Room: ${row.telegram_room}`, `Signal: ${row.public_signal_name}`,
-    `Match: ${row.match_name}`, `Tournament: ${row.tournament_name || row.tournament_group}`, `Start: ${dateTime}`,
-    `Time to start: ${mins}`, '', 'Target Cluster:', row.public_target, '', `Grouped Odds: ${fmtOdds(row.grouped_odds)}`,
-    `Break-even: ${be}`, `Historical Room Hit Rate: ${hist}`, `Historical Edge: +${edge}`, `Historical Sample: ${row.historical_sample || 'n/a'} signals`, '',
-    'Paper-tracked signal. Probability edge, not a guaranteed pick.'
-  ].join('\n');
+  return [`🎾 SlipIQ First Set Lab ${row.public_tier}-Tier`, '', `Room: ${row.telegram_room}`, `Signal: ${row.public_signal_name}`, `Match: ${row.match_name}`, `Tournament: ${row.tournament_name || row.tournament_group}`, `Start: ${dateTime}`, `Time to start: ${mins}`, '', 'Target Cluster:', row.public_target, '', `Grouped Odds: ${fmtOdds(row.grouped_odds)}`, `Break-even: ${be}`, `Historical Room Hit Rate: ${hist}`, `Historical Edge: +${edge}`, `Historical Sample: ${row.historical_sample || 'n/a'} signals`, '', 'Paper-tracked signal. Probability edge, not a guaranteed pick.'].join('\n');
 }
 async function sendTelegramMessage(chatId, text) {
   if (!telegramBotToken || !chatId) return { ok: false, skipped: true, reason: 'missing bot token or chat id' };
@@ -445,13 +414,13 @@ async function routeAndSend(selectedRows) {
   return sent;
 }
 
-const fields = ['signal_type', 'selected_side', 'selected_side_odds', 'market_source', 'scanned_at', 'signal_key', 'event_key', 'starts_at', 'event_date', 'event_time', 'minutes_to_start', 'event_status', 'player1', 'player2', 'match_name', 'tour', 'tournament_group', 'tournament_name', 'internal_bookmaker', 'market_name', 'strategy_lane', 'public_signal_name', 'access', 'score_cluster', 'public_target', 'trigger_score', 'trigger_odds', 'score_odds_json', 'grouped_odds', 'break_even_hit_rate', 'historical_hit_rate', 'historical_roi', 'historical_sample', 'model_edge_vs_breakeven', 'public_tier', 'signal_quality'];
+const fields = ['signal_type', 'selected_side', 'selected_side_odds', 'market_source', 'scanned_at', 'signal_key', 'customer_proof_key', 'scanner_signal_version', 'event_key', 'starts_at', 'event_date', 'event_time', 'minutes_to_start', 'event_status', 'player1', 'player2', 'match_name', 'tour', 'tournament_group', 'tournament_name', 'internal_bookmaker', 'market_name', 'strategy_lane', 'public_signal_name', 'access', 'score_cluster', 'public_target', 'trigger_score', 'trigger_odds', 'score_odds_json', 'grouped_odds', 'break_even_hit_rate', 'historical_hit_rate', 'historical_roi', 'historical_sample', 'model_edge_vs_breakeven', 'public_tier', 'signal_quality'];
 const selectedFields = [...fields, 'telegram_room'];
 const sentFields = [...selectedFields, 'telegram_sent', 'telegram_result_json', 'telegram_message_preview'];
 
 async function main() {
   ensureDir(outDir);
-  const summary = { generated_at: new Date().toISOString(), date_start: dateStart, date_stop: dateStop, market_name: marketName, comfort_market_name: comfortMarketName, include_research_lanes: includeResearchLanes, send_telegram: sendTelegram, bookmaker_names_hidden_in_telegram: true, core_daily_cap: coreDailyCap, vip_daily_cap: vipDailyCap, core_comfort_daily_cap: coreComfortDailyCap, vip_comfort_daily_cap: vipComfortDailyCap, min_minutes_to_start: minMinutesToStart, max_minutes_to_start: maxMinutesToStart, fixture_count: 0, odds_match_count: 0, raw_candidate_rows: 0, deduped_candidate_signals: 0, selected_room_signals: 0, core_signals: 0, vip_signals: 0, vip_only_signals: 0, research_signals: 0, comfort_signals: 0, exact_score_signals: 0, telegram_messages_attempted: 0, telegram_messages_sent: 0, by_room: {}, by_lane: {}, by_tier: {}, by_signal_type: {}, errors: [] };
+  const summary = { generated_at: new Date().toISOString(), date_start: dateStart, date_stop: dateStop, market_name: marketName, comfort_market_name: comfortMarketName, include_research_lanes: includeResearchLanes, send_telegram: sendTelegram, bookmaker_names_hidden_in_telegram: true, signal_identity: 'stable_v2_customer_proof_key', core_daily_cap: coreDailyCap, vip_daily_cap: vipDailyCap, core_comfort_daily_cap: coreComfortDailyCap, vip_comfort_daily_cap: vipComfortDailyCap, min_minutes_to_start: minMinutesToStart, max_minutes_to_start: maxMinutesToStart, fixture_count: 0, odds_match_count: 0, raw_candidate_rows: 0, deduped_candidate_signals: 0, selected_room_signals: 0, core_signals: 0, vip_signals: 0, vip_only_signals: 0, research_signals: 0, comfort_signals: 0, exact_score_signals: 0, telegram_messages_attempted: 0, telegram_messages_sent: 0, by_room: {}, by_lane: {}, by_tier: {}, by_signal_type: {}, errors: [] };
   const fixtureFetch = await fetchCombined('get_fixtures', { date_start: dateStart, date_stop: dateStop });
   summary.errors.push(...fixtureFetch.errors);
   const fixtures = mergeFixtures(fixtureFetch.chunks);
@@ -486,7 +455,7 @@ async function main() {
   writeCsv(path.join(outDir, 'first_set_lab_live_signals.csv'), selectedSignals, selectedFields);
   writeCsv(path.join(outDir, 'first_set_lab_live_telegram_log.csv'), sentRows, sentFields);
   writeJson(path.join(outDir, 'first_set_lab_live_summary.json'), summary);
-  const lines = ['# SlipIQ First Set Lab Live Scanner', '', `Generated: ${summary.generated_at}`, `Date range: ${dateStart} to ${dateStop}`, `Exact-score market: ${marketName}`, `Comfort market: ${comfortMarketName}`, `Telegram sending: ${sendTelegram ? 'ON' : 'OFF / dry-run'}`, 'Bookmaker names hidden in Telegram: yes', `Core edge daily cap: ${coreDailyCap}`, `VIP edge daily cap: ${vipDailyCap}`, `Core comfort daily cap: ${coreComfortDailyCap}`, `VIP comfort daily cap: ${vipComfortDailyCap}`, `Research lanes: ${includeResearchLanes ? 'ON / Supabase only' : 'OFF'}`, '', '## Counts', `Fixtures: ${summary.fixture_count}`, `Odds matches: ${summary.odds_match_count}`, `Raw candidate rows: ${summary.raw_candidate_rows}`, `Deduped candidate signals before room caps: ${summary.deduped_candidate_signals}`, `Selected room signals after caps: ${summary.selected_room_signals}`, `Exact-score signals: ${summary.exact_score_signals}`, `Comfort signals: ${summary.comfort_signals}`, `Research signals: ${summary.research_signals}`, `Core signals: ${summary.core_signals}`, `VIP signals: ${summary.vip_signals}`, `VIP-only signals: ${summary.vip_only_signals}`, `Telegram messages attempted: ${summary.telegram_messages_attempted}`, `Telegram messages sent: ${summary.telegram_messages_sent}`, '', '## Room counts', '```json', JSON.stringify(summary.by_room, null, 2), '```', '', '## Lane counts', '```json', JSON.stringify(summary.by_lane, null, 2), '```', '', '## Signal type counts', '```json', JSON.stringify(summary.by_signal_type, null, 2), '```', '', '## Signals', ...(selectedSignals.length ? selectedSignals.map((r) => `- ${r.public_tier} | ${r.telegram_room} | ${r.public_signal_name} | ${r.match_name} | ${r.tournament_name} | ${r.event_date} ${r.event_time} UTC | odds=${fmtOdds(r.selected_side_odds || r.grouped_odds)} | target=${r.public_target}`) : ['None']), '', '## Notes', 'Telegram messages intentionally hide bookmaker names. Internal CSV keeps bookmaker for paper tracking and grading.', 'Comfort signals use Home/Away (1st Set) and first_set_winner settlement logic.', 'Research signals are Supabase-only shadow tracking and are not sent to Core or VIP.', 'This workflow is a probability/price-intelligence alert system, not automatic betting.', '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
+  const lines = ['# SlipIQ First Set Lab Live Scanner', '', `Generated: ${summary.generated_at}`, `Date range: ${dateStart} to ${dateStop}`, `Exact-score market: ${marketName}`, `Comfort market: ${comfortMarketName}`, `Signal identity: stable_v2 customer_proof_key`, `Telegram sending: ${sendTelegram ? 'ON' : 'OFF / dry-run'}`, 'Bookmaker names hidden in Telegram: yes', `Core edge daily cap: ${coreDailyCap}`, `VIP edge daily cap: ${vipDailyCap}`, `Core comfort daily cap: ${coreComfortDailyCap}`, `VIP comfort daily cap: ${vipComfortDailyCap}`, `Research lanes: ${includeResearchLanes ? 'ON / Supabase only' : 'OFF'}`, '', '## Counts', `Fixtures: ${summary.fixture_count}`, `Odds matches: ${summary.odds_match_count}`, `Raw candidate rows: ${summary.raw_candidate_rows}`, `Deduped candidate signals before room caps: ${summary.deduped_candidate_signals}`, `Selected room signals after caps: ${summary.selected_room_signals}`, `Exact-score signals: ${summary.exact_score_signals}`, `Comfort signals: ${summary.comfort_signals}`, `Research signals: ${summary.research_signals}`, `Core signals: ${summary.core_signals}`, `VIP signals: ${summary.vip_signals}`, `VIP-only signals: ${summary.vip_only_signals}`, `Telegram messages attempted: ${summary.telegram_messages_attempted}`, `Telegram messages sent: ${summary.telegram_messages_sent}`, '', '## Room counts', '```json', JSON.stringify(summary.by_room, null, 2), '```', '', '## Lane counts', '```json', JSON.stringify(summary.by_lane, null, 2), '```', '', '## Signal type counts', '```json', JSON.stringify(summary.by_signal_type, null, 2), '```', '', '## Signals', ...(selectedSignals.length ? selectedSignals.map((r) => `- ${r.public_tier} | ${r.telegram_room} | ${r.public_signal_name} | ${r.match_name} | ${r.tournament_name} | ${r.event_date} ${r.event_time} UTC | odds=${fmtOdds(r.selected_side_odds || r.grouped_odds)} | proof_key=${r.customer_proof_key} | target=${r.public_target}`) : ['None']), '', '## Notes', 'Telegram messages intentionally hide bookmaker names. Internal CSV keeps bookmaker for paper tracking and grading.', 'Customer-facing proof should use customer_proof_key: one match + one strategy + one target = one result.', 'Comfort signals use Home/Away (1st Set) and first_set_winner settlement logic.', 'Research signals are Supabase-only shadow tracking and are not sent to Core or VIP.', 'This workflow is a probability/price-intelligence alert system, not automatic betting.', '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
   fs.writeFileSync(path.join(outDir, 'first_set_lab_live_report.md'), lines.join('\n'), 'utf8');
 }
 
