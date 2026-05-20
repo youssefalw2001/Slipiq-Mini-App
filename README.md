@@ -45,6 +45,48 @@ Current production focus:
 
 ---
 
+## Stripe + Telegram Access Flow
+
+The `/checkout` route is built for a no-code Stripe Payment Links flow:
+
+```txt
+User selects Core or Quant on the website
+→ site opens the matching Stripe Payment Link
+→ Stripe completes checkout
+→ Stripe redirects the buyer to the matching Telegram invite URL
+```
+
+Configure these environment variables in Vercel/Netlify before deploying:
+
+```txt
+VITE_STRIPE_CORE_CHECKOUT_URL=https://buy.stripe.com/...
+VITE_STRIPE_QUANT_CHECKOUT_URL=https://buy.stripe.com/...
+VITE_TELEGRAM_PROOF_VAULT_URL=https://t.me/...
+VITE_TELEGRAM_CORE_INVITE_URL=https://t.me/+...
+VITE_TELEGRAM_QUANT_INVITE_URL=https://t.me/+...
+```
+
+Stripe setup:
+
+```txt
+1. Create a Core Terminal subscription payment link.
+2. Create a Quant Terminal subscription payment link.
+3. In each payment link, set After payment / Confirmation behavior to redirect.
+4. Redirect Core buyers to the Core Telegram invite link.
+5. Redirect Quant buyers to the Quant Telegram invite link.
+6. Enable Stripe email receipts.
+7. Rotate Telegram private invite links if leaked.
+```
+
+Important:
+
+```txt
+This Payment Links version is fast to launch and low-code.
+For stricter access control later, add a Stripe webhook + Telegram Bot flow that approves or removes users automatically based on subscription status.
+```
+
+---
+
 ## Personal Operator Strategy ($1K Lab)
 
 This is the private operator framework used for aggressive-but-controlled bankroll growth simulations.
