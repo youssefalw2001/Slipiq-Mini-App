@@ -15,6 +15,10 @@ Supports:
 - exact_score_cluster signals
 - first_set_winner comfort signals
 - RESEARCH_ONLY shadow signals, which are upserted to live_signals only and never delivered to Telegram
+
+Customer-facing delivery rule:
+- Same room + same match/event + same market type + same book + same target = one Telegram alert.
+- This prevents Quant from receiving the same executable bet twice when both Core and VIP model lanes trigger.
 */
 
 import fs from 'node:fs';
@@ -156,10 +160,32 @@ function scoreBandSide(scoreText) {
   return first[0] > first[1] ? 'Player 1 first-set score band' : 'Player 2 first-set score band';
 }
 
+function roomKeyForRow(row) {
+  if (row.telegram_room === 'Core') return 'core';
+  if (row.telegram_room === 'VIP') return 'vip';
+  return 'research';
+}
+
+function executionTarget(row) {
+  return clean(row.score_cluster) || clean(row.selected_side) || clean(row.public_target) || 'target';
+}
+
+function executionKey(row) {
+  return [
+    roomKeyForRow(row),
+    clean(row.event_key),
+    clean(row.signal_type) || 'exact_score_cluster',
+    clean(row.market_name) || clean(row.market_source) || 'market',
+    clean(row.internal_bookmaker) || 'book',
+    executionTarget(row),
+  ].join(':');
+}
+
 function telegramMessage(row) {
   const pct = (v) => v === null || v === undefined || v === '' ? 'n/a' : `${(Number(v) * 100).toFixed(1)}%`;
   const odds = (v) => v === null || v === undefined || v === '' ? 'n/a' : Number(v).toFixed(2);
-  const edge = row.model_edge_vs_breakeven ? `${(Number(row.model_edge_vs_breakeven) * 100).toFixed(1)} pts` : 'n/a';
+  const rawEdge = nval(row.model_edge_vs_breakeven);
+  const edge = rawEdge === null ? 'n/a' : `${rawEdge >= 0 ? '+' : ''}${(rawEdge * 100).toFixed(1)} pts`;
   const dateTime = `${row.event_date || ''} ${row.event_time || ''} UTC`.trim();
   const windowText = formatStartWindow(row.minutes_to_start);
   const tournament = row.tournament_name || row.tournament_group || 'n/a';
@@ -181,7 +207,7 @@ function telegramMessage(row) {
       'Model context:',
       `Break-even: ${pct(row.break_even_hit_rate)}`,
       `Historical hit rate: ${pct(row.historical_hit_rate)}`,
-      `Historical edge: +${edge}`,
+      `Historical edge: ${edge}`,
       `Sample: ${row.historical_sample || 'n/a'} signals`,
       '',
       'Paper-tracked. No guarantees.',
@@ -211,7 +237,7 @@ function telegramMessage(row) {
     'Model context:',
     `Break-even: ${pct(row.break_even_hit_rate)}`,
     `Historical hit rate: ${pct(row.historical_hit_rate)}`,
-    `Historical edge: +${edge}`,
+    `Historical edge: ${edge}`,
     `Sample: ${row.historical_sample || 'n/a'} signals`,
     '',
     'Paper-tracked. No guarantees.',
@@ -257,7 +283,7 @@ async function insertDelivery(signal, row, result, message) {
   const payload = {
     signal_id: signal.id,
     signal_key: signal.signal_key,
-    room_key: row.telegram_room === 'Core' ? 'core' : 'vip',
+    room_key: roomKeyForRow(row),
     telegram_chat_id: row.telegram_room === 'Core' ? coreChatId : vipChatId,
     telegram_message_id: result?.message_id ? String(result.message_id) : null,
     sent_ok: result?.ok === true,
@@ -292,7 +318,8 @@ async function main() {
     generated_at: new Date().toISOString(), input_csv: inputCsv, send_telegram: sendTelegram,
     supabase_enabled: Boolean(supabaseUrl && supabaseKey), require_supabase_for_send: requireSupabaseForSend,
     rows_read: 0, signals_upserted: 0, research_signals_upserted: 0, duplicate_deliveries_skipped: 0,
-    telegram_attempted: 0, telegram_sent: 0, delivery_rows_written: 0, research_delivery_skipped: 0, errors: [],
+    duplicate_executions_suppressed: 0, telegram_attempted: 0, telegram_sent: 0, delivery_rows_written: 0,
+    research_delivery_skipped: 0, errors: [],
   };
   if (!fs.existsSync(inputCsv)) throw new Error(`Missing input CSV: ${inputCsv}`);
   const rows = parseCsv(fs.readFileSync(inputCsv, 'utf8'));
@@ -301,15 +328,18 @@ async function main() {
     throw new Error('Refusing to send Telegram without Supabase duplicate guard. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY or set REQUIRE_SUPABASE_FOR_SEND=false for testing only.');
   }
   const outRows = [];
+  const seenExecutionKeys = new Set();
   for (const row of rows) {
     const isResearchOnly = clean(row.access) === 'RESEARCH_ONLY' || clean(row.telegram_room) === 'Research';
     const message = isResearchOnly ? '' : telegramMessage(row);
-    const roomKey = row.telegram_room === 'Core' ? 'core' : row.telegram_room === 'VIP' ? 'vip' : 'research';
+    const roomKey = roomKeyForRow(row);
     const chatId = row.telegram_room === 'Core' ? coreChatId : row.telegram_room === 'VIP' ? vipChatId : '';
+    const execKey = executionKey(row);
     let signal = null;
     let delivery = null;
     let result = isResearchOnly ? { ok: false, skipped: true, reason: 'RESEARCH_ONLY_SUPABASE_ONLY' } : { ok: false, skipped: true, reason: 'SEND_TELEGRAM=false' };
     let duplicate = false;
+    let executionDuplicate = false;
     try {
       if (supabaseUrl && supabaseKey) {
         signal = await upsertSignal(row);
@@ -317,9 +347,17 @@ async function main() {
         if (isResearchOnly) {
           summary.research_signals_upserted += 1;
           summary.research_delivery_skipped += 1;
-          outRows.push({ ...row, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: '', duplicate_skipped: 'false', telegram_sent: 'false', telegram_result_json: JSON.stringify(result), telegram_message_preview: '' });
+          outRows.push({ ...row, execution_key: execKey, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: '', duplicate_skipped: 'false', execution_duplicate_suppressed: 'false', telegram_sent: 'false', telegram_result_json: JSON.stringify(result), telegram_message_preview: '' });
           continue;
         }
+        if (seenExecutionKeys.has(execKey)) {
+          executionDuplicate = true;
+          result = { ok: false, skipped_duplicate: true, reason: 'DUPLICATE_EXECUTABLE_SIGNAL_IN_ROOM', execution_key: execKey };
+          summary.duplicate_executions_suppressed += 1;
+          outRows.push({ ...row, execution_key: execKey, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: '', duplicate_skipped: 'true', execution_duplicate_suppressed: 'true', telegram_sent: 'false', telegram_result_json: JSON.stringify(result), telegram_message_preview: message });
+          continue;
+        }
+        seenExecutionKeys.add(execKey);
         const existing = await existingSuccessfulDelivery(signal.id, roomKey);
         if (existing) {
           duplicate = true;
@@ -337,20 +375,27 @@ async function main() {
           summary.delivery_rows_written += 1;
         }
       } else if (sendTelegram && !isResearchOnly) {
-        summary.telegram_attempted += 1;
-        result = await sendTelegramMessage(chatId, message);
-        if (result.ok) summary.telegram_sent += 1;
+        if (seenExecutionKeys.has(execKey)) {
+          executionDuplicate = true;
+          result = { ok: false, skipped_duplicate: true, reason: 'DUPLICATE_EXECUTABLE_SIGNAL_IN_ROOM', execution_key: execKey };
+          summary.duplicate_executions_suppressed += 1;
+        } else {
+          seenExecutionKeys.add(execKey);
+          summary.telegram_attempted += 1;
+          result = await sendTelegramMessage(chatId, message);
+          if (result.ok) summary.telegram_sent += 1;
+        }
       }
     } catch (err) {
       result = { ok: false, error: err instanceof Error ? err.message : String(err) };
       summary.errors.push({ signal_key: row.signal_key, room: row.telegram_room, error: result.error });
     }
-    outRows.push({ ...row, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: delivery?.id || '', duplicate_skipped: String(duplicate), telegram_sent: String(result.ok === true), telegram_result_json: JSON.stringify(result), telegram_message_preview: message });
+    outRows.push({ ...row, execution_key: execKey, room_key: roomKey, supabase_signal_id: signal?.id || '', supabase_delivery_id: delivery?.id || '', duplicate_skipped: String(duplicate), execution_duplicate_suppressed: String(executionDuplicate), telegram_sent: String(result.ok === true), telegram_result_json: JSON.stringify(result), telegram_message_preview: message });
   }
   const fields = Object.keys(outRows[0] || { signal_key: '', telegram_room: '', telegram_sent: '' });
   writeCsv(path.join(outDir, 'first_set_lab_supabase_delivery_log.csv'), outRows, fields);
   writeJson(path.join(outDir, 'first_set_lab_supabase_delivery_summary.json'), summary);
-  const lines = ['# First Set Lab Supabase Delivery Guard', '', `Generated: ${summary.generated_at}`, `Rows read: ${summary.rows_read}`, `Supabase enabled: ${summary.supabase_enabled}`, `Telegram sending: ${summary.send_telegram}`, `Signals upserted: ${summary.signals_upserted}`, `Research signals upserted: ${summary.research_signals_upserted}`, `Research deliveries skipped: ${summary.research_delivery_skipped}`, `Duplicate deliveries skipped: ${summary.duplicate_deliveries_skipped}`, `Telegram attempted: ${summary.telegram_attempted}`, `Telegram sent: ${summary.telegram_sent}`, `Delivery rows written: ${summary.delivery_rows_written}`, '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
+  const lines = ['# First Set Lab Supabase Delivery Guard', '', `Generated: ${summary.generated_at}`, `Rows read: ${summary.rows_read}`, `Supabase enabled: ${summary.supabase_enabled}`, `Telegram sending: ${summary.send_telegram}`, `Signals upserted: ${summary.signals_upserted}`, `Research signals upserted: ${summary.research_signals_upserted}`, `Research deliveries skipped: ${summary.research_delivery_skipped}`, `Duplicate delivery rows skipped: ${summary.duplicate_deliveries_skipped}`, `Duplicate executable signals suppressed: ${summary.duplicate_executions_suppressed}`, `Telegram attempted: ${summary.telegram_attempted}`, `Telegram sent: ${summary.telegram_sent}`, `Delivery rows written: ${summary.delivery_rows_written}`, '', '## Errors', summary.errors.length ? '```json\n' + JSON.stringify(summary.errors, null, 2) + '\n```' : 'None'];
   fs.writeFileSync(path.join(outDir, 'first_set_lab_supabase_delivery_report.md'), lines.join('\n'), 'utf8');
 }
 
