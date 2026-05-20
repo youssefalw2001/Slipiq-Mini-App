@@ -5,6 +5,7 @@ import App from './App';
 import './styles.css';
 import './iq-rebuild.css';
 import './score-hunter.css';
+import './checkout.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
