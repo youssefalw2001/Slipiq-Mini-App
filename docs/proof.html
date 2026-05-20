@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>First Set Lab Proof Vault | Live Ledger</title>
+  <meta name="description" content="The First Set Lab Proof Vault shows settled signal receipts, ROI context, Bet365 lane performance, and no-deletion proof discipline." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            ink: '#080B11',
+            panel: '#111827',
+            panel2: '#0D1117',
+            lime: '#C6EF00',
+            cyan: '#00F0FF',
+            green: '#10B981',
+            red: '#EF4444'
+          },
+          boxShadow: {
+            terminal: '0 0 0 1px rgba(255,255,255,.06), 0 30px 100px rgba(0,0,0,.45)',
+            glow: '0 0 48px rgba(198,239,0,.22)'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body { background:#080B11; color:white; overflow-x:hidden; }
+    ::selection { background:#C6EF00; color:#080B11; }
+    .grid-bg { background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 32px 32px; }
+    .court-bg { background-image: linear-gradient(to right, transparent 8%, rgba(198,239,0,.07) 8%, rgba(198,239,0,.07) 9%, transparent 9%, transparent 91%, rgba(198,239,0,.07) 91%, rgba(198,239,0,.07) 92%, transparent 92%), linear-gradient(to bottom, transparent 18%, rgba(0,240,255,.06) 18%, rgba(0,240,255,.06) 19%, transparent 19%, transparent 50%, rgba(198,239,0,.07) 50%, rgba(198,239,0,.07) 51%, transparent 51%, transparent 82%, rgba(0,240,255,.06) 82%, rgba(0,240,255,.06) 83%, transparent 83%); }
+  </style>
+</head>
+<body class="font-sans antialiased bg-ink text-white">
+  <div class="fixed inset-0 -z-10 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_25%_0%,rgba(0,240,255,.14),transparent_30%),radial-gradient(circle_at_78%_15%,rgba(198,239,0,.12),transparent_25%),linear-gradient(180deg,#080B11_0%,#05070C_100%)]"></div>
+    <div class="absolute inset-0 grid-bg opacity-50"></div>
+    <div class="absolute inset-0 court-bg opacity-80"></div>
+  </div>
+
+  <header class="sticky top-0 z-50 border-b border-white/5 bg-ink/90 backdrop-blur-xl">
+    <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+      <a href="/" class="flex items-center gap-3">
+        <span class="relative grid h-10 w-10 place-items-center rounded-full border border-lime/25 bg-lime/10">
+          <span class="absolute h-5 w-5 rounded-full border border-lime"></span>
+          <span class="h-2 w-2 rounded-full bg-lime shadow-[0_0_14px_#C6EF00]"></span>
+        </span>
+        <span class="font-mono text-xs font-bold uppercase tracking-[0.22em] text-white sm:text-sm">First Set Lab <span class="text-lime/50">//</span> Proof Vault</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <a href="/" class="hidden border border-white/10 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-white/60 transition hover:border-lime/40 hover:text-lime sm:block">Main Site</a>
+        <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="border border-lime/30 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-widest text-lime transition hover:border-lime hover:bg-lime/10">Enter Core</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="px-4 pb-14 pt-20 sm:px-6 lg:pb-20 lg:pt-24">
+      <div class="mx-auto max-w-7xl">
+        <div class="mb-8 inline-flex items-center gap-2 rounded-full border border-lime/20 bg-lime/5 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.28em] text-lime">
+          Live settled ledger // No deleted signals // No fake grading
+        </div>
+        <div class="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+          <div>
+            <h1 class="text-[clamp(3.2rem,12vw,8rem)] font-black uppercase leading-[0.84] tracking-[-0.07em] text-white">
+              The Ledger<br />
+              <span class="text-lime">Doesn't Delete.</span>
+            </h1>
+            <p class="mt-8 max-w-3xl font-mono text-sm uppercase leading-7 text-white/55 sm:text-base">
+              Every settled signal is archived as a receipt. Wins stay. Losses stay. ROI stays visible. This is proof discipline, not tipster theatre.
+            </p>
+          </div>
+          <div class="border border-lime/20 bg-lime/5 p-6 shadow-terminal">
+            <div class="font-mono text-[10px] uppercase tracking-[0.32em] text-lime">Current strongest lane</div>
+            <div class="mt-5 grid grid-cols-2 gap-3 font-mono">
+              <div class="border border-white/5 bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Lane</div><div class="mt-2 text-xl font-black text-white">Bet365 S-Tier</div></div>
+              <div class="border border-white/5 bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Flat ROI</div><div class="mt-2 text-3xl font-black text-lime">+31.55%</div></div>
+              <div class="border border-white/5 bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Ideas</div><div class="mt-2 text-3xl font-black">13</div></div>
+              <div class="border border-white/5 bg-ink p-4"><div class="text-[10px] uppercase text-white/30">W / L</div><div class="mt-2 text-3xl font-black">5 / 8</div></div>
+            </div>
+            <p class="mt-5 font-mono text-[11px] uppercase leading-6 text-white/35">High odds mean the lane does not need a 50%+ hit rate to be profitable. At 3.490 average odds, break-even is 28.65%.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="border-y border-white/5 bg-panel/25 px-4 py-12 sm:px-6">
+      <div class="mx-auto grid max-w-7xl gap-4 md:grid-cols-3">
+        <article class="border border-white/5 bg-ink p-6 shadow-terminal">
+          <div class="font-mono text-[10px] uppercase tracking-[0.24em] text-white/30">Full live vault</div>
+          <div class="mt-6 grid grid-cols-2 gap-px border border-white/5 bg-white/5 font-mono">
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Settled</div><div class="mt-1 text-3xl font-black">44</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">W/L</div><div class="mt-1 text-3xl font-black">16/28</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Avg odds</div><div class="mt-1 text-3xl font-black">2.845</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">ROI</div><div class="mt-1 text-3xl font-black text-white/80">-0.12%</div></div>
+          </div>
+          <p class="mt-5 font-mono text-[11px] uppercase leading-6 text-white/35">Full scanner includes research and calibration lanes. It is shown for transparency, not sold raw.</p>
+        </article>
+
+        <article class="border border-lime/25 bg-lime/5 p-6 shadow-terminal">
+          <div class="font-mono text-[10px] uppercase tracking-[0.24em] text-lime">Bet365 live history</div>
+          <div class="mt-6 grid grid-cols-2 gap-px border border-white/5 bg-white/5 font-mono">
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Settled</div><div class="mt-1 text-3xl font-black">31</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">W/L</div><div class="mt-1 text-3xl font-black">12/19</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Units</div><div class="mt-1 text-3xl font-black text-lime">+6.457u</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">ROI</div><div class="mt-1 text-3xl font-black text-lime">+20.83%</div></div>
+          </div>
+          <p class="mt-5 font-mono text-[11px] uppercase leading-6 text-white/45">12 wins. 19 losses. Still positive because average odds are 3.202 and break-even is 31.23%.</p>
+        </article>
+
+        <article class="border border-cyan/20 bg-cyan/5 p-6 shadow-terminal">
+          <div class="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">Bet365 S-Tier filter</div>
+          <div class="mt-6 grid grid-cols-2 gap-px border border-white/5 bg-white/5 font-mono">
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Settled</div><div class="mt-1 text-3xl font-black">13</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">W/L</div><div class="mt-1 text-3xl font-black">5/8</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Avg odds</div><div class="mt-1 text-3xl font-black">3.490</div></div>
+            <div class="bg-ink p-4"><div class="text-[10px] uppercase text-white/30">Units</div><div class="mt-1 text-3xl font-black text-lime">+4.101u</div></div>
+          </div>
+          <p class="mt-5 font-mono text-[11px] uppercase leading-6 text-white/45">This is the cleaner paid-feed candidate: fewer signals, higher price, stronger ROI.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="px-4 py-16 sm:px-6 lg:py-24">
+      <div class="mx-auto max-w-7xl">
+        <div class="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.35em] text-lime">Recent Signal Receipts</div>
+            <h2 class="mt-4 text-4xl font-black uppercase tracking-tight sm:text-5xl">Settled. Archived. Visible.</h2>
+          </div>
+          <div class="font-mono text-[10px] uppercase tracking-[0.24em] text-white/35">Last static update: 2026-05-20 17:45 UTC</div>
+        </div>
+
+        <div class="overflow-hidden rounded-xl border border-white/10 bg-panel2 shadow-terminal">
+          <div class="border-b border-white/5 bg-white/5 px-6 py-4 font-mono text-[10px] uppercase text-white/50">proof_vault.recent_settled_receipts</div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[980px] text-left font-mono text-[11px]">
+              <thead>
+                <tr class="border-b border-white/5 text-white/25 uppercase">
+                  <th class="px-5 py-4 font-normal">Match</th>
+                  <th class="px-5 py-4 font-normal">Lane</th>
+                  <th class="px-5 py-4 font-normal">Book</th>
+                  <th class="px-5 py-4 font-normal">Target</th>
+                  <th class="px-5 py-4 font-normal">Score</th>
+                  <th class="px-5 py-4 font-normal">Odds</th>
+                  <th class="px-5 py-4 font-normal">Result</th>
+                  <th class="px-5 py-4 font-normal">Units</th>
+                </tr>
+              </thead>
+              <tbody class="text-white/70">
+                <tr class="border-b border-white/[0.03]"><td class="px-5 py-4 font-bold">T. Schoolkate vs Dar. Blanch</td><td class="px-5 py-4 text-white/45">Research P2 GS</td><td class="px-5 py-4">bet365</td><td class="px-5 py-4 text-cyan">2:6 / 4:6</td><td class="px-5 py-4">4:6</td><td class="px-5 py-4">3.167</td><td class="px-5 py-4 text-lime font-black">WIN</td><td class="px-5 py-4 text-lime">+2.167u</td></tr>
+                <tr class="border-b border-white/[0.03]"><td class="px-5 py-4 font-bold">Y. Starodubtseva vs A. Kalinina</td><td class="px-5 py-4 text-white/45">Core Mirror WTA</td><td class="px-5 py-4">bet365</td><td class="px-5 py-4 text-cyan">6:3 / 6:4 / 7:5</td><td class="px-5 py-4">3:6</td><td class="px-5 py-4">3.391</td><td class="px-5 py-4 text-red font-black">LOSS</td><td class="px-5 py-4 text-red">-1.000u</td></tr>
+                <tr class="border-b border-white/[0.03]"><td class="px-5 py-4 font-bold">G. Cadenasso vs L. Riedi</td><td class="px-5 py-4 text-white/45">Comfort Favorite</td><td class="px-5 py-4">1xBet</td><td class="px-5 py-4 text-cyan">P2 first set</td><td class="px-5 py-4">7:6</td><td class="px-5 py-4">1.620</td><td class="px-5 py-4 text-red font-black">LOSS</td><td class="px-5 py-4 text-red">-1.000u</td></tr>
+                <tr class="border-b border-white/[0.03]"><td class="px-5 py-4 font-bold">N. Budkov Kjaer vs T. Gentzsch</td><td class="px-5 py-4 text-white/45">Core ATP GS</td><td class="px-5 py-4">bet365</td><td class="px-5 py-4 text-cyan">6:3 / 6:4</td><td class="px-5 py-4">6:7</td><td class="px-5 py-4">2.727</td><td class="px-5 py-4 text-red font-black">LOSS</td><td class="px-5 py-4 text-red">-1.000u</td></tr>
+                <tr class="border-b border-white/[0.03]"><td class="px-5 py-4 font-bold">J. J. Schwaerzler vs R. Safiullin</td><td class="px-5 py-4 text-white/45">Comfort Favorite</td><td class="px-5 py-4">1xBet</td><td class="px-5 py-4 text-cyan">P2 first set</td><td class="px-5 py-4">4:6</td><td class="px-5 py-4">1.640</td><td class="px-5 py-4 text-lime font-black">WIN</td><td class="px-5 py-4 text-lime">+0.640u</td></tr>
+                <tr class="border-b border-white/[0.03]"><td class="px-5 py-4 font-bold">P. Boscardin Dias vs A. Galarneau</td><td class="px-5 py-4 text-white/45">VIP P1 ATP GS</td><td class="px-5 py-4">bet365</td><td class="px-5 py-4 text-cyan">6:3 / 6:4</td><td class="px-5 py-4">6:4</td><td class="px-5 py-4">3.333</td><td class="px-5 py-4 text-lime font-black">WIN</td><td class="px-5 py-4 text-lime">+2.333u</td></tr>
+                <tr><td class="px-5 py-4 font-bold">P. Boscardin Dias vs A. Galarneau</td><td class="px-5 py-4 text-white/45">Core P1 ATP GS</td><td class="px-5 py-4">bet365</td><td class="px-5 py-4 text-cyan">6:3 / 6:4</td><td class="px-5 py-4">6:4</td><td class="px-5 py-4">3.429</td><td class="px-5 py-4 text-lime font-black">WIN</td><td class="px-5 py-4 text-lime">+2.429u</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="border-y border-white/5 bg-panel/25 px-4 py-16 sm:px-6">
+      <div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-2">
+        <div class="border border-white/5 bg-ink p-8 shadow-terminal">
+          <div class="font-mono text-[10px] uppercase tracking-[0.35em] text-lime">Proof Rules</div>
+          <h3 class="mt-4 text-3xl font-black uppercase tracking-tight">One target. One result. One receipt.</h3>
+          <div class="mt-7 space-y-4 font-mono text-sm uppercase leading-7 text-white/45">
+            <p>One match plus one strategy plus one target equals one settled idea.</p>
+            <p>Wins are not separated from losses. Both remain visible.</p>
+            <p>Research lanes are shown for transparency but not treated as paid-feed proof.</p>
+          </div>
+        </div>
+        <div class="border border-lime/20 bg-lime/5 p-8 shadow-terminal">
+          <div class="font-mono text-[10px] uppercase tracking-[0.35em] text-lime">Price Intelligence</div>
+          <h3 class="mt-4 text-3xl font-black uppercase tracking-tight">Win rate alone is not the story.</h3>
+          <div class="mt-7 space-y-4 font-mono text-sm uppercase leading-7 text-white/50">
+            <p>At 3.202 average odds, Bet365 needs about 31.23% to break even.</p>
+            <p>The current Bet365 live history is 38.71%, which is why it is positive despite more losses than wins.</p>
+            <p>No guarantees. No locks. No risk-free language. Just receipts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="px-4 py-16 text-center sm:px-6 lg:py-24">
+      <div class="mx-auto max-w-4xl">
+        <div class="font-mono text-[10px] uppercase tracking-[0.4em] text-lime">Watch the ledger first</div>
+        <h2 class="mt-5 text-4xl font-black uppercase tracking-tight sm:text-6xl">Then enter the terminal.</h2>
+        <p class="mx-auto mt-6 max-w-2xl font-mono text-sm uppercase leading-7 text-white/45">The free vault proves the standard. Core and Quant unlock live private access through Whop.</p>
+        <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="w-full bg-lime px-8 py-5 text-center font-mono text-sm font-black uppercase tracking-widest text-ink shadow-glow transition hover:-translate-y-1 sm:w-auto">Enter Core Terminal</a>
+          <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="w-full border border-white/10 px-8 py-5 text-center font-mono text-sm font-black uppercase tracking-widest text-white transition hover:-translate-y-1 hover:border-cyan/50 hover:bg-cyan/5 sm:w-auto">Unlock Quant Terminal</a>
+        </div>
+        <p class="mt-8 font-mono text-[10px] uppercase tracking-[0.24em] text-white/25">18+ only. Sports analytics and decision-support. Historical results are not guarantees.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
