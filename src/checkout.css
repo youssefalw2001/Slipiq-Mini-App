@@ -1,0 +1,69 @@
+.checkout-screen {
+  gap: 16px;
+}
+
+.checkout-hero-card {
+  display: grid;
+  gap: 12px;
+  border-color: rgba(46, 213, 115, 0.28);
+  background: linear-gradient(145deg, rgba(15, 15, 34, 0.98), rgba(4, 4, 11, 0.98));
+}
+
+.checkout-tier-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.checkout-tier-card {
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.checkout-tier-card--core {
+  border-color: rgba(78, 205, 196, 0.32);
+}
+
+.checkout-tier-card--quant {
+  border-color: rgba(255, 215, 0, 0.42);
+  background: linear-gradient(145deg, rgba(24, 21, 6, 0.98), rgba(4, 4, 11, 0.98));
+}
+
+.checkout-price {
+  color: var(--accent-gold);
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.checkout-feature-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout-feature-list li {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 9px 10px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 12px;
+}
+
+.checkout-feature-list li::before {
+  content: '+';
+  margin-right: 8px;
+  color: var(--accent-green);
+}
+
+.checkout-note-card {
+  border-style: dashed;
+  border-color: rgba(255, 215, 0, 0.28);
+}
+
+.small {
+  font-size: 11px;
+}
