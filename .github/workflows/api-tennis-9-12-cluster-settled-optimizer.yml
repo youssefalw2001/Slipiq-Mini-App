@@ -84,6 +84,17 @@ jobs:
             --risk-pct='${{ github.event.inputs.risk_pct }}' \
             --random-seed='${{ github.event.inputs.random_seed }}'
 
+      - name: Run 9-12 confidence optimizer
+        shell: bash
+        run: |
+          python scripts/api_tennis_9_12_confidence_optimizer.py \
+            --first-set-wide='${{ steps.locate.outputs.first_set }}' \
+            --moneyline='${{ steps.locate.outputs.moneyline }}' \
+            --out=artifacts/output/api-tennis-9-12-confidence-optimizer \
+            --start-bankroll='${{ github.event.inputs.start_bankroll }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct }}' \
+            --random-seed='${{ github.event.inputs.random_seed }}'
+
       - name: Upload settled-only optimizer artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -93,4 +104,9 @@ jobs:
             artifacts/output/api-tennis-9-12-cluster-settled-optimizer/settled_only_results.csv
             artifacts/output/api-tennis-9-12-cluster-settled-optimizer/settled_only_summary.json
             artifacts/output/api-tennis-9-12-cluster-settled-optimizer/settled_only_report.md
+            artifacts/output/api-tennis-9-12-confidence-optimizer/confidence_results.csv
+            artifacts/output/api-tennis-9-12-confidence-optimizer/confidence_buckets.csv
+            artifacts/output/api-tennis-9-12-confidence-optimizer/confidence_bets.csv
+            artifacts/output/api-tennis-9-12-confidence-optimizer/confidence_summary.json
+            artifacts/output/api-tennis-9-12-confidence-optimizer/confidence_report.md
           if-no-files-found: warn
