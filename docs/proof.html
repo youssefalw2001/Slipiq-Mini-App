@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>First Set Lab // Bet365 Proof Vault</title>
-  <meta name="description" content="First Set Lab Bet365 Proof Vault: live tennis first-set receipts, grouped ledger, exact-score receipt lens, signal-day balance, and no-deletion settlement discipline." />
+  <meta name="description" content="First Set Lab Bet365 Proof Vault: live tennis first-set receipts, grouped ledger, exact-score receipt lens, and no-deletion settlement discipline." />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -29,7 +29,7 @@
             terminal: '0 0 0 1px rgba(255,255,255,.05), 0 20px 50px rgba(0,0,0,.6)',
             neon: '0 0 30px rgba(198,239,0,.15)',
             cyanGlow: '0 0 30px rgba(0,240,255,.15)',
-            goldGlow: '0 0 34px rgba(245,158,11,.14)'
+            goldGlow: '0 0 38px rgba(245,158,11,.18)'
           }
         }
       }
@@ -43,8 +43,9 @@
     ::selection { background-color: #C6EF00; color: #06090F; }
     .grid-bg { background-image: linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px); background-size: 24px 24px; }
     .number-glow { text-shadow: 0 0 28px rgba(198,239,0,.26); }
+    .gold-glow { text-shadow: 0 0 32px rgba(245,158,11,.35); }
     .receipt-scan { position: relative; overflow: hidden; }
-    .receipt-scan::after { content: ''; position: absolute; inset: -80% -20%; background: linear-gradient(110deg, transparent 44%, rgba(198,239,0,.08) 50%, transparent 56%); transform: translateX(-80%); animation: scan 5.5s infinite; pointer-events:none; }
+    .receipt-scan::after { content: ''; position: absolute; inset: -80% -20%; background: linear-gradient(110deg, transparent 44%, rgba(245,158,11,.10) 50%, transparent 56%); transform: translateX(-80%); animation: scan 5.5s infinite; pointer-events:none; }
     @keyframes scan { 0%, 70% { transform: translateX(-90%); } 100% { transform: translateX(90%); } }
     details summary::-webkit-details-marker { display: none; }
   </style>
@@ -63,7 +64,7 @@
           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75"></span>
           <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime"></span>
         </span>
-        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/90">FSL // BET365_VAULT_ACTIVE</span>
+        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/90">FSL // BET365_RECEIPT_VAULT</span>
       </div>
       <div class="flex items-center gap-2">
         <a href="/" class="hidden border border-white/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-white/50 transition hover:border-white/30 hover:text-white sm:block">Main</a>
@@ -79,16 +80,16 @@
         <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40">
           <span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span>
           <span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span>
-          <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Live Supabase receipts</span>
+          <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Live receipts</span>
           <span class="rounded border border-cyan/20 bg-cyan/5 px-2 py-0.5 text-cyan">Bet365 only</span>
         </div>
         <h1 class="text-5xl font-black uppercase leading-[0.85] tracking-[-0.06em] sm:text-6xl">
-          BET365<br />
-          <span class="text-lime number-glow">PROOF</span><br />
+          RECEIPT<br />
+          <span class="text-gold gold-glow">VALUE</span><br />
           <span class="text-lime number-glow">VAULT.</span>
         </h1>
         <p class="pt-4 font-mono text-xs uppercase leading-5 text-white/55">
-          This page tracks the public Bet365 proof lane only. Every Bet365 signal becomes a receipt — wins, losses, American odds, settlement, and signal-day balance movement included.
+          First Set Lab tracks the Bet365 first-set proof lane. When a score cluster lands, the vault shows the exact winning-score receipt price next to the official grouped ledger.
         </p>
       </div>
 
@@ -113,19 +114,29 @@
       </div>
     </section>
 
-    <section class="space-y-6" id="live-vault">
-      <div class="border-l-2 border-lime pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Latest Signal-Day Balance</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Each Day Starts At $1,000</h2>
+    <section class="space-y-6" id="receipt-value">
+      <div class="border-l-2 border-gold pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Best Receipt Value</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">The Score That Paid</h2>
       </div>
       <p class="font-mono text-[11px] uppercase leading-5 text-white/45">
-        The top balance starts at $1,000 at the beginning of the latest Bet365 signal day. It updates only from settled Bet365 signals on that date. Full settled counts still show the complete Bet365 vault.
+        This is a receipt-value lens. It shows what the exact winning-score price represented when a Bet365 cluster landed. Official grouped grading remains visible below for trust.
       </p>
 
-      <div class="receipt-scan rounded-2xl border border-lime/30 bg-lime/5 p-5 font-mono shadow-neon">
-        <div class="text-[9px] font-bold uppercase tracking-widest text-lime">Latest day official balance</div>
-        <div id="officialBalance" class="mt-2 text-5xl font-black tracking-[-0.06em] text-lime number-glow">$--</div>
-        <div id="balanceMeta" class="mt-2 text-[10px] uppercase tracking-wider text-white/45">Starting bank $1,000 // 1u = $10</div>
+      <div class="receipt-scan rounded-2xl border border-gold/30 bg-gold/5 p-5 font-mono shadow-goldGlow">
+        <div class="text-[9px] font-bold uppercase tracking-widest text-gold">$200 receipt value model</div>
+        <div id="receiptValueProfit" class="mt-2 text-5xl font-black tracking-[-0.06em] text-gold gold-glow">+$--</div>
+        <div id="receiptValueMeta" class="mt-2 text-[10px] uppercase tracking-wider text-white/50">Loading receipt value...</div>
+        <div class="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase">
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Score</div><div id="bestReceiptScore" class="mt-1 text-white font-bold">--</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Odds</div><div id="bestReceiptOdds" class="mt-1 text-gold font-black">--</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Return</div><div id="receiptValueReturn" class="mt-1 text-lime font-black">$--</div></div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-white/10 bg-panel p-5 font-mono">
+        <div class="text-[9px] font-bold uppercase tracking-widest text-white/35">Best receipt match</div>
+        <div id="bestReceiptMatch" class="mt-2 text-lg font-black uppercase leading-tight text-white">Loading best receipt...</div>
       </div>
 
       <div class="grid grid-cols-2 gap-2 font-mono">
@@ -149,28 +160,18 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-gold/30 bg-gold/5 p-5 font-mono shadow-goldGlow">
-        <div class="text-[9px] font-bold uppercase tracking-widest text-gold">Best exact-score receipt</div>
-        <div id="bestReceiptMatch" class="mt-3 text-lg font-black uppercase leading-tight text-white">Loading best receipt...</div>
-        <div class="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase">
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Score</div><div id="bestReceiptScore" class="mt-1 text-white font-bold">--</div></div>
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Odds</div><div id="bestReceiptOdds" class="mt-1 text-gold font-black">--</div></div>
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Units</div><div id="bestReceiptUnits" class="mt-1 text-lime font-black">--</div></div>
-        </div>
-      </div>
-
       <div class="rounded border border-white/10 bg-panel2 p-4 font-mono text-[10px] uppercase leading-5 text-white/45">
-        <span class="text-lime">Simple read:</span> Official units grade the Bet365 score group exactly as sent. Receipt units use the exact winning-score price when it lands. Each date below shows whether a $1,000 day grew or lost.
+        <span class="text-gold">Simple read:</span> Receipt value creates the dopamine. Official units keep the vault honest. A $200 receipt model is not a guaranteed return — it is a clean value lens for the exact score that landed.
       </div>
     </section>
 
     <section class="space-y-6" id="bet365-ledger">
       <div class="border-l-2 border-gold pl-4">
         <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Bet365 Ledger By Date</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Daily Growth From $1,000</h2>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Daily Receipt Map</h2>
       </div>
       <p class="font-mono text-[11px] uppercase leading-5 text-white/45">
-        Each date starts with $1,000 and shows the official day balance, dollar growth, receipt units, and ROI for that day’s settled Bet365 signals.
+        Each date shows the settled Bet365 signals, official units, receipt units, and ROI. Wins stay. Losses stay.
       </p>
       <div id="receiptList" class="space-y-3">
         <div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading Bet365 date ledger...</div>
@@ -288,9 +289,9 @@
       <p class="font-bold text-white/40">18+ only // Responsible gambling utility</p>
       <p>Educational data analysis and decision-support. Sports market modeling contains inherent variance.</p>
       <p>Historical and live-tracked results do not guarantee future profit or certainty.</p>
-      <p>Daily balance is a transparent display model based on $1,000 starting bank and $10 units for each signal day.</p>
+      <p>Receipt value is a display lens using stored odds and a $200 example stake. It is not a guarantee or financial promise.</p>
       <p>Never risk funds required for basic livelihood. No locks. No guarantees.</p>
-      <p class="pt-4 text-white/20">First Set Lab // Bet365 Proof Vault v4.2</p>
+      <p class="pt-4 text-white/20">First Set Lab // Bet365 Receipt Vault v4.3</p>
     </div>
   </footer>
 
@@ -298,6 +299,7 @@
     const SUPABASE_URL = 'https://qjvpkkcbscsypymxyker.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_0EmM78iwc7vHitvHeon28Q_lCU8WCjl';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const RECEIPT_EXAMPLE_STAKE = 200;
 
     const $ = (id) => document.getElementById(id);
 
@@ -309,13 +311,13 @@
     function money(v) {
       const n = num(v);
       if (n === null) return '$--';
-      return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+      return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
     }
 
     function signedMoney(v) {
       const n = num(v);
       if (n === null) return '$--';
-      const abs = Math.abs(n).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+      const abs = Math.abs(n).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
       return `${n >= 0 ? '+' : '-'}${abs}`;
     }
 
@@ -357,17 +359,16 @@
       return 'text-cyan border-cyan/25 bg-cyan/5';
     }
 
-    function valueColor(n) {
-      return num(n) >= 0 ? 'text-lime' : 'text-red';
-    }
-
-    function renderSummary(summary, latestDay) {
+    function renderSummary(summary) {
       $('lastUpdated').textContent = dateShort(summary.last_updated);
       $('vaultStatus').textContent = 'Live';
 
-      const day = latestDay || {};
-      $('officialBalance').textContent = money(day.official_day_balance ?? summary.official_live_balance);
-      $('balanceMeta').textContent = `${dateLabel(day.event_date)} // starts ${money(day.starting_balance ?? 1000)} // official day growth ${signedMoney(day.official_day_growth_dollars ?? 0)}`;
+      const bestUnits = num(summary.best_receipt_profit_units) ?? 0;
+      const profit = bestUnits * RECEIPT_EXAMPLE_STAKE;
+      const totalReturn = profit + RECEIPT_EXAMPLE_STAKE;
+      $('receiptValueProfit').textContent = signedMoney(profit);
+      $('receiptValueReturn').textContent = money(totalReturn);
+      $('receiptValueMeta').textContent = `${money(RECEIPT_EXAMPLE_STAKE)} example stake // exact-score receipt lens // not a guarantee`;
 
       $('settledSignals').textContent = summary.settled_signals ?? '--';
       $('wins').textContent = summary.wins ?? '--';
@@ -379,7 +380,6 @@
       $('bestReceiptMatch').textContent = summary.best_receipt_match || 'No winning receipt yet';
       $('bestReceiptScore').textContent = summary.best_receipt_score || '--';
       $('bestReceiptOdds').textContent = american(summary.best_receipt_american_odds);
-      $('bestReceiptUnits').textContent = signedUnits(summary.best_receipt_profit_units);
     }
 
     function receiptCard(row) {
@@ -433,7 +433,6 @@
         const wins = day.wins ?? dayRows.filter((r) => r.display_status === 'WIN').length;
         const losses = day.losses ?? dayRows.filter((r) => r.display_status === 'LOSS').length;
         const open = dayRows.filter((r) => r.display_status === 'OPEN').length;
-        const growthClass = valueColor(day.official_day_growth_dollars ?? 0);
         return `
           <details ${index < 2 ? 'open' : ''} class="rounded-xl border border-white/10 bg-panel2 p-3 shadow-terminal">
             <summary class="cursor-pointer font-mono uppercase">
@@ -448,10 +447,10 @@
                 </div>
               </div>
               <div class="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-                <div class="rounded border border-white/5 bg-ink/70 p-3">
-                  <div class="text-white/30">Official day</div>
-                  <div class="mt-1 font-black ${growthClass}">${money(day.official_day_balance ?? 1000)}</div>
-                  <div class="mt-1 text-white/35">Growth ${signedMoney(day.official_day_growth_dollars ?? 0)}</div>
+                <div class="rounded border border-lime/20 bg-lime/5 p-3">
+                  <div class="text-lime/70">Official day</div>
+                  <div class="mt-1 font-black text-lime">${signedUnits(day.official_profit_units ?? 0)}</div>
+                  <div class="mt-1 text-white/35">ROI ${pct(day.official_roi_pct ?? 0)}</div>
                 </div>
                 <div class="rounded border border-gold/20 bg-gold/5 p-3">
                   <div class="text-gold/70">Receipt lens</div>
@@ -483,7 +482,7 @@
           .order('event_date', { ascending: false });
         if (dailyError) throw dailyError;
 
-        renderSummary(summary, (dailyRows || [])[0]);
+        renderSummary(summary);
 
         const { data: receipts, error: receiptsError } = await db
           .from('proof_vault_recent_receipts')
