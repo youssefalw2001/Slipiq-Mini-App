@@ -113,17 +113,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CORE_CHAT_ID: ${{ secrets.TELEGRAM_CORE_CHAT_ID }}
           TELEGRAM_VIP_CHAT_ID: ${{ secrets.TELEGRAM_VIP_CHAT_ID }}
-          ENABLE_LIVE_TELEGRAM_SEND: ${{ secrets.ENABLE_LIVE_TELEGRAM_SEND }}
           MANUAL_SEND_TELEGRAM: ${{ github.event.inputs.send_telegram }}
           REQUIRE_SUPABASE_FOR_SEND: 'true'
         shell: bash
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
-            if [ "${ENABLE_LIVE_TELEGRAM_SEND}" = "true" ]; then
-              EFFECTIVE_SEND_TELEGRAM=true
-            else
-              EFFECTIVE_SEND_TELEGRAM=false
-            fi
+            EFFECTIVE_SEND_TELEGRAM=true
           else
             EFFECTIVE_SEND_TELEGRAM="${MANUAL_SEND_TELEGRAM:-true}"
           fi
