@@ -3,96 +3,367 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>First Set Lab | Live Proof Vault</title>
+  <title>First Set Lab // System Proof Vault</title>
+  <meta name="description" content="First Set Lab: The immutable ledger. Tennis first-set price-intelligence data pipelines. Every signal becomes a public receipt." />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            ink: '#06090F',
+            panel: '#0D111A',
+            panelLight: '#161F30',
+            lime: '#C6EF00',
+            cyan: '#00F0FF',
+            green: '#10B981',
+            red: '#EF4444'
+          },
+          boxShadow: {
+            terminal: '0 0 0 1px rgba(255,255,255,.05), 0 20px 50px rgba(0,0,0,.6)',
+            neon: '0 0 30px rgba(198,239,0,.15)',
+            cyanGlow: '0 0 30px rgba(0,240,255,.15)'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
-    body { background:#080B11; color:white; }
-    .neon-glow { text-shadow: 0 0 10px rgba(198,239,0,0.5); }
-    .border-glow { border: 1px solid rgba(198,239,0,0.2); box-shadow: 0 0 15px rgba(198,239,0,0.05); }
+    body { background-color: #06090F; color: #ffffff; overflow-x: hidden; }
+    ::selection { background-color: #C6EF00; color: #06090F; }
+    .grid-bg { background-image: linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px); background-size: 24px 24px; }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="font-mono antialiased bg-ink text-white selection:bg-lime selection:text-ink">
+<body class="font-sans antialiased text-white selection:bg-lime selection:text-ink">
 
-  <!-- Header: Authority Section -->
-  <header class="border-b border-white/10 bg-panel/50 backdrop-blur-md sticky top-0 z-50">
-    <nav class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <div class="h-3 w-3 rounded-full bg-lime animate-pulse"></div>
-        <span class="text-xs tracking-[0.3em] uppercase text-white/70">System Live // <span class="text-lime">Synced</span></span>
+  <!-- Background Layer -->
+  <div class="fixed inset-0 -z-10 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,240,255,0.08),transparent_45%),radial-gradient(circle_at_0%_50%,rgba(198,239,0,0.05),transparent_35%)]"></div>
+    <div class="absolute inset-0 grid-bg opacity-70"></div>
+  </div>
+
+  <!-- Sticky Live System Header -->
+  <header class="sticky top-0 z-50 border-b border-white/5 bg-ink/80 backdrop-blur-xl">
+    <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <div class="flex items-center gap-3">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-lime"></span>
+        </span>
+        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/90">FSL // VAULT_LOG_ACTIVE</span>
       </div>
-      <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="bg-lime text-ink px-6 py-2 text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform">Access Terminal</a>
+      <div class="flex items-center gap-2">
+        <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="border border-lime/30 bg-lime/5 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-lime transition hover:bg-lime hover:text-ink">Core Access</a>
+      </div>
     </nav>
   </header>
 
-  <main class="max-w-7xl mx-auto px-6 py-16">
-    <!-- Hero: The Hook -->
-    <section class="grid lg:grid-cols-2 gap-12 items-center mb-24">
-      <div>
-        <h1 class="text-[clamp(3rem,8vw,6rem)] font-black uppercase leading-none mb-8">
-          Edge <span class="text-lime">Defined</span><br />By Data.
+  <!-- Main Content Sequence (Record-Optimized Layout) -->
+  <main class="mx-auto max-w-xl px-4 py-8 space-y-24 sm:px-6">
+
+    <!-- SCENE 1: HERO CONTAINER -->
+    <section class="min-h-[75vh] flex flex-col justify-center pt-6">
+      <div class="space-y-3">
+        <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40">
+          <span class="border border-white/10 px-2 py-0.5 bg-white/5 rounded">18+ ONLY</span>
+          <span class="border border-red/20 text-red/80 px-2 py-0.5 bg-red/5 rounded">NO GUARANTEES</span>
+          <span class="border border-lime/20 text-lime px-2 py-0.5 bg-lime/5 rounded">BET365 PROOF LANE</span>
+        </div>
+        <h1 class="text-5xl font-black uppercase leading-[0.85] tracking-[-0.06em] sm:text-6xl">
+          THE LEDGER<br />
+          <span class="text-lime text-glow">DOESN'T</span><br />
+          <span class="text-lime text-glow">DELETE.</span>
         </h1>
-        <p class="text-white/60 leading-relaxed mb-10 max-w-lg">
-          The public ledger doesn't hide losses. It displays the raw performance of our Bet365 derivative models. We don't sell "locks"—we sell transparent, high-ROI math.
+        <p class="pt-4 font-mono text-xs uppercase leading-5 text-white/50">
+          First Set Lab tracks tennis first-set price patterns. Every single signal becomes an permanent receipt — wins, losses, odds, and settlement included.
         </p>
-        <div class="flex gap-4">
-          <div class="border border-lime/30 p-4 w-40">
-            <div class="text-[10px] text-lime uppercase">Global ROI</div>
-            <div class="text-2xl font-black">+20.83%</div>
+      </div>
+
+      <!-- Quick Action Dashboard -->
+      <div class="mt-8 space-y-3">
+        <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="flex items-center justify-between border border-lime bg-lime px-5 py-4 font-mono text-xs font-bold uppercase tracking-widest text-ink shadow-neon transition active:scale-[0.98]">
+          <span>[01] ENTER CORE TERMINAL</span>
+          <span>&rarr;</span>
+        </a>
+        <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="flex items-center justify-between border border-cyan/30 bg-cyan/5 px-5 py-4 font-mono text-xs font-bold uppercase tracking-widest text-cyan shadow-cyanGlow transition active:scale-[0.98] hover:border-cyan">
+          <span>[02] UNLOCK QUANT TERMINAL</span>
+          <span>&rarr;</span>
+        </a>
+      </div>
+    </section>
+
+
+    <!-- SCENE 2: THE MARKET MOST BETTORS IGNORE -->
+    <section class="space-y-6">
+      <div class="border-l-2 border-lime pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Market Structural Split</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">The Blind Spot</h2>
+      </div>
+      <p class="font-mono text-xs uppercase leading-5 text-white/50">
+        Most bettors lock their eyes onto standard outright structures. We map exact set-shape geometry.
+      </p>
+
+      <div class="grid grid-cols-2 gap-3 font-mono text-[11px]">
+        <!-- Old retail path -->
+        <div class="border border-white/5 bg-panel p-4 rounded-lg opacity-40">
+          <div class="text-[9px] uppercase text-white/40">Retail Focus</div>
+          <div class="mt-2 text-base font-bold text-white">1st Set Winner</div>
+          <div class="mt-4 border-t border-white/5 pt-2 flex justify-between">
+            <span>Price Index</span>
+            <span class="font-bold text-red">1.58</span>
           </div>
-          <div class="border border-white/10 p-4 w-40">
-            <div class="text-[10px] text-white/30 uppercase">Settled</div>
-            <div class="text-2xl font-black">31</div>
+          <div class="mt-1 text-[9px] text-white/30 uppercase">High Market Efficiency</div>
+        </div>
+
+        <!-- Alpha Lane -->
+        <div class="border border-cyan/30 bg-cyan/5 p-4 rounded-lg shadow-cyanGlow">
+          <div class="text-[9px] uppercase text-cyan font-bold tracking-wider">FSL Alpha Engine</div>
+          <div class="mt-2 text-base font-bold text-white">Score Group Matrix</div>
+          <div class="mt-4 border-t border-cyan/10 pt-2 flex justify-between">
+            <span>Group Odds</span>
+            <span class="font-bold text-cyan">3.50</span>
           </div>
+          <div class="mt-1 text-[9px] text-cyan/50 uppercase">Exploitable Discrepancy</div>
         </div>
       </div>
-      
-      <!-- Visual Proof Table -->
-      <div class="border-glow bg-panel/30 p-6">
-        <div class="flex justify-between items-center mb-6">
-          <span class="text-[10px] uppercase text-white/40 tracking-widest">Recent Receipt Stream</span>
-          <span class="text-[10px] text-lime">● Auto-Update Active</span>
+
+      <div class="border border-white/5 bg-panel p-4 text-center font-mono text-[11px] uppercase tracking-wide text-white/70">
+        “The edge is not just who wins the set. The edge is whether the set lands inside a priced score band.”
+      </div>
+    </section>
+
+
+    <!-- SCENE 3: HOW THE SIGNAL WORKS (3-STEP GRAPHIC) -->
+    <section class="space-y-6">
+      <div class="border-l-2 border-cyan pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Pipeline Architecture</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Data to Receipt Pipeline</h2>
+      </div>
+
+      <!-- Flow Execution Blocks -->
+      <div class="space-y-2 font-mono text-[11px]">
+        <div class="flex items-center gap-4 border border-white/5 bg-panel p-3">
+          <span class="text-white/30 font-bold">01</span>
+          <span class="uppercase tracking-wider text-white/80">Continuous Scanning of Derivative Court Inputs</span>
         </div>
-        <div class="space-y-4">
-          <!-- Row Example -->
-          <div class="grid grid-cols-[2fr,1fr,1fr] items-center border-b border-white/5 pb-4">
-            <div><div class="text-[11px] font-bold">Schoolkate vs Blanch</div><div class="text-[9px] text-white/30">Research P2 GS</div></div>
-            <div class="text-right text-lime font-bold">+2.167u</div>
-            <div class="text-right text-[10px] text-lime font-black uppercase">Win</div>
+        <div class="flex items-center gap-4 border border-white/5 bg-panel p-3">
+          <span class="text-cyan font-bold">02</span>
+          <span class="uppercase tracking-wider text-cyan">Isolate Under-Priced First-Set Score Bands</span>
+        </div>
+        <div class="flex items-center gap-4 border border-lime/30 bg-lime/5 p-3">
+          <span class="text-lime font-bold">03</span>
+          <span class="uppercase tracking-wider text-lime">Automate Settlement Routing Direct to Public Vault</span>
+        </div>
+      </div>
+
+      <!-- Execution Interactive Cards -->
+      <div class="space-y-3 font-mono">
+        <!-- Live Alert State -->
+        <div class="border border-white/10 bg-panel p-5 rounded-xl shadow-terminal relative overflow-hidden">
+          <div class="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-cyan animate-pulse"></div>
+          <div class="text-[9px] uppercase tracking-widest text-cyan font-bold">SIGNAL GENERATED // UNSETTLED</div>
+          <div class="mt-4 grid grid-cols-2 gap-y-2 text-xs">
+            <span class="text-white/40 uppercase">Selection:</span><span class="font-bold text-white text-right">Player 1 (6-3 / 6-4)</span>
+            <span class="text-white/40 uppercase">Target Book:</span><span class="text-white text-right">Bet365 Core Terminal</span>
+            <span class="text-white/40 uppercase">Grouped Price:</span><span class="font-bold text-cyan text-right">3.50 Entry</span>
+            <span class="text-white/40 uppercase">Status:</span><span class="text-white/50 text-right uppercase tracking-wider animate-pulse">Awaiting Result...</span>
           </div>
-          <div class="grid grid-cols-[2fr,1fr,1fr] items-center border-b border-white/5 pb-4">
-            <div><div class="text-[11px] font-bold">Starodubtseva vs Kalinina</div><div class="text-[9px] text-white/30">Core Mirror WTA</div></div>
-            <div class="text-right text-red-500 font-bold">-1.000u</div>
-            <div class="text-right text-[10px] text-red-500 font-black uppercase">Loss</div>
+        </div>
+
+        <!-- Settled Receipt State -->
+        <div class="border border-lime/30 bg-lime/5 p-5 rounded-xl shadow-neon relative overflow-hidden">
+          <div class="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-lime"></div>
+          <div class="text-[9px] uppercase tracking-widest text-lime font-bold">SETTLED RECORD // IMMUTABLE</div>
+          <div class="mt-4 grid grid-cols-2 gap-y-2 text-xs">
+            <span class="text-white/40 uppercase">Result Verified:</span><span class="font-bold text-white text-right">Set 1 Cleared (6-4)</span>
+            <span class="text-white/40 uppercase">Execution:</span><span class="text-lime font-bold text-right uppercase">CASHED // RECEIPT ARCHIVED</span>
+            <span class="text-white/40 uppercase">Net Returns:</span><span class="font-black text-lime text-right">+2.50 Units</span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Trust Section -->
-    <section class="text-center py-16 border-t border-white/5">
-      <h2 class="text-3xl font-black uppercase mb-12">The Philosophy of Transparency</h2>
-      <div class="grid md:grid-cols-3 gap-8">
-        <div class="p-6 border border-white/5 hover:border-lime/30 transition-colors">
-          <div class="text-lime text-xl mb-4">01</div>
-          <h3 class="font-bold mb-2">Immutable</h3>
-          <p class="text-[12px] text-white/50">Receipts are logged. No deletions, no revisions, no bias.</p>
+
+    <!-- SCENE 4: PROOF VAULT LEDGER METRICS -->
+    <section class="space-y-6">
+      <div class="border-l-2 border-lime pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Data Integrity Node</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Published Vault Snapshot</h2>
+      </div>
+      <div class="rounded-lg border border-white/5 bg-panel p-2 font-mono text-[9px] uppercase text-white/40 text-center tracking-widest">
+        Audit Timestamp: 2026-05-20 17:45 UTC // Manual Ledger Compile
+      </div>
+
+      <!-- Core Telemetry Display -->
+      <div class="grid grid-cols-2 gap-2 font-mono">
+        <div class="border border-white/5 bg-panel p-4 rounded text-center">
+          <div class="text-[9px] uppercase text-white/40">Total Signals Logged</div>
+          <div class="mt-2 text-3xl font-black text-white">31</div>
         </div>
-        <div class="p-6 border border-white/5 hover:border-lime/30 transition-colors">
-          <div class="text-lime text-xl mb-4">02</div>
-          <h3 class="font-bold mb-2">High Odds</h3>
-          <p class="text-[12px] text-white/50">Our models thrive on 3.00+ odds where value variance is highest.</p>
+        <div class="border border-white/5 bg-panel p-4 rounded text-center">
+          <div class="text-[9px] uppercase text-white/40">Net Tracked ROI</div>
+          <div class="mt-2 text-3xl font-black text-lime tracking-tight">+20.83%</div>
         </div>
-        <div class="p-6 border border-white/5 hover:border-lime/30 transition-colors">
-          <div class="text-lime text-xl mb-4">03</div>
-          <h3 class="font-bold mb-2">Institutional</h3>
-          <p class="text-[12px] text-white/50">We treat every match as a mathematical derivative, not a "game."</p>
+        <div class="border border-white/5 bg-panel p-4 rounded text-center">
+          <div class="text-[9px] uppercase text-white/40">Verified Wins</div>
+          <div class="mt-1 text-xl font-bold text-lime">12 Wins</div>
+        </div>
+        <div class="border border-white/5 bg-panel p-4 rounded text-center">
+          <div class="text-[9px] uppercase text-white/40">Logged Losses</div>
+          <div class="mt-1 text-xl font-bold text-red">19 Losses</div>
+        </div>
+      </div>
+
+      <!-- Specific Matrix Overview -->
+      <div class="border border-white/10 bg-panel2 p-4 font-mono text-[11px] space-y-2 rounded-lg shadow-terminal">
+        <div class="flex justify-between border-b border-white/5 pb-2">
+          <span class="text-white/40 uppercase">Highest Yield Lane:</span>
+          <span class="font-bold text-cyan">Bet365 S-Tier Filter</span>
+        </div>
+        <div class="flex justify-between border-b border-white/5 pb-2">
+          <span class="text-white/40 uppercase">S-Tier Lane Flat ROI:</span>
+          <span class="font-bold text-lime">+31.55% (5 W / 8 L)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/40 uppercase">Average Capture Price:</span>
+          <span class="text-white font-bold">3.202 Odds Matrix</span>
+        </div>
+      </div>
+      <p class="font-mono text-[10px] text-center uppercase leading-4 text-white/30">
+        Mathematical Context: Due to high-odds pricing models, break-even requires just 31.23% accuracy. Current tracking outpaces index barriers.
+      </p>
+    </section>
+
+
+    <!-- SCENE 5: WHY LOSSES STAY -->
+    <section class="border border-red/30 bg-red/5 p-6 rounded-2xl shadow-terminal space-y-4">
+      <div class="flex items-center gap-2 font-mono text-[10px] uppercase font-bold text-red tracking-widest">
+        <span>⚠️</span>
+        <span>Anti-Deception Standard</span>
+      </div>
+      <h3 class="text-3xl font-black uppercase tracking-tight leading-none text-white">
+        WHY LOSSES<br />STAY VISIBLE.
+      </h3>
+      <p class="font-mono text-xs uppercase leading-5 text-white/70">
+        Most retail channels wipe clean their losing histories to manipulate conversion metrics. 
+      </p>
+      <div class="border-t border-white/10 pt-3 font-mono text-xs uppercase leading-relaxed text-lime">
+        “We convert systemic losses into optimization data. The architecture only holds enterprise utility when the full ledger stays visible.”
+      </div>
+    </section>
+
+
+    <!-- SCENE 6: THE CLEANEST LANE -->
+    <section class="space-y-4">
+      <div class="border-l-2 border-lime pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Active Target Priority</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">The Current Focus Lane</h2>
+      </div>
+
+      <div class="border border-white/5 bg-panel p-5 rounded-xl space-y-3 font-mono text-xs">
+        <div class="flex justify-between"><span class="text-white/40 uppercase">League Filter:</span><span class="text-white font-bold">ATP / WTA Tier Outrights</span></div>
+        <div class="flex justify-between"><span class="text-white/40 uppercase">Execution Platform:</span><span class="text-white font-bold">Bet365 Derivative Engine</span></div>
+        <div class="flex justify-between"><span class="text-white/40 uppercase">Selected Models:</span><span class="text-cyan font-bold">First Set Score Groups (6-3/6-4)</span></div>
+        <div class="flex justify-between"><span class="text-white/40 uppercase">Target Odds Range:</span><span class="text-lime font-bold">3.00 &ndash; 3.50 Cluster Base</span></div>
+      </div>
+      <p class="font-mono text-[10px] text-center uppercase text-white/40 tracking-wide">
+        “Not every single signal holds identical weight. The cleaner the tracking lane, the cleaner the terminal receipt.”
+      </p>
+    </section>
+
+
+    <!-- SCENE 7: CONTENT RECORDER MODE (PRO-SCROLL CARDS) -->
+    <section class="space-y-6">
+      <div class="border-l-2 border-cyan pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Vertical Teleprompter Grid</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Content Engine Mode</h2>
+      </div>
+      <p class="font-mono text-[10px] uppercase tracking-wider text-white/40">
+        Slow-scroll this block during screen recording to capture seamless, high-retention typographic hooks:
+      </p>
+
+      <!-- Large Teleprompter Cards Stack -->
+      <div class="space-y-4 font-mono text-sm uppercase font-bold tracking-wider">
+        <div class="border border-white/10 bg-panelLight p-6 text-center text-white rounded">
+          “Most bettors ask who wins the tennis match.”
+        </div>
+        <div class="border border-cyan/30 bg-cyan/5 p-6 text-center text-cyan rounded shadow-cyanGlow">
+          “We model the exact geometric shape the first set lands in.”
+        </div>
+        <div class="border border-white/10 bg-panelLight p-6 text-center text-white/80 rounded">
+          “The data signals go out before the score settles.”
+        </div>
+        <div class="border border-lime/30 bg-lime/5 p-6 text-center text-lime rounded shadow-neon">
+          “The receipt stays locked in the ledger after settlement.”
+        </div>
+        <div class="border border-red/20 bg-red/5 p-6 text-center text-red rounded">
+          “Wins stay. Losses stay. Data dictates edge.”
         </div>
       </div>
     </section>
+
+
+    <!-- SCENE 8: TIERED ACCESS PACKAGES -->
+    <section class="space-y-6 pt-4">
+      <div class="text-center">
+        <div class="font-mono text-[10px] uppercase tracking-[0.3em] text-lime">System Allocation</div>
+        <h2 class="text-3xl font-black uppercase tracking-tight">Lease Server Licenses</h2>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Core Card -->
+        <div class="border border-white/10 bg-panel p-6 rounded-xl relative">
+          <div class="text-lg font-bold uppercase tracking-tight">Core Terminal Access</div>
+          <p class="mt-2 font-mono text-[11px] uppercase text-white/40 leading-relaxed">
+            Unlocks standard live first-set pricing lanes, variance-smoothing comfort signals, and automated Telegram webhook feeds.
+          </p>
+          <div class="mt-6 flex items-baseline gap-2 font-mono">
+            <span class="text-2xl font-black text-white">$29</span>
+            <span class="text-[10px] uppercase text-white/40">/ Monthly Deployment</span>
+          </div>
+          <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="mt-4 block w-full border border-lime text-center font-mono text-xs font-bold uppercase tracking-widest py-3 text-lime bg-lime/5 hover:bg-lime hover:text-ink transition">
+            CONNECT CORE TERMINAL
+          </a>
+        </div>
+
+        <!-- Quant Card -->
+        <div class="border-2 border-cyan bg-panel p-6 rounded-xl relative shadow-cyanGlow">
+          <div class="absolute right-4 top-4 bg-cyan text-ink text-[9px] font-black px-2 py-0.5 uppercase tracking-wider">HIGHEST PRIORITY</div>
+          <div class="text-lg font-bold uppercase tracking-tight text-cyan">Quant Portfolio Suite</div>
+          <p class="mt-2 font-mono text-[11px] uppercase text-white/60 leading-relaxed">
+            Full Core pipeline access + VIP alpha lanes, institutional deep-model backtest reviews, developer model research notes, and high-priority priority alert routing.
+          </p>
+          <div class="mt-6 flex items-baseline gap-2 font-mono">
+            <span class="text-3xl font-black text-white">$79</span>
+            <span class="text-[10px] uppercase text-cyan font-bold">/ Monthly Deployment</span>
+          </div>
+          <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="mt-4 block w-full bg-cyan text-center font-mono text-xs font-bold uppercase tracking-widest py-3 text-ink font-black transition hover:opacity-90">
+            CONNECT QUANT TERMINAL
+          </a>
+        </div>
+      </div>
+    </section>
+
   </main>
 
-  <footer class="text-center py-10 border-t border-white/5 text-[9px] uppercase tracking-widest text-white/20">
-    System Architecture v.2.4 // First Set Lab // Proprietary Data-Only Engine
+  <!-- Institutional Risk Mitigation Footer -->
+  <footer class="border-t border-white/5 bg-panel/30 px-4 py-12 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/30 space-y-4">
+    <div class="max-w-xl mx-auto space-y-2 leading-relaxed">
+      <p class="text-white/40 font-bold">18+ ONLY // RESPONSIBLE GAMBLING UTILITY</p>
+      <p>Educational data analysis and decision-support systems. Sports market predictive modeling contains inherent variance.</p>
+      <p>Historical backtest results are strictly observational performance representations and do not guarantee future certainty or profit yield.</p>
+      <p>All quantitative logic optimized under disciplined 0.5% &ndash; 1.0% capital allocation rules. Never risk funds required for basic livelihood.</p>
+      <p class="text-white/20 pt-4">First Set Lab Engine // Client Interface Build v3.40 // All Rights Reserved</p>
+    </div>
   </footer>
 
 </body>
