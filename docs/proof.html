@@ -289,9 +289,9 @@
       <p class="font-bold text-white/40">18+ only // Responsible gambling utility</p>
       <p>Educational data analysis and decision-support. Sports market modeling contains inherent variance.</p>
       <p>Historical and live-tracked results do not guarantee future profit or certainty.</p>
-      <p>Receipt value is a display lens using stored odds and a $200 example stake. It is not a guarantee or financial promise.</p>
+      <p>Receipt value and example highlights are display lenses using stored odds and a $200 example amount. They are not guarantees or financial promises.</p>
       <p>Never risk funds required for basic livelihood. No locks. No guarantees.</p>
-      <p class="pt-4 text-white/20">First Set Lab // Bet365 Receipt Vault v4.3</p>
+      <p class="pt-4 text-white/20">First Set Lab // Bet365 Receipt Vault v4.4</p>
     </div>
   </footer>
 
@@ -368,7 +368,7 @@
       const totalReturn = profit + RECEIPT_EXAMPLE_STAKE;
       $('receiptValueProfit').textContent = signedMoney(profit);
       $('receiptValueReturn').textContent = money(totalReturn);
-      $('receiptValueMeta').textContent = `${money(RECEIPT_EXAMPLE_STAKE)} example stake // exact-score receipt lens // not a guarantee`;
+      $('receiptValueMeta').textContent = `${money(RECEIPT_EXAMPLE_STAKE)} example amount // exact-score receipt lens // not a guarantee`;
 
       $('settledSignals').textContent = summary.settled_signals ?? '--';
       $('wins').textContent = summary.wins ?? '--';
@@ -387,7 +387,7 @@
       const official = american(row.official_american_odds);
       const receipt = american(row.receipt_american_odds);
       const showReceipt = row.display_status === 'WIN' && row.has_dopamine_receipt;
-      const profit = row.display_status === 'OPEN' ? 'Pending' : signedUnits(showReceipt ? row.receipt_profit_units : row.official_profit_units);
+      const resultUnits = row.display_status === 'OPEN' ? 'Pending' : signedUnits(showReceipt ? row.receipt_profit_units : row.official_profit_units);
       return `
         <article class="rounded-xl border border-white/5 bg-panel p-4 font-mono shadow-terminal">
           <div class="flex items-start justify-between gap-3">
@@ -405,9 +405,34 @@
           </div>
           <div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[10px] uppercase">
             <span class="text-white/35">Bet365 // ${dateShort(row.updated_at)}</span>
-            <span class="font-black ${row.display_status === 'LOSS' ? 'text-red' : row.display_status === 'WIN' ? 'text-lime' : 'text-cyan'}">${profit}</span>
+            <span class="font-black ${row.display_status === 'LOSS' ? 'text-red' : row.display_status === 'WIN' ? 'text-lime' : 'text-cyan'}">${resultUnits}</span>
           </div>
         </article>
+      `;
+    }
+
+    function positiveExampleBlock(row) {
+      if (!row) return '';
+      const groupNet = (num(row.official_profit_units) ?? 0) * RECEIPT_EXAMPLE_STAKE;
+      const receiptNet = (num(row.receipt_profit_units) ?? 0) * RECEIPT_EXAMPLE_STAKE;
+      const receiptTotal = receiptNet + RECEIPT_EXAMPLE_STAKE;
+      return `
+        <div class="mt-3 rounded-xl border border-gold/30 bg-gold/5 p-4 shadow-goldGlow">
+          <div class="text-[9px] font-black uppercase tracking-widest text-gold">Best winning example from this date</div>
+          <div class="mt-2 text-xs font-black uppercase leading-tight text-white">${row.match_name || 'Bet365 receipt'} // result ${row.first_set_score || 'landed'}</div>
+          <div class="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase">
+            <div class="rounded border border-cyan/20 bg-cyan/5 p-3">
+              <div class="text-cyan/70">Group value model</div>
+              <div class="mt-1 font-black text-cyan">${signedMoney(groupNet)}</div>
+              <div class="mt-1 text-white/35">${money(RECEIPT_EXAMPLE_STAKE)} at grouped price</div>
+            </div>
+            <div class="rounded border border-gold/20 bg-ink/70 p-3">
+              <div class="text-gold/70">Receipt value model</div>
+              <div class="mt-1 font-black text-gold">${signedMoney(receiptNet)}</div>
+              <div class="mt-1 text-white/35">${money(receiptTotal)} total return lens</div>
+            </div>
+          </div>
+        </div>
       `;
     }
 
@@ -433,6 +458,9 @@
         const wins = day.wins ?? dayRows.filter((r) => r.display_status === 'WIN').length;
         const losses = day.losses ?? dayRows.filter((r) => r.display_status === 'LOSS').length;
         const open = dayRows.filter((r) => r.display_status === 'OPEN').length;
+        const bestWin = dayRows
+          .filter((r) => r.display_status === 'WIN')
+          .sort((a, b) => (num(b.receipt_profit_units) ?? 0) - (num(a.receipt_profit_units) ?? 0))[0];
         return `
           <details ${index < 2 ? 'open' : ''} class="rounded-xl border border-white/10 bg-panel2 p-3 shadow-terminal">
             <summary class="cursor-pointer font-mono uppercase">
@@ -458,6 +486,7 @@
                   <div class="mt-1 text-white/35">ROI ${pct(day.receipt_roi_pct ?? 0)}</div>
                 </div>
               </div>
+              ${positiveExampleBlock(bestWin)}
             </summary>
             <div class="mt-4 space-y-3">
               ${dayRows.map(receiptCard).join('')}
