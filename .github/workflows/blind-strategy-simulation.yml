@@ -10,6 +10,11 @@ name: Blind Strategy Simulation
 # - surface/tournament audit samples
 # - monthly surface breakdown
 # - strategy freeze manifest
+#
+# V3 confidence layer:
+# - runs a blind confidence-score audit on the same API-Tennis CSV rows
+# - tests 60+, 70+, 80+, and 90+ confidence thresholds
+# - exports confidence bucket, threshold, daily, monthly, and bet-level artifacts
 
 on:
   workflow_dispatch:
@@ -21,7 +26,7 @@ on:
       end_date:
         description: "Simulation end date (YYYY-MM-DD)"
         required: true
-        default: "2026-05-06"
+        default: "2026-05-21"
       window_days:
         description: "Days per generated simulation window"
         required: true
@@ -182,6 +187,38 @@ jobs:
           BLIND_SIM_ONE_PICK_PER_MATCH="${{ inputs.one_pick_per_match }}" \
           BLIND_SIM_AUDIT_SAMPLE_SIZE="${{ inputs.audit_sample_size }}" \
           node scripts/blind-strategy-sim.mjs
+
+      - name: Run confidence backtest (independent)
+        if: ${{ inputs.model_mode == 'independent' || inputs.model_mode == 'both' }}
+        shell: bash
+        run: |
+          CSVS=$(ls artifacts/blind-strategy-sim/source/independent/first-set-lab-v3-rows-blind-*-independent.csv | sort | paste -sd ',' -)
+          echo "Independent confidence CSVs: $CSVS"
+          CONFIDENCE_SIM_CSVS="$CSVS" \
+          CONFIDENCE_OUTPUT_DIR="artifacts/blind-strategy-sim/confidence/independent" \
+          CONFIDENCE_MODEL_MODE="independent" \
+          CONFIDENCE_MAX_PLAYS_PER_DAY="${{ inputs.max_plays_per_day }}" \
+          CONFIDENCE_STAKE_UNITS="${{ inputs.stake_units }}" \
+          CONFIDENCE_ONE_PICK_PER_MATCH="${{ inputs.one_pick_per_match }}" \
+          CONFIDENCE_BLOCK_TIEBREAK="${{ inputs.block_tiebreak }}" \
+          CONFIDENCE_AUDIT_SAMPLE_SIZE="${{ inputs.audit_sample_size }}" \
+          node scripts/confidence-backtest-blind.mjs
+
+      - name: Run confidence backtest (coupled)
+        if: ${{ inputs.model_mode == 'coupled' || inputs.model_mode == 'both' }}
+        shell: bash
+        run: |
+          CSVS=$(ls artifacts/blind-strategy-sim/source/coupled/first-set-lab-v3-rows-blind-*-coupled.csv | sort | paste -sd ',' -)
+          echo "Coupled confidence CSVs: $CSVS"
+          CONFIDENCE_SIM_CSVS="$CSVS" \
+          CONFIDENCE_OUTPUT_DIR="artifacts/blind-strategy-sim/confidence/coupled" \
+          CONFIDENCE_MODEL_MODE="coupled" \
+          CONFIDENCE_MAX_PLAYS_PER_DAY="${{ inputs.max_plays_per_day }}" \
+          CONFIDENCE_STAKE_UNITS="${{ inputs.stake_units }}" \
+          CONFIDENCE_ONE_PICK_PER_MATCH="${{ inputs.one_pick_per_match }}" \
+          CONFIDENCE_BLOCK_TIEBREAK="${{ inputs.block_tiebreak }}" \
+          CONFIDENCE_AUDIT_SAMPLE_SIZE="${{ inputs.audit_sample_size }}" \
+          node scripts/confidence-backtest-blind.mjs
 
       - name: Upload artifacts
         if: always()
