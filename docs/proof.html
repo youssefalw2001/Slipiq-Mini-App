@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>First Set Lab // Bet365 Proof Vault</title>
-  <meta name="description" content="First Set Lab Bet365 Proof Vault: live tennis first-set receipts, grouped ledger, exact-score receipt lens, live demo balance, and no-deletion settlement discipline." />
+  <meta name="description" content="First Set Lab Bet365 Proof Vault: live tennis first-set receipts, grouped ledger, exact-score receipt lens, signal-day balance, and no-deletion settlement discipline." />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -88,7 +88,7 @@
           <span class="text-lime number-glow">VAULT.</span>
         </h1>
         <p class="pt-4 font-mono text-xs uppercase leading-5 text-white/55">
-          This page tracks the public Bet365 proof lane only. Every Bet365 signal becomes a receipt — wins, losses, American odds, settlement, and balance movement included.
+          This page tracks the public Bet365 proof lane only. Every Bet365 signal becomes a receipt — wins, losses, American odds, settlement, and signal-day balance movement included.
         </p>
       </div>
 
@@ -115,15 +115,15 @@
 
     <section class="space-y-6" id="live-vault">
       <div class="border-l-2 border-lime pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Live Bet365 Snapshot</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Settled Signals Drive The Balance</h2>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Latest Signal-Day Balance</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Each Day Starts At $1,000</h2>
       </div>
       <p class="font-mono text-[11px] uppercase leading-5 text-white/45">
-        Balance starts at $1,000. This vault uses $10 per unit for display. Official balance grades the grouped signal as sent. Receipt balance uses the exact winning score price when the cluster lands.
+        The top balance starts at $1,000 at the beginning of the latest Bet365 signal day. It updates only from settled Bet365 signals on that date. Full settled counts still show the complete Bet365 vault.
       </p>
 
       <div class="receipt-scan rounded-2xl border border-lime/30 bg-lime/5 p-5 font-mono shadow-neon">
-        <div class="text-[9px] font-bold uppercase tracking-widest text-lime">Official live balance</div>
+        <div class="text-[9px] font-bold uppercase tracking-widest text-lime">Latest day official balance</div>
         <div id="officialBalance" class="mt-2 text-5xl font-black tracking-[-0.06em] text-lime number-glow">$--</div>
         <div id="balanceMeta" class="mt-2 text-[10px] uppercase tracking-wider text-white/45">Starting bank $1,000 // 1u = $10</div>
       </div>
@@ -143,8 +143,8 @@
           <div id="officialRoi" class="mt-1 text-[10px] uppercase text-white/45">ROI --</div>
         </div>
         <div class="rounded border border-gold/30 bg-gold/5 p-4 text-center shadow-goldGlow">
-          <div class="text-[9px] uppercase text-gold/80">Receipt Balance</div>
-          <div id="receiptBalance" class="mt-2 text-3xl font-black text-gold">$--</div>
+          <div class="text-[9px] uppercase text-gold/80">Receipt Units</div>
+          <div id="receiptUnits" class="mt-2 text-3xl font-black text-gold">--</div>
           <div id="receiptRoi" class="mt-1 text-[10px] uppercase text-white/45">Receipt ROI --</div>
         </div>
       </div>
@@ -160,17 +160,17 @@
       </div>
 
       <div class="rounded border border-white/10 bg-panel2 p-4 font-mono text-[10px] uppercase leading-5 text-white/45">
-        <span class="text-lime">Simple read:</span> The official balance is the clean proof. The receipt balance is the dopamine lens. Same Bet365 signals. Different payout profile when the exact score price is available.
+        <span class="text-lime">Simple read:</span> Official units grade the Bet365 score group exactly as sent. Receipt units use the exact winning-score price when it lands. Each date below shows whether a $1,000 day grew or lost.
       </div>
     </section>
 
     <section class="space-y-6" id="bet365-ledger">
       <div class="border-l-2 border-gold pl-4">
         <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Bet365 Ledger By Date</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Browse Every Bet365 Signal</h2>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Daily Growth From $1,000</h2>
       </div>
       <p class="font-mono text-[11px] uppercase leading-5 text-white/45">
-        Each date opens into the signals from that day. American odds are shown first because that is what most users understand fastest.
+        Each date starts with $1,000 and shows the official day balance, dollar growth, receipt units, and ROI for that day’s settled Bet365 signals.
       </p>
       <div id="receiptList" class="space-y-3">
         <div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading Bet365 date ledger...</div>
@@ -288,9 +288,9 @@
       <p class="font-bold text-white/40">18+ only // Responsible gambling utility</p>
       <p>Educational data analysis and decision-support. Sports market modeling contains inherent variance.</p>
       <p>Historical and live-tracked results do not guarantee future profit or certainty.</p>
-      <p>Balance is a transparent display model based on $1,000 starting bank and $10 units, not a guarantee or financial promise.</p>
+      <p>Daily balance is a transparent display model based on $1,000 starting bank and $10 units for each signal day.</p>
       <p>Never risk funds required for basic livelihood. No locks. No guarantees.</p>
-      <p class="pt-4 text-white/20">First Set Lab // Bet365 Proof Vault v4.1</p>
+      <p class="pt-4 text-white/20">First Set Lab // Bet365 Proof Vault v4.2</p>
     </div>
   </footer>
 
@@ -310,6 +310,13 @@
       const n = num(v);
       if (n === null) return '$--';
       return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+    }
+
+    function signedMoney(v) {
+      const n = num(v);
+      if (n === null) return '$--';
+      const abs = Math.abs(n).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+      return `${n >= 0 ? '+' : '-'}${abs}`;
     }
 
     function signedUnits(v) {
@@ -350,22 +357,29 @@
       return 'text-cyan border-cyan/25 bg-cyan/5';
     }
 
-    function renderSummary(s) {
-      $('lastUpdated').textContent = dateShort(s.last_updated);
+    function valueColor(n) {
+      return num(n) >= 0 ? 'text-lime' : 'text-red';
+    }
+
+    function renderSummary(summary, latestDay) {
+      $('lastUpdated').textContent = dateShort(summary.last_updated);
       $('vaultStatus').textContent = 'Live';
-      $('officialBalance').textContent = money(s.official_live_balance);
-      $('receiptBalance').textContent = money(s.receipt_live_balance);
-      $('balanceMeta').textContent = `Starting bank ${money(s.starting_balance)} // 1u = ${money(s.unit_dollars)} // Bet365 settled only`;
-      $('settledSignals').textContent = s.settled_signals ?? '--';
-      $('wins').textContent = s.wins ?? '--';
-      $('losses').textContent = s.losses ?? '--';
-      $('officialUnits').textContent = signedUnits(s.official_profit_units);
-      $('officialRoi').textContent = `Official ROI ${pct(s.official_roi_pct)}`;
-      $('receiptRoi').textContent = `Receipt ROI ${pct(s.receipt_roi_pct)}`;
-      $('bestReceiptMatch').textContent = s.best_receipt_match || 'No winning receipt yet';
-      $('bestReceiptScore').textContent = s.best_receipt_score || '--';
-      $('bestReceiptOdds').textContent = american(s.best_receipt_american_odds);
-      $('bestReceiptUnits').textContent = signedUnits(s.best_receipt_profit_units);
+
+      const day = latestDay || {};
+      $('officialBalance').textContent = money(day.official_day_balance ?? summary.official_live_balance);
+      $('balanceMeta').textContent = `${dateLabel(day.event_date)} // starts ${money(day.starting_balance ?? 1000)} // official day growth ${signedMoney(day.official_day_growth_dollars ?? 0)}`;
+
+      $('settledSignals').textContent = summary.settled_signals ?? '--';
+      $('wins').textContent = summary.wins ?? '--';
+      $('losses').textContent = summary.losses ?? '--';
+      $('officialUnits').textContent = signedUnits(summary.official_profit_units);
+      $('officialRoi').textContent = `Official ROI ${pct(summary.official_roi_pct)}`;
+      $('receiptUnits').textContent = signedUnits(summary.receipt_profit_units);
+      $('receiptRoi').textContent = `Receipt ROI ${pct(summary.receipt_roi_pct)}`;
+      $('bestReceiptMatch').textContent = summary.best_receipt_match || 'No winning receipt yet';
+      $('bestReceiptScore').textContent = summary.best_receipt_score || '--';
+      $('bestReceiptOdds').textContent = american(summary.best_receipt_american_odds);
+      $('bestReceiptUnits').textContent = signedUnits(summary.best_receipt_profit_units);
     }
 
     function receiptCard(row) {
@@ -397,13 +411,14 @@
       `;
     }
 
-    function renderReceiptsByDate(rows) {
+    function renderReceiptsByDate(rows, dailyRows) {
       const list = $('receiptList');
       if (!rows.length) {
         list.innerHTML = '<div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">No Bet365 receipts found yet.</div>';
         return;
       }
 
+      const daily = Object.fromEntries((dailyRows || []).map((row) => [row.event_date, row]));
       const groups = rows.reduce((acc, row) => {
         const key = row.event_date || 'unknown';
         acc[key] ||= [];
@@ -414,19 +429,35 @@
       const dates = Object.keys(groups).sort((a, b) => String(b).localeCompare(String(a)));
       list.innerHTML = dates.map((date, index) => {
         const dayRows = groups[date];
-        const wins = dayRows.filter((r) => r.display_status === 'WIN').length;
-        const losses = dayRows.filter((r) => r.display_status === 'LOSS').length;
+        const day = daily[date] || {};
+        const wins = day.wins ?? dayRows.filter((r) => r.display_status === 'WIN').length;
+        const losses = day.losses ?? dayRows.filter((r) => r.display_status === 'LOSS').length;
         const open = dayRows.filter((r) => r.display_status === 'OPEN').length;
+        const growthClass = valueColor(day.official_day_growth_dollars ?? 0);
         return `
           <details ${index < 2 ? 'open' : ''} class="rounded-xl border border-white/10 bg-panel2 p-3 shadow-terminal">
-            <summary class="flex cursor-pointer items-center justify-between gap-3 font-mono uppercase">
-              <div>
-                <div class="text-[9px] tracking-widest text-gold">${date}</div>
-                <div class="mt-1 text-sm font-black text-white">${dateLabel(date)}</div>
+            <summary class="cursor-pointer font-mono uppercase">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-[9px] tracking-widest text-gold">${date}</div>
+                  <div class="mt-1 text-sm font-black text-white">${dateLabel(date)}</div>
+                </div>
+                <div class="text-right text-[10px] text-white/45">
+                  <span class="text-lime">${wins}W</span> / <span class="text-red">${losses}L</span>${open ? ` / <span class="text-cyan">${open}O</span>` : ''}<br />
+                  <span>${dayRows.length} signals</span>
+                </div>
               </div>
-              <div class="text-right text-[10px] text-white/45">
-                <span class="text-lime">${wins}W</span> / <span class="text-red">${losses}L</span>${open ? ` / <span class="text-cyan">${open}O</span>` : ''}<br />
-                <span>${dayRows.length} signals</span>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+                <div class="rounded border border-white/5 bg-ink/70 p-3">
+                  <div class="text-white/30">Official day</div>
+                  <div class="mt-1 font-black ${growthClass}">${money(day.official_day_balance ?? 1000)}</div>
+                  <div class="mt-1 text-white/35">Growth ${signedMoney(day.official_day_growth_dollars ?? 0)}</div>
+                </div>
+                <div class="rounded border border-gold/20 bg-gold/5 p-3">
+                  <div class="text-gold/70">Receipt lens</div>
+                  <div class="mt-1 font-black text-gold">${signedUnits(day.receipt_profit_units ?? 0)}</div>
+                  <div class="mt-1 text-white/35">ROI ${pct(day.receipt_roi_pct ?? 0)}</div>
+                </div>
               </div>
             </summary>
             <div class="mt-4 space-y-3">
@@ -445,7 +476,14 @@
           .select('*')
           .single();
         if (summaryError) throw summaryError;
-        renderSummary(summary);
+
+        const { data: dailyRows, error: dailyError } = await db
+          .from('proof_vault_daily_summary')
+          .select('*')
+          .order('event_date', { ascending: false });
+        if (dailyError) throw dailyError;
+
+        renderSummary(summary, (dailyRows || [])[0]);
 
         const { data: receipts, error: receiptsError } = await db
           .from('proof_vault_recent_receipts')
@@ -454,7 +492,7 @@
           .order('updated_at', { ascending: false })
           .limit(200);
         if (receiptsError) throw receiptsError;
-        renderReceiptsByDate(receipts || []);
+        renderReceiptsByDate(receipts || [], dailyRows || []);
         $('vaultStatus').textContent = 'Live';
       } catch (err) {
         console.error(err);
