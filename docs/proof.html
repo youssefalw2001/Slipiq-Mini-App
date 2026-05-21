@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>First Set Lab // System Proof Vault</title>
-  <meta name="description" content="First Set Lab: The immutable ledger. Tennis first-set price-intelligence data pipelines. Every signal becomes a public receipt." />
+  <title>First Set Lab // Live Proof Vault</title>
+  <meta name="description" content="First Set Lab live proof vault: tennis first-set price intelligence, public receipts, grouped ledger, exact-score receipt lens, and no-deletion settlement discipline." />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -21,12 +22,14 @@
             lime: '#C6EF00',
             cyan: '#00F0FF',
             green: '#10B981',
-            red: '#EF4444'
+            red: '#EF4444',
+            gold: '#F59E0B'
           },
           boxShadow: {
             terminal: '0 0 0 1px rgba(255,255,255,.05), 0 20px 50px rgba(0,0,0,.6)',
             neon: '0 0 30px rgba(198,239,0,.15)',
-            cyanGlow: '0 0 30px rgba(0,240,255,.15)'
+            cyanGlow: '0 0 30px rgba(0,240,255,.15)',
+            goldGlow: '0 0 34px rgba(245,158,11,.14)'
           }
         }
       }
@@ -39,332 +42,383 @@
     body { background-color: #06090F; color: #ffffff; overflow-x: hidden; }
     ::selection { background-color: #C6EF00; color: #06090F; }
     .grid-bg { background-image: linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px); background-size: 24px 24px; }
-    .scroll-hide::-webkit-scrollbar { display: none; }
-    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .number-glow { text-shadow: 0 0 28px rgba(198,239,0,.26); }
+    .receipt-scan { position: relative; overflow: hidden; }
+    .receipt-scan::after { content: ''; position: absolute; inset: -80% -20%; background: linear-gradient(110deg, transparent 44%, rgba(198,239,0,.08) 50%, transparent 56%); transform: translateX(-80%); animation: scan 5.5s infinite; pointer-events:none; }
+    @keyframes scan { 0%, 70% { transform: translateX(-90%); } 100% { transform: translateX(90%); } }
   </style>
 </head>
 <body class="font-sans antialiased text-white selection:bg-lime selection:text-ink">
 
-  <!-- Background Layer -->
   <div class="fixed inset-0 -z-10 pointer-events-none">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,240,255,0.08),transparent_45%),radial-gradient(circle_at_0%_50%,rgba(198,239,0,0.05),transparent_35%)]"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,240,255,0.08),transparent_45%),radial-gradient(circle_at_0%_50%,rgba(198,239,0,0.05),transparent_35%),radial-gradient(circle_at_100%_90%,rgba(245,158,11,0.05),transparent_30%)]"></div>
     <div class="absolute inset-0 grid-bg opacity-70"></div>
   </div>
 
-  <!-- Sticky Live System Header -->
   <header class="sticky top-0 z-50 border-b border-white/5 bg-ink/80 backdrop-blur-xl">
     <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
       <div class="flex items-center gap-3">
         <span class="relative flex h-2.5 w-2.5">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-lime"></span>
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75"></span>
+          <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime"></span>
         </span>
-        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/90">FSL // VAULT_LOG_ACTIVE</span>
+        <span class="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/90">FSL // LIVE_VAULT_ACTIVE</span>
       </div>
       <div class="flex items-center gap-2">
+        <a href="/" class="hidden border border-white/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-white/50 transition hover:border-white/30 hover:text-white sm:block">Main</a>
         <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="border border-lime/30 bg-lime/5 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-lime transition hover:bg-lime hover:text-ink">Core Access</a>
       </div>
     </nav>
   </header>
 
-  <!-- Main Content Sequence (Record-Optimized Layout) -->
   <main class="mx-auto max-w-xl px-4 py-8 space-y-24 sm:px-6">
 
-    <!-- SCENE 1: HERO CONTAINER -->
-    <section class="min-h-[75vh] flex flex-col justify-center pt-6">
+    <section class="min-h-[76vh] flex flex-col justify-center pt-6">
       <div class="space-y-3">
         <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40">
-          <span class="border border-white/10 px-2 py-0.5 bg-white/5 rounded">18+ ONLY</span>
-          <span class="border border-red/20 text-red/80 px-2 py-0.5 bg-red/5 rounded">NO GUARANTEES</span>
-          <span class="border border-lime/20 text-lime px-2 py-0.5 bg-lime/5 rounded">BET365 PROOF LANE</span>
+          <span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span>
+          <span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span>
+          <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Live Supabase receipts</span>
+          <span class="rounded border border-cyan/20 bg-cyan/5 px-2 py-0.5 text-cyan">Bet365 proof lane</span>
         </div>
         <h1 class="text-5xl font-black uppercase leading-[0.85] tracking-[-0.06em] sm:text-6xl">
           THE LEDGER<br />
-          <span class="text-lime text-glow">DOESN'T</span><br />
-          <span class="text-lime text-glow">DELETE.</span>
+          <span class="text-lime number-glow">DOESN'T</span><br />
+          <span class="text-lime number-glow">DELETE.</span>
         </h1>
-        <p class="pt-4 font-mono text-xs uppercase leading-5 text-white/50">
-          First Set Lab tracks tennis first-set price patterns. Every single signal becomes an permanent receipt — wins, losses, odds, and settlement included.
+        <p class="pt-4 font-mono text-xs uppercase leading-5 text-white/55">
+          First Set Lab tracks tennis first-set price patterns. Every signal becomes a receipt — wins, losses, odds, and settlement included.
         </p>
       </div>
 
-      <!-- Quick Action Dashboard -->
-      <div class="mt-8 space-y-3">
+      <div class="mt-8 grid grid-cols-2 gap-2 font-mono text-[10px] uppercase tracking-wider">
+        <div class="rounded border border-white/5 bg-panel p-3 text-center text-white/45">
+          Last update<br /><span id="lastUpdated" class="mt-1 block text-white">Loading...</span>
+        </div>
+        <div class="rounded border border-lime/20 bg-lime/5 p-3 text-center text-lime">
+          Status<br /><span id="vaultStatus" class="mt-1 block">Syncing</span>
+        </div>
+      </div>
+
+      <div class="mt-5 space-y-3">
         <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="flex items-center justify-between border border-lime bg-lime px-5 py-4 font-mono text-xs font-bold uppercase tracking-widest text-ink shadow-neon transition active:scale-[0.98]">
-          <span>[01] ENTER CORE TERMINAL</span>
+          <span>[01] Enter Core Terminal</span>
           <span>&rarr;</span>
         </a>
-        <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="flex items-center justify-between border border-cyan/30 bg-cyan/5 px-5 py-4 font-mono text-xs font-bold uppercase tracking-widest text-cyan shadow-cyanGlow transition active:scale-[0.98] hover:border-cyan">
-          <span>[02] UNLOCK QUANT TERMINAL</span>
+        <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="flex items-center justify-between border border-cyan/30 bg-cyan/5 px-5 py-4 font-mono text-xs font-bold uppercase tracking-widest text-cyan shadow-cyanGlow transition hover:border-cyan active:scale-[0.98]">
+          <span>[02] Unlock Quant Terminal</span>
           <span>&rarr;</span>
         </a>
       </div>
     </section>
 
-
-    <!-- SCENE 2: THE MARKET MOST BETTORS IGNORE -->
-    <section class="space-y-6">
+    <section class="space-y-6" id="live-vault">
       <div class="border-l-2 border-lime pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Market Structural Split</div>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Live Vault Snapshot</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">The Numbers Update Themselves</h2>
+      </div>
+      <p class="font-mono text-[11px] uppercase leading-5 text-white/45">
+        Official ledger grades the score group exactly as sent. Receipt ledger shows the exact-score market price when the winning score lands inside the cluster.
+      </p>
+
+      <div class="grid grid-cols-2 gap-2 font-mono">
+        <div class="rounded border border-white/5 bg-panel p-4 text-center">
+          <div class="text-[9px] uppercase text-white/35">Settled Signals</div>
+          <div id="settledSignals" class="mt-2 text-3xl font-black text-white">--</div>
+        </div>
+        <div class="rounded border border-white/5 bg-panel p-4 text-center">
+          <div class="text-[9px] uppercase text-white/35">Wins / Losses</div>
+          <div class="mt-2 text-2xl font-black"><span id="wins" class="text-lime">--</span><span class="text-white/20"> / </span><span id="losses" class="text-red">--</span></div>
+        </div>
+        <div class="rounded border border-lime/20 bg-lime/5 p-4 text-center shadow-neon">
+          <div class="text-[9px] uppercase text-lime/70">Official Units</div>
+          <div id="officialUnits" class="mt-2 text-3xl font-black text-lime number-glow">--</div>
+          <div id="officialRoi" class="mt-1 text-[10px] uppercase text-white/45">ROI --</div>
+        </div>
+        <div class="rounded border border-gold/30 bg-gold/5 p-4 text-center shadow-goldGlow">
+          <div class="text-[9px] uppercase text-gold/80">Receipt Units</div>
+          <div id="receiptUnits" class="mt-2 text-3xl font-black text-gold">--</div>
+          <div id="receiptRoi" class="mt-1 text-[10px] uppercase text-white/45">ROI --</div>
+        </div>
+      </div>
+
+      <div class="receipt-scan rounded-xl border border-gold/30 bg-gold/5 p-5 font-mono shadow-goldGlow">
+        <div class="text-[9px] font-bold uppercase tracking-widest text-gold">Best Receipt Highlight</div>
+        <div id="bestReceiptMatch" class="mt-3 text-lg font-black uppercase leading-tight text-white">Loading best receipt...</div>
+        <div class="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase">
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Score</div><div id="bestReceiptScore" class="mt-1 text-white font-bold">--</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Odds</div><div id="bestReceiptOdds" class="mt-1 text-gold font-black">--</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Units</div><div id="bestReceiptUnits" class="mt-1 text-lime font-black">--</div></div>
+        </div>
+      </div>
+
+      <div class="rounded border border-white/10 bg-panel2 p-4 font-mono text-[10px] uppercase leading-5 text-white/45">
+        <span class="text-lime">Simple read:</span> The official ledger is the clean proof. The receipt lens is the dopamine number — the exact winning score's price when the cluster lands. Same read. Different payout profile.
+      </div>
+    </section>
+
+    <section class="space-y-6" id="receipts">
+      <div class="border-l-2 border-gold pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Latest Receipts</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Wins Stay. Losses Stay.</h2>
+      </div>
+      <div id="receiptList" class="space-y-3">
+        <div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading live receipts...</div>
+      </div>
+    </section>
+
+    <section class="space-y-6">
+      <div class="border-l-2 border-cyan pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Market Structural Split</div>
         <h2 class="text-2xl font-black uppercase tracking-tight">The Blind Spot</h2>
       </div>
       <p class="font-mono text-xs uppercase leading-5 text-white/50">
-        Most bettors lock their eyes onto standard outright structures. We map exact set-shape geometry.
+        Most bettors look at who wins the first set. First Set Lab tracks what shape the set lands in.
       </p>
 
       <div class="grid grid-cols-2 gap-3 font-mono text-[11px]">
-        <!-- Old retail path -->
-        <div class="border border-white/5 bg-panel p-4 rounded-lg opacity-40">
+        <div class="rounded-lg border border-white/5 bg-panel p-4 opacity-50">
           <div class="text-[9px] uppercase text-white/40">Retail Focus</div>
           <div class="mt-2 text-base font-bold text-white">1st Set Winner</div>
-          <div class="mt-4 border-t border-white/5 pt-2 flex justify-between">
-            <span>Price Index</span>
-            <span class="font-bold text-red">1.58</span>
-          </div>
-          <div class="mt-1 text-[9px] text-white/30 uppercase">High Market Efficiency</div>
+          <div class="mt-4 flex justify-between border-t border-white/5 pt-2"><span>Price</span><span class="font-bold text-red">1.58</span></div>
+          <div class="mt-1 text-[9px] uppercase text-white/30">Lower payout</div>
         </div>
-
-        <!-- Alpha Lane -->
-        <div class="border border-cyan/30 bg-cyan/5 p-4 rounded-lg shadow-cyanGlow">
-          <div class="text-[9px] uppercase text-cyan font-bold tracking-wider">FSL Alpha Engine</div>
-          <div class="mt-2 text-base font-bold text-white">Score Group Matrix</div>
-          <div class="mt-4 border-t border-cyan/10 pt-2 flex justify-between">
-            <span>Group Odds</span>
-            <span class="font-bold text-cyan">3.50</span>
-          </div>
-          <div class="mt-1 text-[9px] text-cyan/50 uppercase">Exploitable Discrepancy</div>
+        <div class="rounded-lg border border-cyan/30 bg-cyan/5 p-4 shadow-cyanGlow">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-cyan">FSL Focus</div>
+          <div class="mt-2 text-base font-bold text-white">Score Group</div>
+          <div class="mt-4 flex justify-between border-t border-cyan/10 pt-2"><span>Price</span><span class="font-bold text-cyan">3.50</span></div>
+          <div class="mt-1 text-[9px] uppercase text-cyan/50">Higher payout, higher variance</div>
         </div>
       </div>
 
       <div class="border border-white/5 bg-panel p-4 text-center font-mono text-[11px] uppercase tracking-wide text-white/70">
-        “The edge is not just who wins the set. The edge is whether the set lands inside a priced score band.”
+        “The edge is not just who wins. The edge is whether the set lands inside a priced score band.”
       </div>
     </section>
 
-
-    <!-- SCENE 3: HOW THE SIGNAL WORKS (3-STEP GRAPHIC) -->
     <section class="space-y-6">
       <div class="border-l-2 border-cyan pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Pipeline Architecture</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Data to Receipt Pipeline</h2>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Signal Pipeline</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Data To Receipt</h2>
       </div>
-
-      <!-- Flow Execution Blocks -->
       <div class="space-y-2 font-mono text-[11px]">
-        <div class="flex items-center gap-4 border border-white/5 bg-panel p-3">
-          <span class="text-white/30 font-bold">01</span>
-          <span class="uppercase tracking-wider text-white/80">Continuous Scanning of Derivative Court Inputs</span>
-        </div>
-        <div class="flex items-center gap-4 border border-white/5 bg-panel p-3">
-          <span class="text-cyan font-bold">02</span>
-          <span class="uppercase tracking-wider text-cyan">Isolate Under-Priced First-Set Score Bands</span>
-        </div>
-        <div class="flex items-center gap-4 border border-lime/30 bg-lime/5 p-3">
-          <span class="text-lime font-bold">03</span>
-          <span class="uppercase tracking-wider text-lime">Automate Settlement Routing Direct to Public Vault</span>
-        </div>
+        <div class="flex items-center gap-4 border border-white/5 bg-panel p-3"><span class="font-bold text-white/30">01</span><span class="uppercase tracking-wider text-white/80">Scan first-set derivative markets</span></div>
+        <div class="flex items-center gap-4 border border-white/5 bg-panel p-3"><span class="font-bold text-cyan">02</span><span class="uppercase tracking-wider text-cyan">Find score-group price bands</span></div>
+        <div class="flex items-center gap-4 border border-lime/30 bg-lime/5 p-3"><span class="font-bold text-lime">03</span><span class="uppercase tracking-wider text-lime">Settle into public receipt vault</span></div>
       </div>
 
-      <!-- Execution Interactive Cards -->
       <div class="space-y-3 font-mono">
-        <!-- Live Alert State -->
-        <div class="border border-white/10 bg-panel p-5 rounded-xl shadow-terminal relative overflow-hidden">
-          <div class="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-cyan animate-pulse"></div>
-          <div class="text-[9px] uppercase tracking-widest text-cyan font-bold">SIGNAL GENERATED // UNSETTLED</div>
+        <div class="relative overflow-hidden rounded-xl border border-white/10 bg-panel p-5 shadow-terminal">
+          <div class="absolute right-3 top-3 h-1.5 w-1.5 animate-pulse rounded-full bg-cyan"></div>
+          <div class="text-[9px] font-bold uppercase tracking-widest text-cyan">Signal Generated // Unsettled</div>
           <div class="mt-4 grid grid-cols-2 gap-y-2 text-xs">
-            <span class="text-white/40 uppercase">Selection:</span><span class="font-bold text-white text-right">Player 1 (6-3 / 6-4)</span>
-            <span class="text-white/40 uppercase">Target Book:</span><span class="text-white text-right">Bet365 Core Terminal</span>
-            <span class="text-white/40 uppercase">Grouped Price:</span><span class="font-bold text-cyan text-right">3.50 Entry</span>
-            <span class="text-white/40 uppercase">Status:</span><span class="text-white/50 text-right uppercase tracking-wider animate-pulse">Awaiting Result...</span>
+            <span class="uppercase text-white/40">Market:</span><span class="text-right font-bold text-white">Score Group</span>
+            <span class="uppercase text-white/40">Selection:</span><span class="text-right font-bold text-white">6-3 / 6-4</span>
+            <span class="uppercase text-white/40">Official Price:</span><span class="text-right font-bold text-cyan">+250</span>
+            <span class="uppercase text-white/40">Status:</span><span class="animate-pulse text-right uppercase tracking-wider text-white/50">Awaiting result</span>
           </div>
         </div>
-
-        <!-- Settled Receipt State -->
-        <div class="border border-lime/30 bg-lime/5 p-5 rounded-xl shadow-neon relative overflow-hidden">
+        <div class="relative overflow-hidden rounded-xl border border-lime/30 bg-lime/5 p-5 shadow-neon">
           <div class="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-lime"></div>
-          <div class="text-[9px] uppercase tracking-widest text-lime font-bold">SETTLED RECORD // IMMUTABLE</div>
+          <div class="text-[9px] font-bold uppercase tracking-widest text-lime">Receipt Archived // Settled</div>
           <div class="mt-4 grid grid-cols-2 gap-y-2 text-xs">
-            <span class="text-white/40 uppercase">Result Verified:</span><span class="font-bold text-white text-right">Set 1 Cleared (6-4)</span>
-            <span class="text-white/40 uppercase">Execution:</span><span class="text-lime font-bold text-right uppercase">CASHED // RECEIPT ARCHIVED</span>
-            <span class="text-white/40 uppercase">Net Returns:</span><span class="font-black text-lime text-right">+2.50 Units</span>
+            <span class="uppercase text-white/40">Result:</span><span class="text-right font-bold text-white">6-4</span>
+            <span class="uppercase text-white/40">Official ledger:</span><span class="text-right font-bold text-lime">Cluster win</span>
+            <span class="uppercase text-white/40">Receipt lens:</span><span class="text-right font-black text-gold">Exact score +600</span>
           </div>
         </div>
       </div>
     </section>
 
-
-    <!-- SCENE 4: PROOF VAULT LEDGER METRICS -->
-    <section class="space-y-6">
-      <div class="border-l-2 border-lime pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Data Integrity Node</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Published Vault Snapshot</h2>
-      </div>
-      <div class="rounded-lg border border-white/5 bg-panel p-2 font-mono text-[9px] uppercase text-white/40 text-center tracking-widest">
-        Audit Timestamp: 2026-05-20 17:45 UTC // Manual Ledger Compile
-      </div>
-
-      <!-- Core Telemetry Display -->
-      <div class="grid grid-cols-2 gap-2 font-mono">
-        <div class="border border-white/5 bg-panel p-4 rounded text-center">
-          <div class="text-[9px] uppercase text-white/40">Total Signals Logged</div>
-          <div class="mt-2 text-3xl font-black text-white">31</div>
-        </div>
-        <div class="border border-white/5 bg-panel p-4 rounded text-center">
-          <div class="text-[9px] uppercase text-white/40">Net Tracked ROI</div>
-          <div class="mt-2 text-3xl font-black text-lime tracking-tight">+20.83%</div>
-        </div>
-        <div class="border border-white/5 bg-panel p-4 rounded text-center">
-          <div class="text-[9px] uppercase text-white/40">Verified Wins</div>
-          <div class="mt-1 text-xl font-bold text-lime">12 Wins</div>
-        </div>
-        <div class="border border-white/5 bg-panel p-4 rounded text-center">
-          <div class="text-[9px] uppercase text-white/40">Logged Losses</div>
-          <div class="mt-1 text-xl font-bold text-red">19 Losses</div>
-        </div>
-      </div>
-
-      <!-- Specific Matrix Overview -->
-      <div class="border border-white/10 bg-panel2 p-4 font-mono text-[11px] space-y-2 rounded-lg shadow-terminal">
-        <div class="flex justify-between border-b border-white/5 pb-2">
-          <span class="text-white/40 uppercase">Highest Yield Lane:</span>
-          <span class="font-bold text-cyan">Bet365 S-Tier Filter</span>
-        </div>
-        <div class="flex justify-between border-b border-white/5 pb-2">
-          <span class="text-white/40 uppercase">S-Tier Lane Flat ROI:</span>
-          <span class="font-bold text-lime">+31.55% (5 W / 8 L)</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-white/40 uppercase">Average Capture Price:</span>
-          <span class="text-white font-bold">3.202 Odds Matrix</span>
-        </div>
-      </div>
-      <p class="font-mono text-[10px] text-center uppercase leading-4 text-white/30">
-        Mathematical Context: Due to high-odds pricing models, break-even requires just 31.23% accuracy. Current tracking outpaces index barriers.
-      </p>
+    <section class="rounded-2xl border border-red/30 bg-red/5 p-6 shadow-terminal space-y-4">
+      <div class="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-red"><span>!</span><span>Anti-Deception Standard</span></div>
+      <h3 class="text-3xl font-black uppercase leading-none tracking-tight text-white">Why Losses<br />Stay Visible.</h3>
+      <p class="font-mono text-xs uppercase leading-5 text-white/70">Most pages only show wins. We use losses as calibration data. The system only earns trust when the full ledger stays visible.</p>
+      <div class="border-t border-white/10 pt-3 font-mono text-xs uppercase leading-relaxed text-lime">Wins stay. Losses stay. The ledger decides.</div>
     </section>
 
-
-    <!-- SCENE 5: WHY LOSSES STAY -->
-    <section class="border border-red/30 bg-red/5 p-6 rounded-2xl shadow-terminal space-y-4">
-      <div class="flex items-center gap-2 font-mono text-[10px] uppercase font-bold text-red tracking-widest">
-        <span>⚠️</span>
-        <span>Anti-Deception Standard</span>
-      </div>
-      <h3 class="text-3xl font-black uppercase tracking-tight leading-none text-white">
-        WHY LOSSES<br />STAY VISIBLE.
-      </h3>
-      <p class="font-mono text-xs uppercase leading-5 text-white/70">
-        Most retail channels wipe clean their losing histories to manipulate conversion metrics. 
-      </p>
-      <div class="border-t border-white/10 pt-3 font-mono text-xs uppercase leading-relaxed text-lime">
-        “We convert systemic losses into optimization data. The architecture only holds enterprise utility when the full ledger stays visible.”
-      </div>
-    </section>
-
-
-    <!-- SCENE 6: THE CLEANEST LANE -->
     <section class="space-y-4">
       <div class="border-l-2 border-lime pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Active Target Priority</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">The Current Focus Lane</h2>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Current Focus Lane</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">The Cleanest Proof Lane</h2>
       </div>
-
-      <div class="border border-white/5 bg-panel p-5 rounded-xl space-y-3 font-mono text-xs">
-        <div class="flex justify-between"><span class="text-white/40 uppercase">League Filter:</span><span class="text-white font-bold">ATP / WTA Tier Outrights</span></div>
-        <div class="flex justify-between"><span class="text-white/40 uppercase">Execution Platform:</span><span class="text-white font-bold">Bet365 Derivative Engine</span></div>
-        <div class="flex justify-between"><span class="text-white/40 uppercase">Selected Models:</span><span class="text-cyan font-bold">First Set Score Groups (6-3/6-4)</span></div>
-        <div class="flex justify-between"><span class="text-white/40 uppercase">Target Odds Range:</span><span class="text-lime font-bold">3.00 &ndash; 3.50 Cluster Base</span></div>
+      <div class="rounded-xl border border-white/5 bg-panel p-5 space-y-3 font-mono text-xs">
+        <div class="flex justify-between gap-4"><span class="uppercase text-white/40">Tour filter:</span><span class="text-right font-bold text-white">ATP-first priority</span></div>
+        <div class="flex justify-between gap-4"><span class="uppercase text-white/40">Book focus:</span><span class="text-right font-bold text-white">Bet365</span></div>
+        <div class="flex justify-between gap-4"><span class="uppercase text-white/40">Market:</span><span class="text-right font-bold text-cyan">First Set Correct Score Group</span></div>
+        <div class="flex justify-between gap-4"><span class="uppercase text-white/40">Target shapes:</span><span class="text-right font-bold text-white">6-3 / 6-4 and 3-6 / 4-6</span></div>
+        <div class="flex justify-between gap-4"><span class="uppercase text-white/40">Price zone:</span><span class="text-right font-bold text-lime">3.00 - 3.50 cluster base</span></div>
       </div>
-      <p class="font-mono text-[10px] text-center uppercase text-white/40 tracking-wide">
-        “Not every single signal holds identical weight. The cleaner the tracking lane, the cleaner the terminal receipt.”
-      </p>
+      <p class="text-center font-mono text-[10px] uppercase tracking-wide text-white/40">Not every signal is equal. The cleaner the lane, the cleaner the receipt.</p>
     </section>
 
-
-    <!-- SCENE 7: CONTENT RECORDER MODE (PRO-SCROLL CARDS) -->
     <section class="space-y-6">
       <div class="border-l-2 border-cyan pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Vertical Teleprompter Grid</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Content Engine Mode</h2>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Content Recorder Mode</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Screen-Record Hooks</h2>
       </div>
-      <p class="font-mono text-[10px] uppercase tracking-wider text-white/40">
-        Slow-scroll this block during screen recording to capture seamless, high-retention typographic hooks:
-      </p>
-
-      <!-- Large Teleprompter Cards Stack -->
-      <div class="space-y-4 font-mono text-sm uppercase font-bold tracking-wider">
-        <div class="border border-white/10 bg-panelLight p-6 text-center text-white rounded">
-          “Most bettors ask who wins the tennis match.”
-        </div>
-        <div class="border border-cyan/30 bg-cyan/5 p-6 text-center text-cyan rounded shadow-cyanGlow">
-          “We model the exact geometric shape the first set lands in.”
-        </div>
-        <div class="border border-white/10 bg-panelLight p-6 text-center text-white/80 rounded">
-          “The data signals go out before the score settles.”
-        </div>
-        <div class="border border-lime/30 bg-lime/5 p-6 text-center text-lime rounded shadow-neon">
-          “The receipt stays locked in the ledger after settlement.”
-        </div>
-        <div class="border border-red/20 bg-red/5 p-6 text-center text-red rounded">
-          “Wins stay. Losses stay. Data dictates edge.”
-        </div>
+      <div class="space-y-4 font-mono text-sm font-bold uppercase tracking-wider">
+        <div class="rounded border border-white/10 bg-panelLight p-6 text-center text-white">“Most bettors ask who wins.”</div>
+        <div class="rounded border border-cyan/30 bg-cyan/5 p-6 text-center text-cyan shadow-cyanGlow">“We ask what shape the first set lands in.”</div>
+        <div class="rounded border border-white/10 bg-panelLight p-6 text-center text-white/80">“The signal goes out before the result.”</div>
+        <div class="rounded border border-lime/30 bg-lime/5 p-6 text-center text-lime shadow-neon">“The receipt stays after settlement.”</div>
+        <div class="rounded border border-red/20 bg-red/5 p-6 text-center text-red">“Wins stay. Losses stay.”</div>
       </div>
     </section>
 
-
-    <!-- SCENE 8: TIERED ACCESS PACKAGES -->
-    <section class="space-y-6 pt-4">
+    <section class="space-y-6 pt-4" id="access">
       <div class="text-center">
-        <div class="font-mono text-[10px] uppercase tracking-[0.3em] text-lime">System Allocation</div>
-        <h2 class="text-3xl font-black uppercase tracking-tight">Lease Server Licenses</h2>
+        <div class="font-mono text-[10px] uppercase tracking-[0.3em] text-lime">System Access</div>
+        <h2 class="text-3xl font-black uppercase tracking-tight">Enter The Terminal</h2>
       </div>
-
       <div class="space-y-4">
-        <!-- Core Card -->
-        <div class="border border-white/10 bg-panel p-6 rounded-xl relative">
-          <div class="text-lg font-bold uppercase tracking-tight">Core Terminal Access</div>
-          <p class="mt-2 font-mono text-[11px] uppercase text-white/40 leading-relaxed">
-            Unlocks standard live first-set pricing lanes, variance-smoothing comfort signals, and automated Telegram webhook feeds.
-          </p>
-          <div class="mt-6 flex items-baseline gap-2 font-mono">
-            <span class="text-2xl font-black text-white">$29</span>
-            <span class="text-[10px] uppercase text-white/40">/ Monthly Deployment</span>
-          </div>
-          <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="mt-4 block w-full border border-lime text-center font-mono text-xs font-bold uppercase tracking-widest py-3 text-lime bg-lime/5 hover:bg-lime hover:text-ink transition">
-            CONNECT CORE TERMINAL
-          </a>
+        <div class="relative rounded-xl border border-white/10 bg-panel p-6">
+          <div class="text-lg font-bold uppercase tracking-tight">Core Terminal</div>
+          <p class="mt-2 font-mono text-[11px] uppercase leading-relaxed text-white/45">Core first-set lanes, comfort signals, proof recaps, and Telegram access.</p>
+          <a href="https://whop.com/checkout/plan_ThzrXf1wmXpYM" class="mt-5 block w-full border border-lime bg-lime/5 py-3 text-center font-mono text-xs font-bold uppercase tracking-widest text-lime transition hover:bg-lime hover:text-ink">Enter Core Terminal</a>
         </div>
-
-        <!-- Quant Card -->
-        <div class="border-2 border-cyan bg-panel p-6 rounded-xl relative shadow-cyanGlow">
-          <div class="absolute right-4 top-4 bg-cyan text-ink text-[9px] font-black px-2 py-0.5 uppercase tracking-wider">HIGHEST PRIORITY</div>
-          <div class="text-lg font-bold uppercase tracking-tight text-cyan">Quant Portfolio Suite</div>
-          <p class="mt-2 font-mono text-[11px] uppercase text-white/60 leading-relaxed">
-            Full Core pipeline access + VIP alpha lanes, institutional deep-model backtest reviews, developer model research notes, and high-priority priority alert routing.
-          </p>
-          <div class="mt-6 flex items-baseline gap-2 font-mono">
-            <span class="text-3xl font-black text-white">$79</span>
-            <span class="text-[10px] uppercase text-cyan font-bold">/ Monthly Deployment</span>
-          </div>
-          <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="mt-4 block w-full bg-cyan text-center font-mono text-xs font-bold uppercase tracking-widest py-3 text-ink font-black transition hover:opacity-90">
-            CONNECT QUANT TERMINAL
-          </a>
+        <div class="relative rounded-xl border-2 border-cyan bg-panel p-6 shadow-cyanGlow">
+          <div class="absolute right-4 top-4 bg-cyan px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-ink">Priority</div>
+          <div class="text-lg font-bold uppercase tracking-tight text-cyan">Quant Terminal</div>
+          <p class="mt-2 font-mono text-[11px] uppercase leading-relaxed text-white/60">Core access plus VIP lanes, deeper model review, research notes, and higher-priority alerts.</p>
+          <a href="https://whop.com/checkout/plan_RGO8YMtQOorR6" class="mt-5 block w-full bg-cyan py-3 text-center font-mono text-xs font-black uppercase tracking-widest text-ink transition hover:opacity-90">Enter Quant Terminal</a>
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- Institutional Risk Mitigation Footer -->
-  <footer class="border-t border-white/5 bg-panel/30 px-4 py-12 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/30 space-y-4">
-    <div class="max-w-xl mx-auto space-y-2 leading-relaxed">
-      <p class="text-white/40 font-bold">18+ ONLY // RESPONSIBLE GAMBLING UTILITY</p>
-      <p>Educational data analysis and decision-support systems. Sports market predictive modeling contains inherent variance.</p>
-      <p>Historical backtest results are strictly observational performance representations and do not guarantee future certainty or profit yield.</p>
-      <p>All quantitative logic optimized under disciplined 0.5% &ndash; 1.0% capital allocation rules. Never risk funds required for basic livelihood.</p>
-      <p class="text-white/20 pt-4">First Set Lab Engine // Client Interface Build v3.40 // All Rights Reserved</p>
+  <footer class="space-y-4 border-t border-white/5 bg-panel/30 px-4 py-12 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/30">
+    <div class="mx-auto max-w-xl space-y-2 leading-relaxed">
+      <p class="font-bold text-white/40">18+ only // Responsible gambling utility</p>
+      <p>Educational data analysis and decision-support. Sports market modeling contains inherent variance.</p>
+      <p>Historical and live-tracked results do not guarantee future profit or certainty.</p>
+      <p>Never risk funds required for basic livelihood. No locks. No guarantees.</p>
+      <p class="pt-4 text-white/20">First Set Lab // Live Proof Vault v4.0</p>
     </div>
   </footer>
 
+  <script>
+    const SUPABASE_URL = 'https://qjvpkkcbscsypymxyker.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0EmM78iwc7vHitvHeon28Q_lCU8WCjl';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const $ = (id) => document.getElementById(id);
+
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function signedUnits(v) {
+      const n = num(v);
+      if (n === null) return '--';
+      return `${n >= 0 ? '+' : ''}${n.toFixed(2)}u`;
+    }
+
+    function pct(v) {
+      const n = num(v);
+      if (n === null) return '--';
+      return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+    }
+
+    function american(v) {
+      const n = num(v);
+      if (n === null) return '--';
+      return n > 0 ? `+${Math.round(n)}` : `${Math.round(n)}`;
+    }
+
+    function dateShort(v) {
+      if (!v) return '--';
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return '--';
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function statusClass(row) {
+      if (row.display_status === 'WIN') return 'text-lime border-lime/25 bg-lime/5';
+      if (row.display_status === 'LOSS') return 'text-red border-red/25 bg-red/5';
+      return 'text-cyan border-cyan/25 bg-cyan/5';
+    }
+
+    function renderSummary(s) {
+      $('lastUpdated').textContent = dateShort(s.last_updated);
+      $('vaultStatus').textContent = 'Live';
+      $('settledSignals').textContent = s.settled_signals ?? '--';
+      $('wins').textContent = s.wins ?? '--';
+      $('losses').textContent = s.losses ?? '--';
+      $('officialUnits').textContent = signedUnits(s.official_profit_units);
+      $('officialRoi').textContent = `Official ROI ${pct(s.official_roi_pct)}`;
+      $('receiptUnits').textContent = signedUnits(s.receipt_profit_units);
+      $('receiptRoi').textContent = `Receipt ROI ${pct(s.receipt_roi_pct)}`;
+      $('bestReceiptMatch').textContent = s.best_receipt_match || 'No winning receipt yet';
+      $('bestReceiptScore').textContent = s.best_receipt_score || '--';
+      $('bestReceiptOdds').textContent = american(s.best_receipt_american_odds);
+      $('bestReceiptUnits').textContent = signedUnits(s.best_receipt_profit_units);
+    }
+
+    function renderReceipts(rows) {
+      const list = $('receiptList');
+      if (!rows.length) {
+        list.innerHTML = '<div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">No receipts found yet.</div>';
+        return;
+      }
+      list.innerHTML = rows.map((row) => {
+        const cls = statusClass(row);
+        const official = american(row.official_american_odds);
+        const receipt = american(row.receipt_american_odds);
+        const showReceipt = row.display_status === 'WIN' && row.has_dopamine_receipt;
+        return `
+          <article class="rounded-xl border border-white/5 bg-panel p-4 font-mono shadow-terminal">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-[9px] uppercase tracking-widest text-white/35">${row.public_signal_name || row.strategy_lane || 'Signal'}</div>
+                <div class="mt-1 text-sm font-black uppercase leading-tight text-white">${row.match_name || 'Unknown match'}</div>
+              </div>
+              <div class="rounded border px-2 py-1 text-[9px] font-black uppercase ${cls}">${row.display_status}</div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
+              <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Cluster</div><div class="mt-1 font-bold text-white">${row.score_cluster || row.public_target || row.selected_side || '--'}</div></div>
+              <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Result</div><div class="mt-1 font-bold text-white">${row.first_set_score || 'Pending'}</div></div>
+              <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Official</div><div class="mt-1 font-black text-cyan">${official}</div></div>
+              <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Receipt</div><div class="mt-1 font-black ${showReceipt ? 'text-gold' : 'text-white/70'}">${showReceipt ? receipt : official}</div></div>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[10px] uppercase">
+              <span class="text-white/35">${row.internal_bookmaker || 'book'} // ${dateShort(row.updated_at)}</span>
+              <span class="font-black ${row.display_status === 'LOSS' ? 'text-red' : row.display_status === 'WIN' ? 'text-lime' : 'text-cyan'}">${row.display_status === 'OPEN' ? 'Pending' : signedUnits(showReceipt ? row.receipt_profit_units : row.official_profit_units)}</span>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadVault() {
+      try {
+        $('vaultStatus').textContent = 'Syncing';
+        const { data: summary, error: summaryError } = await db
+          .from('proof_vault_live_summary')
+          .select('*')
+          .single();
+        if (summaryError) throw summaryError;
+        renderSummary(summary);
+
+        const { data: receipts, error: receiptsError } = await db
+          .from('proof_vault_recent_receipts')
+          .select('match_name,public_signal_name,strategy_lane,score_cluster,public_target,selected_side,internal_bookmaker,first_set_score,display_status,official_american_odds,receipt_american_odds,official_profit_units,receipt_profit_units,has_dopamine_receipt,updated_at,settled_at,status')
+          .order('updated_at', { ascending: false })
+          .limit(8);
+        if (receiptsError) throw receiptsError;
+        renderReceipts(receipts || []);
+        $('vaultStatus').textContent = 'Live';
+      } catch (err) {
+        console.error(err);
+        $('vaultStatus').textContent = 'Offline';
+        $('receiptList').innerHTML = '<div class="rounded border border-red/25 bg-red/5 p-4 font-mono text-xs uppercase text-red">Live vault could not load. Static page remains visible.</div>';
+      }
+    }
+
+    loadVault();
+    setInterval(loadVault, 60000);
+  </script>
 </body>
 </html>
