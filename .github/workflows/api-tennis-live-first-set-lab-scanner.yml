@@ -60,6 +60,35 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Apply public scanner V2 cluster upgrades
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/api_tennis_live_first_set_lab_scanner.mjs')
+          text = path.read_text()
+
+          text = text.replace(
+            "CORE_P1_ATP_GS_BET365: { hit: 0.3934, roi: 0.1704, sample: 544 },",
+            "CORE_P1_ATP_GS_BET365: { hit: 0.3934, roi: 0.1704, sample: 544 },\n    CORE_P2_GS_REVERSE_STRETCH_BET365: { hit: 0.3824, roi: 0.3907, sample: 136 },"
+          )
+
+          old_core = "{ key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:3', '6:4'], sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.50, maxGrouped: null, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4 },"
+          new_core = "{ key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:2', '6:3', '6:4'], sideText: 'Player 1 wins first set 6:2, 6:3, or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.00, maxGrouped: null, tierFloorA: 2.00, tierFloorS: 2.60, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4 },"
+          text = text.replace(old_core, new_core)
+
+          old_reverse = "{ key: 'RESEARCH_P2_GS_26_46_BET365', access: 'RESEARCH_ONLY', books: ['bet365'], scores: ['2:6', '4:6'], sideText: 'Player 2 wins first set 2:6 or 4:6', triggerScore: '', triggerMin: null, triggerMax: null, minGrouped: 2.50, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.50, tierFloorS: 3.50, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Research P2 GS Sniper', quality: 1 },"
+          new_reverse = "{ key: 'CORE_P2_GS_REVERSE_STRETCH_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['2:6', '4:6', '5:7'], sideText: 'Player 2 wins first set 2:6, 4:6, or 5:7', triggerScore: '', triggerMin: null, triggerMax: null, minGrouped: 2.00, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.00, tierFloorS: 2.75, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Reverse Stretch Cluster', quality: 4 },"
+          text = text.replace(old_reverse, new_reverse)
+
+          if "scores: ['6:2', '6:3', '6:4']" not in text:
+              raise SystemExit('Core Cluster V2 patch did not apply')
+          if "CORE_P2_GS_REVERSE_STRETCH_BET365" not in text or "scores: ['2:6', '4:6', '5:7']" not in text:
+              raise SystemExit('Reverse Stretch patch did not apply')
+
+          path.write_text(text)
+          PY
+
       - name: Generate live First Set Lab signals
         env:
           API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
