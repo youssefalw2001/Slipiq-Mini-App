@@ -60,7 +60,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Apply public scanner V2 cluster upgrades
+      - name: Apply public scanner V2 protected-score upgrades
         shell: bash
         run: |
           python3 - <<'PY'
@@ -74,17 +74,74 @@ jobs:
           )
 
           old_core = "{ key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:3', '6:4'], sideText: 'Player 1 wins first set 6:3 or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.50, maxGrouped: null, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4 },"
-          new_core = "{ key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:2', '6:3', '6:4'], sideText: 'Player 1 wins first set 6:2, 6:3, or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.00, maxGrouped: null, tierFloorA: 2.00, tierFloorS: 2.60, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4 },"
+          new_core = "{ key: 'CORE_P1_ATP_GS_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['6:2', '6:3', '6:4'], qualifyingScores: ['6:3', '6:4'], sideText: 'Player 1 wins first set 6:2, 6:3, or 6:4', triggerScore: '6:4', triggerMin: 5.00, triggerMax: 6.25, minGrouped: 2.50, maxGrouped: null, tierFloorA: 2.50, tierFloorS: 3.10, tour: 'ATP', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Core Cluster', quality: 4 },"
           text = text.replace(old_core, new_core)
 
           old_reverse = "{ key: 'RESEARCH_P2_GS_26_46_BET365', access: 'RESEARCH_ONLY', books: ['bet365'], scores: ['2:6', '4:6'], sideText: 'Player 2 wins first set 2:6 or 4:6', triggerScore: '', triggerMin: null, triggerMax: null, minGrouped: 2.50, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.50, tierFloorS: 3.50, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Research P2 GS Sniper', quality: 1 },"
-          new_reverse = "{ key: 'CORE_P2_GS_REVERSE_STRETCH_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['2:6', '4:6', '5:7'], sideText: 'Player 2 wins first set 2:6, 4:6, or 5:7', triggerScore: '', triggerMin: null, triggerMax: null, minGrouped: 2.00, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.00, tierFloorS: 2.75, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Reverse Stretch Cluster', quality: 4 },"
+          new_reverse = "{ key: 'CORE_P2_GS_REVERSE_STRETCH_BET365', access: 'CORE_AND_VIP', books: ['bet365'], scores: ['2:6', '4:6', '5:7'], qualifyingScores: ['2:6', '4:6'], sideText: 'Player 2 wins first set 2:6, 4:6, or 5:7', triggerScore: '', triggerMin: null, triggerMax: null, minGrouped: 2.50, maxGrouped: 4.50, requiredSkew: 'EXTREME', tierFloorA: 2.50, tierFloorS: 3.50, tour: 'ANY', tournamentGroup: 'GRAND_SLAM', publicLabel: 'Reverse Stretch Cluster', quality: 4 },"
           text = text.replace(old_reverse, new_reverse)
 
-          if "scores: ['6:2', '6:3', '6:4']" not in text:
-              raise SystemExit('Core Cluster V2 patch did not apply')
-          if "CORE_P2_GS_REVERSE_STRETCH_BET365" not in text or "scores: ['2:6', '4:6', '5:7']" not in text:
-              raise SystemExit('Reverse Stretch patch did not apply')
+          old_block = """    const seenBooks = allBookmakersForScores(market, lane.scores);
+    for (const book of lane.books) {
+      if (!seenBooks.includes(book)) continue;
+      const odds = getBookOdds(market, lane.scores, book);
+      if (odds.some((v) => !v || v <= 1)) continue;
+      const grouped = groupedOdds(odds);
+      if (!grouped || grouped < lane.minGrouped) continue;
+      if (lane.maxGrouped && grouped > lane.maxGrouped) continue;
+      const skew = scoreSkewBucket(odds);
+      if (lane.requiredSkew && skew !== lane.requiredSkew) continue;
+      let triggerOdds = '';
+      if (lane.triggerScore) {
+        triggerOdds = safeNumber(market?.[lane.triggerScore]?.[book]);
+        if (!triggerOdds || triggerOdds < lane.triggerMin || triggerOdds > lane.triggerMax) continue;
+      }
+      const tier = tierFor(grouped, lane);
+      const hist = historicalStatsForLane(lane.key);
+      const be = breakEven(grouped);
+      const edge = hist.hit !== null && be !== null ? hist.hit - be : null;"""
+          new_block = """    const qualifyingScores = lane.qualifyingScores || lane.scores;
+    const seenBooks = allBookmakersForScores(market, qualifyingScores);
+    for (const book of lane.books) {
+      if (!seenBooks.includes(book)) continue;
+      const qualifyingOdds = getBookOdds(market, qualifyingScores, book);
+      if (qualifyingOdds.some((v) => !v || v <= 1)) continue;
+      const qualifyingGrouped = groupedOdds(qualifyingOdds);
+      if (!qualifyingGrouped || qualifyingGrouped < lane.minGrouped) continue;
+      if (lane.maxGrouped && qualifyingGrouped > lane.maxGrouped) continue;
+      const skew = scoreSkewBucket(qualifyingOdds);
+      if (lane.requiredSkew && skew !== lane.requiredSkew) continue;
+      const odds = getBookOdds(market, lane.scores, book);
+      if (odds.some((v) => !v || v <= 1)) continue;
+      const grouped = groupedOdds(odds);
+      if (!grouped) continue;
+      let triggerOdds = '';
+      if (lane.triggerScore) {
+        triggerOdds = safeNumber(market?.[lane.triggerScore]?.[book]);
+        if (!triggerOdds || triggerOdds < lane.triggerMin || triggerOdds > lane.triggerMax) continue;
+      }
+      const tier = tierFor(qualifyingGrouped, lane);
+      const hist = historicalStatsForLane(lane.key);
+      const be = breakEven(grouped);
+      const edge = hist.hit !== null && be !== null ? hist.hit - be : null;"""
+          if old_block not in text:
+              raise SystemExit('Exact-score gate block not found')
+          text = text.replace(old_block, new_block)
+
+          old_json_line = "trigger_odds: triggerOdds, score_odds_json: JSON.stringify({ ...Object.fromEntries(lane.scores.map((s, i) => [s, odds[i]])), market_skew_bucket: skew }),"
+          new_json_line = "trigger_odds: triggerOdds, score_odds_json: JSON.stringify({ ...Object.fromEntries(lane.scores.map((s, i) => [s, odds[i]])), qualifying_scores: qualifyingScores.join('/'), qualifying_grouped_odds: qualifyingGrouped, protected_grouped_odds: grouped, market_skew_bucket: skew }),"
+          if old_json_line not in text:
+              raise SystemExit('Score odds JSON line not found')
+          text = text.replace(old_json_line, new_json_line)
+
+          if "qualifyingScores: ['6:3', '6:4']" not in text:
+              raise SystemExit('Core qualifying gate not applied')
+          if "minGrouped: 2.50" not in text:
+              raise SystemExit('Original minimum grouped odds floor missing')
+          if "qualifyingGrouped" not in text:
+              raise SystemExit('Qualifying grouped logic missing')
+          if "scores: ['2:6', '4:6', '5:7']" not in text or "qualifyingScores: ['2:6', '4:6']" not in text:
+              raise SystemExit('Reverse protected-score gate not applied')
 
           path.write_text(text)
           PY
