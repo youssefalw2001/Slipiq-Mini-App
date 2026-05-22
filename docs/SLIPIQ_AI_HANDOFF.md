@@ -1,33 +1,8 @@
-# SlipIQ AI Handoff Memory
+# First Set Lab / SlipIQ AI Handoff
 
-This is the canonical context file for any new AI/chat session working on SlipIQ. Read it before changing code, running GitHub Actions, interpreting Supabase data, or giving strategy advice.
+This is the canonical handoff for any new AI/chat session working on this repository. Read this before changing code, running workflows, interpreting Supabase data, updating the proof site, or giving strategy advice.
 
-Last updated: 2026-05-11
-
----
-
-## 1. Product identity
-
-SlipIQ is a Telegram Mini App / betting-intelligence product focused on tennis first-set probability.
-
-Core positioning:
-
-- Tagline: **Don’t guess. Calculate.**
-- Flagship feature: **First Set Lab**
-- Main wedge: tennis first-set probability, especially Player 2 first-set pressure spots.
-- Product stance: decision support and probability intelligence, not guaranteed picks.
-- Design style: dark terminal intelligence / Bloomberg terminal meets sports betting.
-
-Original stack:
-
-- React + Vite or Next.js
-- TypeScript
-- Tailwind CSS
-- Telegram Web App SDK
-- Supabase/PostgreSQL
-- Telegram Bot alerts
-- GitHub Actions as the main research/test runner
-- API-Tennis for fixtures, odds, and score enrichment
+Last updated: 2026-05-22
 
 Repo:
 
@@ -35,760 +10,702 @@ Repo:
 youssefalw2001/Slipiq-Mini-App
 ```
 
-Supabase project used live:
+Live Supabase project ref:
 
 ```txt
-afemheuneiqwoaambmvw
+qjvpkkcbscsypymxyker
+```
+
+Current public site:
+
+```txt
+firstsetlab.run.place
+```
+
+Public positioning:
+
+```txt
+First Set Lab is a personal first-set tennis receipt vault and research archive.
+It is decision-support / market-intelligence content, not a guarantee, not automatic betting, and not financial advice.
 ```
 
 ---
 
-## 2. The major strategy evolution
+## 1. Current state in one page
 
-### Old core idea
+The system is currently in a **V2 protected launch model** state.
 
-The old strategy was exact first-set correct score:
+The original signal chat was not publicly launched during the earlier test slate, so the public website now shows the model that will be used going forward: old qualifying gates stay intact, then a protected score is added for coverage.
+
+Current V2 proof view numbers at the time of this document:
 
 ```txt
-Market: Tennis 1st Set Correct Score
-Target scoreline: 4-6
-Meaning: Player 2 wins the first set 4 games to 6 games
+38 settled signals
+18 wins
+20 losses
+47.37% hit rate
++62.1212 official units
++163.48% official ROI
++62.1212 receipt units
++163.48% receipt ROI
+5 old losses converted to V2 protected wins
 ```
 
-Main exact-score trigger:
+Important: the original old archive data was **not deleted**. The V2 website reads from separate V2 Supabase views.
+
+---
+
+## 2. What changed recently
+
+### Public proof site
+
+The root GitHub Pages page is:
 
 ```txt
-Official V3 Strict
-scoreline: 4-6
-odds: 6.25–6.99
-tournament_level: tour_other / lower-tier bucket
-match type: singles only
-timing: pre-match only
+docs/index.html
 ```
 
-Ultra exact trigger:
+It now redirects to:
 
 ```txt
-Ultra V1
-scoreline: 4-6
-odds: 6.50–6.99
-tournament_level: tour_other
-match type: singles only
-timing: pre-match only
+docs/proof.html
 ```
 
-### New core strategy
-
-Live settlement showed exact `4-6` was too narrow, but many exact-score losses were still Player 2 first-set wins nearby:
+The actual public proof website is:
 
 ```txt
-3-6
-4-6
-5-7
+docs/proof.html
 ```
 
-So the new best strategy is:
+The proof page now reads from these Supabase views:
 
 ```txt
-Market: 1 Set Winner & 1 Set Exact Games
-Selection: Player 2 & 9–12
-Wins on: 3-6, 4-6, 5-7
+public.proof_vault_live_summary_v2_protected
+public.proof_vault_daily_summary_v2_protected
+public.proof_vault_recent_receipts_v2_protected
 ```
 
-This means SlipIQ is no longer mainly “predict exact 4-6.” It is now:
+The older views still exist and should stay preserved:
 
 ```txt
-Detect Player 2 first-set pressure, then choose the best market.
+public.proof_vault_live_summary
+public.proof_vault_daily_summary
+public.proof_vault_recent_receipts
 ```
 
-Current hierarchy:
+The public website copy should feel like a **personal brand / personal receipt vault**, not a corporate product page. It should show confidence, intelligence, dopamine, and transparency without promising wins.
+
+Current narrative standard:
 
 ```txt
-#1 Main safer strategy:
-Player 2 & 9–12 after V3 Strict / Ultra exact 4-6 trigger
-
-#2 Upside strategy:
-2-leg parlay using two separate Player 2 & 9–12 signals
-
-#3 High-payout shadow:
-Exact 4-6, small stake / tracker only until live proof improves
-
-#4 Side trackers:
-Exact 3-6, exact 5-7, Player 2 & 13
-
-#5 Old V2 wide:
-Scanner only / context, not main staking
+Wins stay because they show upside.
+Losses stay because they protect the truth.
+The ledger is the intelligence layer.
 ```
 
-Critical distinction:
+Current quote on the page:
 
 ```txt
-Do NOT bet Player 2 & 9–12 on every tennis match.
-Only consider it when the exact 4-6 trigger appears in the V3 Strict / Ultra zone.
+What gets tracked gets sharper.
 ```
 
 ---
 
-## 3. Market definitions
+## 3. Current public strategy: V2 protected score groups
 
-### Exact 4-6
-
-```txt
-First set exact score 4-6.
-Player 2 wins the first set 6 games to 4.
-```
-
-### Player 2 & 9–12
-
-This is usually **not** listed under plain Correct Score. Search book menus for:
+The strategy is still the same strategy family:
 
 ```txt
-1 Set Winner & 1 Set Exact Games
-1st Set Winner & Total Games
-Set 1 Winner & Total Games
-Set Winner + Total Games
-Set Winner & Games
-Player Name & 9–12
+First-set correct-score cluster intelligence.
 ```
 
-For a match listed as:
+But the launch model adds protection after the original gate qualifies.
+
+### Core Cluster V2
+
+Old qualifying gate must pass first:
 
 ```txt
-Player 1 vs Player 2
+Book: bet365
+Lane: CORE_P1_ATP_GS_BET365
+Tour: ATP
+Tournament group: GRAND_SLAM
+Qualifying scores: 6:3 / 6:4
+Minimum qualifying grouped odds: 2.50
+S-tier floor: 3.10
+Trigger score: 6:4
+Trigger score odds range: 5.00 to 6.25
 ```
 
-and an exact trigger of:
+Public protected target after qualification:
 
 ```txt
-4-6
+Player 1 wins first set 6:2, 6:3, or 6:4
 ```
 
-the grouped safer bet is:
+Why:
 
 ```txt
-Player 2 & 9–12
+Some old 6:3 / 6:4 losses were not close misses. They were dominant-set misses, especially 6:2.
 ```
 
-It wins on:
+### Reverse Stretch Cluster V2
+
+Old qualifying gate must pass first:
 
 ```txt
-3-6
-4-6
-5-7
+Book: bet365
+Original lane: RESEARCH_P2_GS_26_46_BET365
+New public lane: CORE_P2_GS_REVERSE_STRETCH_BET365
+Tournament group: GRAND_SLAM
+Qualifying scores: 2:6 / 4:6
+Minimum qualifying grouped odds: 2.50
+Maximum qualifying grouped odds: 4.50
+Required skew: EXTREME
+S-tier floor: 3.50
 ```
 
-It loses on:
+Public protected target after qualification:
 
 ```txt
-0-6
-1-6
-2-6
-6-7
-all Player 1 first-set wins
+Player 2 wins first set 2:6, 4:6, or 5:7
 ```
 
-Important: `6-7` is 13 total games, not 9–12.
+Why:
+
+```txt
+The replay showed two old reverse losses landed 5:7, so 5:7 is added as reverse stretch protection.
+```
+
+### Critical rule
+
+Do **not** lower the qualifying odds floor just because an extra protected score was added.
+
+Correct logic:
+
+```txt
+Old signal qualifies first.
+Then extra protected score is added.
+```
+
+Incorrect logic:
+
+```txt
+Add extra score and lower the gate, creating weaker new signals.
+```
+
+This mistake happened once and was corrected.
 
 ---
 
-## 4. Historical proxy results for Player 2 & 9–12
+## 4. Live scanner workflow
 
-Important limitation: the historical Supabase table had real exact `4-6` odds, but did **not** have true historical `Player 2 & 9–12` grouped odds. Therefore grouped market ROI is scenario/proxy based using assumed odds.
-
-Supabase table used:
+The workflow that matters for live public signals and Telegram sending is:
 
 ```txt
-private_first_set_history
+.github/workflows/api-tennis-live-first-set-lab-scanner.yml
+Workflow name: API Tennis Live First Set Lab Scanner
 ```
 
-Dataset context:
+Schedule:
 
 ```txt
-tour_other singles
-observed table range in the analysis: 2026-03-01 → 2026-05-01
+Runs every 2 hours at minute 17.
+cron: 17 */2 * * *
 ```
 
-### V3 Strict trigger proxy
-
-Trigger:
+Manual run input:
 
 ```txt
-Exact 4-6 odds 6.25–6.99
+send_telegram default: true
 ```
 
-Grouped Player 2 & 9–12 proxy:
+Important flow:
 
 ```txt
-Bets: 106
-Wins: 41
-Losses: 65
-Hit rate: 38.68%
-Break-even odds: 2.585
+1. Checkout repo
+2. Apply public scanner V2 protected-score upgrades
+3. Generate live First Set Lab signals
+4. Deliver through Supabase duplicate guard
+5. Upload artifacts
 ```
 
-Scenario ROI:
+The scanner step itself runs with:
 
 ```txt
-At 3.00 odds: +16.04% ROI, +17.0u
-At 3.50 odds: +35.38% ROI, +37.5u
-At 3.85 odds: +48.92% ROI, +51.85u
-At 4.00 odds: +54.72% ROI, +58.0u
+--send-telegram=false
 ```
 
-### Ultra trigger proxy
+That is normal. Telegram is handled by the separate Supabase delivery step.
 
-Trigger:
+Scheduled runs set:
 
 ```txt
-Exact 4-6 odds 6.50–6.99
+EFFECTIVE_SEND_TELEGRAM=true
 ```
 
-Grouped Player 2 & 9–12 proxy:
+Manual runs use the workflow input:
 
 ```txt
-Bets: 95
-Wins: 38
-Losses: 57
-Hit rate: 40.00%
-Break-even odds: 2.50
+send_telegram=true or false
 ```
 
-Scenario ROI:
+### Important implementation detail
+
+The current live workflow applies the V2 protected scanner change **inside the GitHub Actions runner** before execution.
+
+That means this source file may still look like the older strategy when opened directly:
 
 ```txt
-At 3.00 odds: +20.00% ROI, +19u
-At 3.50 odds: +40.00% ROI, +38u
-At 3.85 odds: +54.00% ROI, +51.3u
-At 4.00 odds: +60.00% ROI, +57u
+scripts/api_tennis_live_first_set_lab_scanner.mjs
 ```
 
-Takeaway:
+But the workflow patches it at runtime before running it.
+
+If a future AI wants to clean this up permanently, do it carefully:
 
 ```txt
-The model seems better at identifying Player 2 first-set pressure than exact 4-6 only.
+1. Update scripts/api_tennis_live_first_set_lab_scanner.mjs permanently.
+2. Remove or simplify the runtime patch from api-tennis-live-first-set-lab-scanner.yml.
+3. Keep the same qualifyingScores logic.
+4. Run the workflow manually with send_telegram=false first.
+5. Confirm artifacts show the same expected targets.
+6. Then run with send_telegram=true if needed.
 ```
+
+Never leave both a permanent source change and a conflicting workflow patch.
 
 ---
 
-## 5. Early live settlement results
+## 5. Scanner artifacts to inspect
 
-### Exact 4-6 live start
-
-Early exact V3 Strict live settlement was weak:
+The live scanner uploads an artifact named:
 
 ```txt
-Exact V3 Strict sample: about 21–23 settled matches
-Exact 4-6 wins: 2
-Hit rate: about 8.7%–9.5%
-Profit: roughly -8u to -10u
+api-tennis-live-first-set-lab-scanner
 ```
 
-This is too small to kill the strategy, but it is a strong warning not to scale exact `4-6` aggressively.
-
-### Player 2 & 9–12 live proxy
-
-On the same V3 Strict matches:
+Important files:
 
 ```txt
-Settled grouped proxy rows: 21
-Wins: 7
-Losses: 14
-Hit rate: 33.33%
+first_set_lab_live_report.md
+first_set_lab_live_summary.json
+first_set_lab_live_signals.csv
+first_set_lab_live_raw_candidates.csv
+first_set_lab_live_telegram_log.csv
+first_set_lab_supabase_delivery_report.md
+first_set_lab_supabase_delivery_summary.json
+first_set_lab_supabase_delivery_log.csv
 ```
 
-At example grouped odds of 3.85:
+When checking if the workflow worked, confirm:
 
 ```txt
-Break-even hit rate: 25.97%
-Proxy hit rate: 33.33%
-Approx ROI: +28%
+Workflow is green.
+No YAML error.
+No fatal error JSON.
+Supabase delivery summary exists.
+Telegram sending is true when expected.
+If 0 signals were sent, check whether selected signals were 0 before assuming Telegram broke.
 ```
 
-Takeaway:
-
-```txt
-Player 2 & 9–12 is currently the best SlipIQ live strategy candidate.
-```
+A successful run can still send zero Telegram messages if no signal qualified.
 
 ---
 
-## 6. Odds rules
+## 6. Telegram delivery system
 
-### Straight Player 2 & 9–12
-
-Based on historical proxy + early live proxy:
+Telegram delivery is handled by:
 
 ```txt
-2.60 = theoretical historical break-even area
-2.80 = playable only with caution / Ultra preference
-3.00 = minimum playable
-3.30+ = good
-3.50–3.60 = strong
-3.85–4.00 = excellent
-```
-
-bet365 was reported by the user/Manus to show this market around:
-
-```txt
-2.80–3.60
-```
-
-Preferred rule:
-
-```txt
-Use V3 Strict or Ultra exact 4-6 trigger.
-Bet Player 2 & 9–12 only if odds are 3.00+.
-Prefer 3.30+.
-```
-
-### 2-leg Player 2 & 9–12 parlay
-
-Two separate qualifying signals are paired:
-
-```txt
-Leg 1: Player 2 & 9–12
-Leg 2: Player 2 & 9–12
-Parlay odds = leg odds × leg odds
-```
-
-Examples:
-
-```txt
-2.80 × 2.80 = 7.84
-3.00 × 3.00 = 9.00
-3.30 × 3.30 = 10.89
-3.50 × 3.50 = 12.25
-3.60 × 3.60 = 12.96
-```
-
-Latest requested GitHub workflow uses:
-
-```txt
-Starting bankroll: $5,000
-Risk: 2% compound per parlay
-Date range: 2025-04-01 → 2026-05-01
-```
-
----
-
-## 7. Simulation results already discussed
-
-### Straight Player 2 & 9–12, $5k, 1.3% compound, 13-month projection
-
-V3 Strict projected about 675 bets in 13 months:
-
-```txt
-2.80 odds: $5k → $9,324
-3.00 odds: $5k → $18,090
-3.30 odds: $5k → $48,735
-3.50 odds: $5k → $94,160
-3.60 odds: $5k → $130,801
-```
-
-Ultra projected about 605 bets in 13 months:
-
-```txt
-2.80 odds: $5k → $11,674
-3.00 odds: $5k → $21,578
-3.30 odds: $5k → $54,066
-3.50 odds: $5k → $99,546
-3.60 odds: $5k → $134,998
-```
-
-These are projections from a 62-day proxy sample and assume hit rate, volume, odds availability, and compounding all hold.
-
-### 2-leg Player 2 & 9–12 parlay, $5k, 1.3% compound, 13-month projection
-
-V3 Strict 2-leg proxy:
-
-```txt
-Sample: 53 parlays
-Wins: 8
-Losses: 45
-Observed hit rate: 15.09%
-Projected 13 months: about 338 parlays
-```
-
-Projected:
-
-```txt
-2.80 leg odds / 7.84 parlay: $5k → $9,024
-3.00 leg odds / 9.00 parlay: $5k → $18,192
-3.30 leg odds / 10.89 parlay: $5k → $55,864
-3.50 leg odds / 12.25 parlay: $5k → $123,373
-3.60 leg odds / 12.96 parlay: $5k → $185,675
-```
-
-Ultra 2-leg proxy:
-
-```txt
-Sample: 47 parlays
-Wins: 7
-Losses: 40
-Observed hit rate: 14.89%
-Projected 13 months: about 299 parlays
-```
-
-Projected:
-
-```txt
-2.80 leg odds / 7.84 parlay: $5k → $7,957
-3.00 leg odds / 9.00 parlay: $5k → $14,695
-3.30 leg odds / 10.89 parlay: $5k → $39,221
-3.50 leg odds / 12.25 parlay: $5k → $78,453
-3.60 leg odds / 12.96 parlay: $5k → $112,190
-```
-
----
-
-## 8. GitHub workflows and files
-
-### Live feasibility workflow
-
-Files:
-
-```txt
-scripts/live-execution-feasibility-watch.mjs
-.github/workflows/live-execution-feasibility-watch.yml
-```
-
-Workflow name:
-
-```txt
-Live Execution Feasibility Watch
+scripts/first_set_lab_supabase_deliver.mjs
 ```
 
 Purpose:
 
 ```txt
-Checks whether exact 4-6 odds in the 6.25–6.99 range appear live before match start.
-Tracks lead_minutes and odds stability.
+- Read scanner CSV.
+- Upsert scanner signals into Supabase.
+- Use duplicate guard before sending.
+- Send customer-facing Telegram alerts only when allowed.
+- Keep research-only / paused books in Supabase only.
 ```
 
-Useful settings:
+Important rules:
 
 ```txt
-Quick:
-cycles: 1
-interval_seconds: 0
-
-Short stability:
-cycles: 4
-interval_seconds: 300
-
-Long watch:
-cycles: 8
-interval_seconds: 1800
+RESEARCH_ONLY = Supabase only, no Telegram.
+Paused books = Supabase only, no Telegram.
+Default paused book: 1xBet.
 ```
 
-### New Player 2 & 9–12 two-leg workflow
-
-Files:
+Duplicate key concept:
 
 ```txt
-scripts/backtest-player2-9-12-two-leg.mjs
-.github/workflows/player2-9-12-two-leg-backtest.yml
+room + event_key + signal_type + market + book + target
 ```
 
-Commits:
+If the same executable Telegram signal already exists, it should not send twice.
 
-```txt
-b256ad0  Add Player 2 9-12 two-leg backtest script
-96de819  Add Player 2 9-12 two-leg backtest workflow
-```
-
-Workflow name:
-
-```txt
-Player 2 9-12 Two-Leg Backtest
-```
-
-Purpose:
-
-```txt
-1. Scan historical API-Tennis fixtures + odds
-2. Find V3 Strict / Ultra exact 4-6 triggers
-3. Try to extract real Player 2 & 9–12 grouped odds
-4. Fall back to scenario odds if real grouped odds are missing
-5. Simulate straight Player 2 & 9–12
-6. Simulate 2-leg Player 2 & 9–12 parlays
-7. Use configured bankroll and risk
-```
-
-Recommended run settings:
-
-```txt
-date_start: 2025-04-01
-date_stop: 2026-05-01
-bankroll: 5000
-risk: 0.02
-scenario_odds: 2.80,3.00,3.30,3.50,3.60
-delay_ms: 150
-```
-
-Artifact to upload back:
-
-```txt
-player2-9-12-two-leg-backtest
-```
-
-Main file:
-
-```txt
-player2-9-12-two-leg-summary.json
-```
-
-Other useful files:
-
-```txt
-player2-9-12-candidates.csv
-two-leg-parlay-backtest-rows.csv
-straight-backtest-rows.csv
-```
-
-When reading results, always separate:
-
-```txt
-Exact 4-6 result
-Straight Player 2 & 9–12 result
-2-leg Player 2 & 9–12 parlay result
-Real grouped odds result
-Scenario grouped odds result
-```
-
-Do not mix real grouped odds with scenario odds without labeling clearly.
+Do not change the delivery guard when the task is only strategy scoring or proof-site display.
 
 ---
 
-## 9. Supabase tables and status
+## 7. Result resolver
 
-Relevant tables:
-
-```txt
-private_live_observation_log
-private_live_observation_runs
-private_result_resolver_runs
-private_first_set_history
-private_grouped_9_12_observation_log
-private_bankroll_settings
-```
-
-### private_live_observation_log
-
-Tracks exact-score live signals, odds movement, start time, actual score, result, and profit.
-
-Important issue found:
+Workflow:
 
 ```txt
-The resolver depended on is_strict_candidate = true.
-Some V3 Strict odds-band rows had is_strict_candidate = false.
-Rows with candidate_scoreline='4-6' and odds_at_discovery in [6.25, 7.00) were patched to is_strict_candidate=true.
-After that, resolver started settling rows.
+.github/workflows/run-result-resolver.yml
+Workflow name: Run Result Resolver
 ```
 
-### private_grouped_9_12_observation_log
-
-Created to track new grouped market separately.
-
-Purpose:
+Schedule:
 
 ```txt
-Stores Player 2 & 9–12 derived candidates from V3 Strict 4-6 signals.
-Wins if actual first set is 3-6, 4-6, or 5-7.
-Allows manual/API grouped odds logging from bet365/Dexsport/etc.
+Runs every 3 hours at minute 43.
+cron: 43 */3 * * *
 ```
 
-Initial status after creation:
+Default Supabase project ref:
 
 ```txt
-Total grouped rows: 33
-Settled grouped rows: 21
-Wins: 7
-Losses: 14
-Pending result: 12
-Proxy hit rate: 33.33%
-Grouped odds: null for all at creation because book odds need manual/API capture
+qjvpkkcbscsypymxyker
 ```
+
+It calls the Supabase Edge Function:
+
+```txt
+https://qjvpkkcbscsypymxyker.supabase.co/functions/v1/result-resolver
+```
+
+Headers/secrets used:
+
+```txt
+SLIPIQ_REFRESH_SECRET
+SUPABASE_ANON_KEY
+```
+
+Known API-Tennis failure:
+
+```txt
+If API-Tennis returns code 1006 / Please make the payment for your account, the workflow will fail with HTTP 500.
+This is an API-Tennis account/payment issue, not a GitHub or Supabase code issue.
+```
+
+Do not change resolver code unless the task is specifically settlement/result logic.
 
 ---
 
-## 10. Platform notes
+## 8. Supabase proof architecture
 
-The strategy needs books that support:
+The public proof site should not rewrite historical rows.
 
-```txt
-Tennis first set markets
-1 Set Winner & 1 Set Exact Games
-Player name & 9–12
-1st Set Correct Score
-```
-
-### Regulated sportsbook candidate
-
-bet365 appears promising because it reportedly has the needed Player 2 & 9–12 market around:
+Current V2 approach:
 
 ```txt
-2.80–3.60
+Original rows stay in base tables/views.
+V2 launch model is calculated in separate protected views.
+Website reads the protected views.
 ```
 
-Other regulated books to check:
+Base source used by V2 views:
 
 ```txt
-DraftKings
-BetMGM
-Fanatics
-FanDuel
-Caesars
+public.live_signal_unique_results
 ```
 
-Market availability varies by state and match.
-
-### Crypto/casino-like sportsbook candidate
-
-Dexsport screenshots showed the exact grouped format:
+Current public V2 views:
 
 ```txt
-Player Name & 6
-Player Name & 7–8
-Player Name & 9–12
-Player Name & 13
+public.proof_vault_recent_receipts_v2_protected
+public.proof_vault_daily_summary_v2_protected
+public.proof_vault_live_summary_v2_protected
 ```
 
-Example:
+These views regrade old test rows using the V2 protected score logic.
+
+If creating a future V3 strategy, do **not** overwrite V2 views unless specifically requested. Prefer:
 
 ```txt
-Cobolli & 9–12 = 2.45
-Tirante & 9–12 = 3.85
+public.proof_vault_recent_receipts_v3_<name>
+public.proof_vault_daily_summary_v3_<name>
+public.proof_vault_live_summary_v3_<name>
 ```
 
-Stake screenshots showed exact score odds:
+Then update:
 
 ```txt
-4-6 = 7.20
-3-6 = 8.60
-5-7 = 21.00
+docs/proof.html
 ```
 
-But Stake grouped Player & 9–12 was not confirmed in screenshots.
+to read from the new V3 views.
 
-Compliance note:
+Always grant public read if the proof site needs anon access:
 
-```txt
-Do not recommend illegal use or bypassing geolocation restrictions.
-For U.S. users, use only legal platforms available where they are physically located.
-Stake.com and Stake.us differ; Stake.us is not the same sportsbook product.
+```sql
+grant select on public.<view_name> to anon, authenticated;
 ```
+
+Never expose service role keys on the frontend.
 
 ---
 
-## 11. Productization and pricing
+## 9. How to update the proof website
 
-The new strategy is strong enough to become the flagship SlipIQ product.
-
-Positioning:
+Primary file:
 
 ```txt
-SlipIQ First Set Lab detects Player 2 first-set pressure and identifies when grouped 9–12 game markets may be mispriced.
+docs/proof.html
 ```
 
-Do not market as guaranteed profit.
-
-Suggested launch tiers:
+Root file:
 
 ```txt
-Founders: $29/month for first 50–100 users
-Premium: $49/month
-VIP: $99/month
+docs/index.html
 ```
 
-After 100–300 settled live grouped bets with real odds and positive ROI:
+Current root behavior:
 
 ```txt
-Premium: $79/month
-VIP: $149/month
-Elite: $249/month limited seats
+index.html redirects to proof.html
 ```
 
-Estimated private strategy/product value by proof stage:
+If the user says the website did not update, check:
 
 ```txt
-Backtest only: $5k–$20k
-Backtest + early live proxy/current stage: $20k–$75k
-100–300 live settled grouped bets positive: $100k–$300k+
-6+ months verified live results + paying users: $500k+ product potential
+1. Did you update docs/proof.html or only another file?
+2. Is docs/index.html still redirecting correctly?
+3. Did GitHub Pages finish deploying?
+4. Is Safari/browser cache showing old HTML?
+5. Try cache buster: firstsetlab.run.place/?v=<new_number>
 ```
+
+The proof site currently uses Supabase JS public anon/publishable key and queries:
+
+```txt
+proof_vault_live_summary_v2_protected
+proof_vault_daily_summary_v2_protected
+proof_vault_recent_receipts_v2_protected
+```
+
+Current public tone:
+
+```txt
+Personal archive.
+Receipt vault.
+Full ledger.
+Losses stay.
+No guarantees.
+Dopamine from receipts, intelligence from the ledger.
+```
+
+Avoid sounding like a big company or making guaranteed-performance claims.
 
 ---
 
-## 12. Current action plan
+## 10. How to improve the strategy safely
 
-Immediate next step:
+When the user asks to improve the strategy, follow this order:
 
-```txt
-Run GitHub Actions → Player 2 9-12 Two-Leg Backtest
-```
+### Step 1: Do not edit public rows first
 
-Use:
+Never start by editing historical rows or hiding losses.
 
-```txt
-date_start: 2025-04-01
-date_stop: 2026-05-01
-bankroll: 5000
-risk: 0.02
-scenario_odds: 2.80,3.00,3.30,3.50,3.60
-delay_ms: 150
-```
-
-Upload artifact back into ChatGPT:
+Correct approach:
 
 ```txt
-player2-9-12-two-leg-backtest
+Run replay/backtest query.
+Compare current vs proposed logic.
+Create a new view or scanner lane.
+Then update public display only if the model is actually the launch model going forward.
 ```
 
-Analyze:
+### Step 2: Identify which layer is being changed
+
+There are separate layers:
 
 ```txt
-1. Did the API expose real Player 2 & 9–12 grouped odds?
-2. If yes, compare real grouped odds ROI.
-3. If no, use scenario odds carefully.
-4. Compare straight vs 2-leg parlay.
-5. Compare V3 Strict vs Ultra trigger.
-6. Watch drawdowns and losing streaks.
+Strategy logic = scanner/workflow/source code.
+Delivery logic = first_set_lab_supabase_deliver.mjs.
+Settlement logic = result resolver / Supabase views.
+Public proof display = docs/proof.html.
 ```
 
-Continue Supabase live tracking and manually/API log real grouped odds from bet365/Dexsport.
+Do not change all layers at once.
+
+### Step 3: Use qualifyingScores for protected score logic
+
+If adding a protected score, keep old qualification separate from public target.
+
+Example pattern:
+
+```js
+scores: ['6:2', '6:3', '6:4'],
+qualifyingScores: ['6:3', '6:4'],
+minGrouped: 2.50
+```
+
+Then compute:
+
+```txt
+qualifyingGrouped = grouped odds of qualifyingScores only.
+protectedGrouped = grouped odds of all public scores.
+```
+
+Use qualifyingGrouped for:
+
+```txt
+entry gate
+tier decision
+skew gate when relevant
+```
+
+Use protectedGrouped for:
+
+```txt
+public break-even math
+proof/replay display
+score_odds_json audit
+```
+
+### Step 4: Preserve audit fields
+
+For any protected strategy, include metadata like:
+
+```txt
+qualifying_scores
+qualifying_grouped_odds
+protected_grouped_odds
+market_skew_bucket
+```
+
+This lets future AI verify that the old gate passed before protection was added.
+
+### Step 5: Dry-run before sending
+
+Run scanner manually with:
+
+```txt
+send_telegram=false
+```
+
+Check artifacts. Then send only if needed.
 
 ---
 
-## 13. Risk rules
+## 11. What not to do
 
-Suggested live discipline:
+Do not:
 
 ```txt
-Paper or tiny stakes until real grouped odds are logged.
-Do not scale exact 4-6 aggressively.
-For Player 2 & 9–12, require 3.00+ odds; prefer 3.30+.
-For 2-leg parlays, both legs should meet minimum odds.
-Use 1.0%–1.3% until more live proof; 2% is aggressive and currently only being backtested.
-Stop after bad streaks.
-Never chase losses.
+- Delete losses from base tables.
+- Rewrite historical rows to pretend they were original live signals.
+- Lower qualifying odds floors unless the user explicitly wants more volume and accepts quality risk.
+- Change Telegram delivery when only the scanner/proof site is being updated.
+- Change Supabase service role secrets or expose them in frontend code.
+- Promise guaranteed results.
+- Mix original archive stats and V2 protected stats without labeling.
+- Treat a 0-signal workflow run as a Telegram failure without checking scanner output first.
 ```
 
-Stop rules:
+The preferred public framing is:
 
 ```txt
-Stop after 5 parlay losses in one day.
-Pause after -10% to -15% drawdown.
-Pause if odds are not actually available live.
-Pause if settlement/resolver data looks wrong.
+Original data preserved.
+V2 launch model displayed.
+Full ledger stays visible.
 ```
 
 ---
 
-## 14. Quick prompt for a new AI tab
-
-Paste this:
+## 12. Current important files
 
 ```txt
-Read docs/SLIPIQ_AI_HANDOFF.md in my GitHub repo `youssefalw2001/Slipiq-Mini-App` first. We are working on SlipIQ First Set Lab. The old exact 4-6 strategy is now mainly a trigger. The current main strategy is Player 2 & 9–12 after a V3 Strict / Ultra exact 4-6 trigger, plus optional 2-leg Player 2 & 9–12 parlays. Focus on the GitHub workflow `Player 2 9-12 Two-Leg Backtest`, Supabase grouped tracking, and real grouped odds logging. Separate real grouped odds from scenario odds.
+docs/index.html
+Root GitHub Pages file. Redirects to proof.html.
+
+/docs/proof.html
+Live public proof website.
+
+/docs/SLIPIQ_AI_HANDOFF.md
+This file. Read first.
+
+.github/workflows/api-tennis-live-first-set-lab-scanner.yml
+Main live scanner + Supabase/Telegram delivery workflow.
+
+scripts/api_tennis_live_first_set_lab_scanner.mjs
+Scanner source. Currently older-looking; workflow patches V2 at runtime.
+
+scripts/first_set_lab_supabase_deliver.mjs
+Supabase upsert + Telegram duplicate guard.
+
+.github/workflows/run-result-resolver.yml
+Calls Supabase result resolver every 3 hours.
+
+supabase/functions/result-resolver/index.ts
+Supabase result resolver function. Verify before editing because some parts may be legacy Score Hunter logic.
+```
+
+---
+
+## 13. Current public proof numbers query
+
+Use this to verify current V2 proof state:
+
+```sql
+select
+  settled_signals,
+  wins,
+  losses,
+  hit_rate_pct,
+  official_profit_units,
+  official_roi_pct,
+  receipt_profit_units,
+  receipt_roi_pct,
+  best_receipt_match,
+  best_receipt_score,
+  best_receipt_american_odds
+from public.proof_vault_live_summary_v2_protected;
+```
+
+Use this to verify V2 conversion count:
+
+```sql
+select
+  count(*) filter (where original_settled_win = false and settled_win = true) as converted_losses_to_wins,
+  count(*) filter (where protection_type <> 'unchanged') as protected_layer_rows,
+  count(*) as settled_rows
+from public.proof_vault_recent_receipts_v2_protected
+where status = 'settled';
+```
+
+At last update, expected values were approximately:
+
+```txt
+settled_signals: 38
+wins: 18
+losses: 20
+hit_rate_pct: 47.37
+converted_losses_to_wins: 5
+```
+
+---
+
+## 14. If a new AI tab starts from scratch
+
+Paste this prompt:
+
+```txt
+Read docs/SLIPIQ_AI_HANDOFF.md in repo youssefalw2001/Slipiq-Mini-App first. The live project is First Set Lab / SlipIQ. The current public model is V2 protected score groups: old bet365 qualifying gates stay intact, then Core adds 6:2 protection and Reverse adds 5:7 protection. The proof site is docs/proof.html, root docs/index.html redirects to it, and it reads Supabase views proof_vault_*_v2_protected from project qjvpkkcbscsypymxyker. Do not delete losses or rewrite base rows. If improving strategy, replay/backtest first, create a new Supabase view or scanner lane, dry-run the scanner, then update proof.html only after verifying.
+```
+
+---
+
+## 15. Final operating principle
+
+```txt
+The receipt creates attention.
+The ledger creates trust.
+The model improves only when the full truth stays visible.
 ```
