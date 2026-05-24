@@ -1,0 +1,132 @@
+name: Daily Stop Rule Simulator
+
+on:
+  workflow_run:
+    workflows:
+      - API Tennis Upgraded Bet365 Backtest From Warehouse Artifact
+      - API Tennis Upgraded Bet365 Backtest
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      backtest_run_id:
+        description: Optional GitHub Actions run ID from upgraded Bet365 backtest. Blank = latest successful run.
+        required: false
+        default: ''
+      bankroll:
+        description: Starting bankroll for compounding simulation.
+        required: false
+        default: '3000'
+      risk_pct:
+        description: Risk fraction per taken signal.
+        required: false
+        default: '0.05'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  daily-stop-rule-simulator:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve backtest run id
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_RUN_ID: ${{ github.event.inputs.backtest_run_id }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
+            RUN_ID="$WORKFLOW_RUN_ID"
+          elif [ -n "${MANUAL_RUN_ID:-}" ]; then
+            RUN_ID="$MANUAL_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --workflow="api-tennis-upgraded-bet365-backtest-from-warehouse-artifact.yml" \
+              --status=success \
+              --limit=1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+          fi
+          if [ -z "${RUN_ID:-}" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Could not resolve upgraded Bet365 backtest run id."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Using backtest run id: $RUN_ID"
+
+      - name: Download upgraded Bet365 backtest artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p backtest-artifact
+          gh run download "$RUN_ID" \
+            --name upgraded-bet365-backtest-from-warehouse-artifact \
+            --dir backtest-artifact || \
+          gh run download "$RUN_ID" \
+            --name upgraded-bet365-backtest-output \
+            --dir backtest-artifact
+          find backtest-artifact -maxdepth 2 -type f -print
+
+      - name: Extract backtest artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upgraded-bet365-backtest
+          ZIP_PATH=$(find backtest-artifact -name 'upgraded-bet365-backtest-from-warehouse-artifact.zip' -o -name 'upgraded-bet365-backtest-output.zip' | head -n 1)
+          if [ -n "${ZIP_PATH:-}" ] && [ -f "$ZIP_PATH" ]; then
+            unzip -o "$ZIP_PATH" -d upgraded-bet365-backtest
+          else
+            cp backtest-artifact/* upgraded-bet365-backtest/ || true
+          fi
+          test -f upgraded-bet365-backtest/upgraded_bet365_main_rows.csv
+          ls -lh upgraded-bet365-backtest
+
+      - name: Run daily stop rule simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/simulate-daily-stop-rules.mjs \
+            --input=upgraded-bet365-backtest/upgraded_bet365_main_rows.csv \
+            --out=artifacts/output/daily-stop-rule-simulator \
+            --bankroll='${{ github.event.inputs.bankroll || '3000' }}' \
+            --risk-pct='${{ github.event.inputs.risk_pct || '0.05' }}'
+
+      - name: Compress simulator output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/daily-stop-rule-simulator
+          zip -9 ../../../daily-stop-rule-simulator-output.zip ./*
+
+      - name: Upload daily stop rule artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-stop-rule-simulator-output
+          path: |
+            daily-stop-rule-simulator-output.zip
+            artifacts/output/daily-stop-rule-simulator/daily_stop_rule_report.md
+            artifacts/output/daily-stop-rule-simulator/daily_stop_rule_summary.json
+            artifacts/output/daily-stop-rule-simulator/daily_stop_rule_summary.csv
+            artifacts/output/daily-stop-rule-simulator/daily_stop_rule_day_log.csv
+            artifacts/output/daily-stop-rule-simulator/daily_stop_rule_ledger.csv
+          if-no-files-found: error
