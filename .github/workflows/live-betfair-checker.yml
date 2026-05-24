@@ -1,0 +1,92 @@
+name: Live Betfair Checker
+
+on:
+  workflow_dispatch:
+    inputs:
+      bookmaker:
+        description: Target bookmaker to compare against Bet365 live signals.
+        required: false
+        default: 'betfair'
+      upload_raw:
+        description: Reserved for future raw odds debugging.
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '*/30 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  live-betfair-checker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${API_TENNIS_KEY:-}" ] && [ -z "${APITENNIS_API_KEY:-}" ] && [ -z "${API_TENNIS_API_KEY:-}" ]; then
+            echo "Missing API Tennis key. Add API_TENNIS_KEY, APITENNIS_API_KEY, or API_TENNIS_API_KEY."
+            exit 2
+          fi
+          if [ -z "${SUPABASE_URL:-}" ] && [ -z "${VITE_SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL or VITE_SUPABASE_URL."
+            exit 2
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ] && [ -z "${SUPABASE_SERVICE_KEY:-}" ] && [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "Missing Supabase key. Add SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SERVICE_KEY, or SUPABASE_ANON_KEY."
+            exit 2
+          fi
+
+      - name: Run live Betfair checker
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          node scripts/live-betfair-checker.mjs \
+            --out=artifacts/output/live-betfair-checker \
+            --bookmaker='${{ github.event.inputs.bookmaker || 'betfair' }}'
+
+      - name: Compress live checker output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/live-betfair-checker
+          zip -9 ../../../live-betfair-checker-output.zip ./*
+
+      - name: Upload live checker artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-betfair-checker-output
+          path: |
+            live-betfair-checker-output.zip
+            artifacts/output/live-betfair-checker/live_betfair_checker_report.md
+            artifacts/output/live-betfair-checker/live_betfair_checker_summary.json
+            artifacts/output/live-betfair-checker/live_betfair_checker_rows.csv
+          if-no-files-found: error
