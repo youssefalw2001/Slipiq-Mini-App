@@ -2,15 +2,14 @@
 /*
   First Set Lab / SlipIQ API Tennis warehouse coverage audit.
 
-  Purpose:
-  - Explain why historical backtests may show lower volume than live scanner volume.
-  - Measure the funnel from fixtures -> first-set correct-score markets -> Bet365 rows
-    -> complete protected score coverage -> upgraded model signals.
-  - No API calls. No Supabase writes. Artifact-first audit only.
+  Memory-safe version: streams the combined warehouse CSVs line-by-line instead of
+  loading odds/fixtures into memory. This avoids GitHub Actions heap OOM on large
+  12-15 month warehouse artifacts.
 */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import readline from 'node:readline';
 
 const params = Object.fromEntries(
   process.argv.slice(2)
@@ -25,54 +24,67 @@ const bookmakerFilter = String(params.bookmaker || 'bet365').toLowerCase();
 
 const fixturePath = path.join(warehouseDir, 'fixtures_full_combined.csv');
 const widePath = path.join(warehouseDir, 'first_set_correct_score_wide_combined.csv');
-const oddsPath = path.join(warehouseDir, 'odds_full_long_combined.csv');
 
 function ensureDir(dir) { fs.mkdirSync(dir, { recursive: true }); }
 function clean(v) { return String(v ?? '').replace(/\s+/g, ' ').trim(); }
 function safeNumber(v) {
-  if (v === undefined || v === null || clean(v) === '') return null;
-  const n = Number(String(v).replace(',', '.'));
+  const s = clean(v);
+  if (!s) return null;
+  const n = Number(s.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 }
 function csvEscape(v) {
   const s = String(v ?? '');
   return /[",\n\r]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 }
-function csvParse(text) {
-  const rows = [];
-  let row = [];
+function parseCsvLine(line) {
+  const out = [];
   let cell = '';
   let quoted = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    const next = text[i + 1];
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    const next = line[i + 1];
     if (quoted) {
       if (ch === '"' && next === '"') { cell += '"'; i += 1; }
       else if (ch === '"') quoted = false;
       else cell += ch;
     } else if (ch === '"') quoted = true;
-    else if (ch === ',') { row.push(cell); cell = ''; }
-    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
-    else if (ch !== '\r') cell += ch;
+    else if (ch === ',') { out.push(cell); cell = ''; }
+    else cell += ch;
   }
-  if (cell.length || row.length) { row.push(cell); rows.push(row); }
-  if (!rows.length) return [];
-  const headers = rows[0];
-  return rows.slice(1).filter((r) => r.some((c) => c !== '')).map((r) => Object.fromEntries(headers.map((h, i) => [h, r[i] ?? ''])));
+  out.push(cell);
+  return out;
 }
-function readCsv(filePath) {
-  if (!fs.existsSync(filePath)) return [];
-  return csvParse(fs.readFileSync(filePath, 'utf8'));
+async function streamCsv(filePath, onRow) {
+  const rl = readline.createInterface({ input: fs.createReadStream(filePath), crlfDelay: Infinity });
+  let header = null;
+  let lineNo = 0;
+  for await (const line of rl) {
+    lineNo += 1;
+    if (!line && lineNo > 1) continue;
+    const cells = parseCsvLine(line);
+    if (!header) {
+      header = cells;
+      continue;
+    }
+    if (!cells.some((c) => c !== '')) continue;
+    const row = Object.fromEntries(header.map((h, i) => [h, cells[i] ?? '']));
+    await onRow(row, lineNo);
+  }
 }
 function writeCsv(filePath, rows, fields) {
   ensureDir(path.dirname(filePath));
-  const lines = [fields.join(',')];
-  for (const row of rows) lines.push(fields.map((f) => csvEscape(row[f])).join(','));
-  fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+  const out = fs.createWriteStream(filePath, 'utf8');
+  out.write(fields.join(',') + '\n');
+  for (const row of rows) out.write(fields.map((f) => csvEscape(row[f])).join(',') + '\n');
+  out.end();
 }
 function writeJson(filePath, value) {
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf8');
+}
+function writeRow(out, row, fields) {
+  out.write(fields.map((f) => csvEscape(row[f])).join(',') + '\n');
 }
 function odds(row, score) { return safeNumber(row[`odds_${score.replace(':', '_')}`]); }
 function groupedOdds(values) {
@@ -84,9 +96,7 @@ function groupedOdds(values) {
 function scoreSkewBucket(values) {
   const nums = values.map(safeNumber);
   if (nums.length < 2 || nums.some((o) => !o || o <= 1)) return 'UNKNOWN';
-  let ratio;
-  if (nums.length === 2) ratio = Math.max(...nums) / Math.min(...nums);
-  else ratio = nums[1] / ((nums[0] + nums[nums.length - 1]) / 2);
+  const ratio = nums.length === 2 ? Math.max(...nums) / Math.min(...nums) : nums[1] / ((nums[0] + nums[nums.length - 1]) / 2);
   if (ratio < 0.80) return 'LOW';
   if (ratio < 1.15) return 'MID';
   if (ratio < 1.75) return 'HIGH';
@@ -108,57 +118,25 @@ function tournamentGroup(row) {
   if (['challenger', 'itf', 'm25', 'm15', 'w15', 'w25', 'w35', 'w50', 'w75', 'w100', 'w125'].some((k) => t.includes(k))) return 'LOWER_TIER';
   return 'OTHER_TOUR';
 }
-function uniqCount(rows, field = 'event_key') {
-  return new Set(rows.map((r) => clean(r[field])).filter(Boolean)).size;
-}
 function pct(n, d) { return d ? Number(((n / d) * 100).toFixed(2)) : 0; }
 function addCount(map, key, inc = 1) { map.set(key, (map.get(key) || 0) + inc); }
+function uniqueSize(set) { return set.size; }
 
 const lanes = [
   {
-    lane_key: 'CORE_P1_ATP_GS_BET365',
-    public_signal_name: 'Core Cluster',
-    model_bucket: 'MAIN',
-    tour: 'ATP',
-    tournament_group: 'GRAND_SLAM',
-    target_scores: ['6:2', '6:3', '6:4'],
-    qualifying_scores: ['6:3', '6:4'],
-    trigger_score: '6:4',
-    trigger_min: 5.00,
-    trigger_max: 6.25,
-    min_qualifying_grouped: 2.50,
-    max_qualifying_grouped: null,
-    required_skew: null,
+    lane_key: 'CORE_P1_ATP_GS_BET365', public_signal_name: 'Core Cluster', model_bucket: 'MAIN',
+    tour: 'ATP', tournament_group: 'GRAND_SLAM', target_scores: ['6:2', '6:3', '6:4'], qualifying_scores: ['6:3', '6:4'],
+    trigger_score: '6:4', trigger_min: 5.00, trigger_max: 6.25, min_qualifying_grouped: 2.50, max_qualifying_grouped: null, required_skew: null,
   },
   {
-    lane_key: 'CORE_P2_GS_REVERSE_STRETCH_BET365',
-    public_signal_name: 'Reverse Stretch Cluster',
-    model_bucket: 'MAIN',
-    tour: 'ANY',
-    tournament_group: 'GRAND_SLAM',
-    target_scores: ['2:6', '4:6', '5:7'],
-    qualifying_scores: ['2:6', '4:6'],
-    trigger_score: '',
-    trigger_min: null,
-    trigger_max: null,
-    min_qualifying_grouped: 2.50,
-    max_qualifying_grouped: 4.50,
-    required_skew: 'EXTREME',
+    lane_key: 'CORE_P2_GS_REVERSE_STRETCH_BET365', public_signal_name: 'Reverse Stretch Cluster', model_bucket: 'MAIN',
+    tour: 'ANY', tournament_group: 'GRAND_SLAM', target_scores: ['2:6', '4:6', '5:7'], qualifying_scores: ['2:6', '4:6'],
+    trigger_score: '', trigger_min: null, trigger_max: null, min_qualifying_grouped: 2.50, max_qualifying_grouped: 4.50, required_skew: 'EXTREME',
   },
   {
-    lane_key: 'CORE_P1_MIRROR_WTA_OTHER',
-    public_signal_name: 'Mirror Cluster',
-    model_bucket: 'WATCHLIST',
-    tour: 'WTA',
-    tournament_group: 'OTHER_TOUR',
-    target_scores: ['6:3', '6:4', '7:5'],
-    qualifying_scores: ['6:3', '6:4', '7:5'],
-    trigger_score: '6:4',
-    trigger_min: 5.00,
-    trigger_max: 8.00,
-    min_qualifying_grouped: 2.60,
-    max_qualifying_grouped: null,
-    required_skew: null,
+    lane_key: 'CORE_P1_MIRROR_WTA_OTHER', public_signal_name: 'Mirror Cluster', model_bucket: 'WATCHLIST',
+    tour: 'WTA', tournament_group: 'OTHER_TOUR', target_scores: ['6:3', '6:4', '7:5'], qualifying_scores: ['6:3', '6:4', '7:5'],
+    trigger_score: '6:4', trigger_min: 5.00, trigger_max: 8.00, min_qualifying_grouped: 2.60, max_qualifying_grouped: null, required_skew: null,
   },
 ];
 
@@ -180,65 +158,122 @@ function passLane(row, lane) {
   const skew = scoreSkewBucket(qualifyingOdds);
   if (lane.required_skew && skew !== lane.required_skew) return { pass: false, reason: 'wrong_skew' };
   if (lane.trigger_score) {
-    const t = odds(row, lane.trigger_score);
-    if (!t || t < lane.trigger_min || t > lane.trigger_max) return { pass: false, reason: 'trigger_out_of_range' };
+    const triggerOdds = odds(row, lane.trigger_score);
+    if (!triggerOdds || triggerOdds < lane.trigger_min || triggerOdds > lane.trigger_max) return { pass: false, reason: 'trigger_out_of_range' };
   }
   const targetOdds = lane.target_scores.map((s) => odds(row, s));
   if (targetOdds.some((v) => !v || v <= 1)) return { pass: false, reason: 'missing_protected_scores' };
-  const protectedGrouped = groupedOdds(targetOdds);
-  return { pass: true, reason: 'accepted', qualifyingGrouped, protectedGrouped, skew };
+  return { pass: true, reason: 'accepted', qualifyingGrouped, protectedGrouped: groupedOdds(targetOdds), skew };
 }
 
-function summarizeRows(rows) {
-  return { rows: rows.length, unique_matches: uniqCount(rows) };
+function makeLaneStats(lane) {
+  return {
+    lane_key: lane.lane_key,
+    public_signal_name: lane.public_signal_name,
+    model_bucket: lane.model_bucket,
+    fixture_candidate_rows: 0,
+    fixture_candidate_set: new Set(),
+    first_set_market_rows_all_books: 0,
+    first_set_market_set_all_books: new Set(),
+    bet365_first_set_rows: 0,
+    bet365_first_set_set: new Set(),
+    complete_qualifying_rows: 0,
+    complete_protected_rows: 0,
+    accepted_signal_rows: 0,
+    wins: 0,
+    losses: 0,
+    group_profit_units: 0,
+    reject_counts: new Map(),
+  };
 }
 
-function main() {
+async function main() {
   if (!fs.existsSync(fixturePath) || !fs.existsSync(widePath)) {
     console.error(`Missing required warehouse files in ${warehouseDir}`);
     console.error(`Expected ${fixturePath} and ${widePath}`);
     process.exit(2);
   }
   ensureDir(outDir);
-  const fixtures = readCsv(fixturePath);
-  const wideRows = readCsv(widePath);
-  const oddsRows = readCsv(oddsPath);
 
-  const firstSetRows = wideRows.filter((r) => clean(r.market_name) || clean(r.bookmaker));
-  const bet365Rows = firstSetRows.filter((r) => clean(r.bookmaker).toLowerCase() === bookmakerFilter);
-  const fixturesWithFirstSetMarket = new Set(firstSetRows.map((r) => clean(r.event_key)).filter(Boolean));
-  const fixturesWithBet365FirstSet = new Set(bet365Rows.map((r) => clean(r.event_key)).filter(Boolean));
+  const laneStats = new Map(lanes.map((lane) => [lane.lane_key, makeLaneStats(lane)]));
+  const fixtureUnique = new Set();
+  const firstSetUnique = new Set();
+  const bet365FirstSetUnique = new Set();
+  const bookmakerMap = new Map();
+  const monthlyMap = new Map();
 
-  const laneFunnel = [];
-  const rejectionRows = [];
-  const acceptedRows = [];
+  let fixtureRows = 0;
+  let firstSetRows = 0;
+  let bet365Rows = 0;
 
-  for (const lane of lanes) {
-    const fixtureCandidates = fixtures.filter((r) => laneFixtureMatch(r, lane));
-    const marketCandidates = firstSetRows.filter((r) => laneFixtureMatch(r, lane));
-    const bookCandidates = bet365Rows.filter((r) => laneFixtureMatch(r, lane));
-    const completeQualifying = bookCandidates.filter((r) => lane.qualifying_scores.every((s) => odds(r, s) && odds(r, s) > 1));
-    const completeProtected = bookCandidates.filter((r) => lane.target_scores.every((s) => odds(r, s) && odds(r, s) > 1));
-    const rejectCounts = new Map();
-    let accepted = 0;
-    let wins = 0;
-    let losses = 0;
-    let groupUnits = 0;
+  console.log('Streaming fixtures...');
+  await streamCsv(fixturePath, (row) => {
+    fixtureRows += 1;
+    const eventKey = clean(row.event_key);
+    if (eventKey) fixtureUnique.add(eventKey);
+    for (const lane of lanes) {
+      if (!laneFixtureMatch(row, lane)) continue;
+      const s = laneStats.get(lane.lane_key);
+      s.fixture_candidate_rows += 1;
+      if (eventKey) s.fixture_candidate_set.add(eventKey);
+    }
+  });
 
-    for (const row of bookCandidates) {
+  const acceptedFields = ['lane_key','public_signal_name','model_bucket','event_date','event_time','event_key','match_name','tournament_name','bookmaker','first_set_score','result','qualifying_grouped_odds','protected_grouped_odds','market_skew_bucket','target_scores','qualifying_scores'];
+  const acceptedOut = fs.createWriteStream(path.join(outDir, 'coverage_audit_accepted_rows.csv'), 'utf8');
+  acceptedOut.write(acceptedFields.join(',') + '\n');
+
+  console.log('Streaming first-set correct-score wide rows...');
+  await streamCsv(widePath, (row) => {
+    firstSetRows += 1;
+    const eventKey = clean(row.event_key);
+    const bookmaker = clean(row.bookmaker) || 'UNKNOWN';
+    if (eventKey) firstSetUnique.add(eventKey);
+    if (!bookmakerMap.has(bookmaker)) bookmakerMap.set(bookmaker, { bookmaker, rows: 0, event_keys: new Set() });
+    const bookItem = bookmakerMap.get(bookmaker);
+    bookItem.rows += 1;
+    if (eventKey) bookItem.event_keys.add(eventKey);
+
+    const isBook = bookmaker.toLowerCase() === bookmakerFilter;
+    if (isBook) {
+      bet365Rows += 1;
+      if (eventKey) bet365FirstSetUnique.add(eventKey);
+    }
+
+    for (const lane of lanes) {
+      if (!laneFixtureMatch(row, lane)) continue;
+      const s = laneStats.get(lane.lane_key);
+      s.first_set_market_rows_all_books += 1;
+      if (eventKey) s.first_set_market_set_all_books.add(eventKey);
+      if (!isBook) continue;
+      s.bet365_first_set_rows += 1;
+      if (eventKey) s.bet365_first_set_set.add(eventKey);
+      if (lane.qualifying_scores.every((score) => odds(row, score) && odds(row, score) > 1)) s.complete_qualifying_rows += 1;
+      if (lane.target_scores.every((score) => odds(row, score) && odds(row, score) > 1)) s.complete_protected_rows += 1;
       const res = passLane(row, lane);
       if (!res.pass) {
-        addCount(rejectCounts, res.reason);
+        addCount(s.reject_counts, res.reason);
         continue;
       }
-      accepted += 1;
+      s.accepted_signal_rows += 1;
       const firstSetScore = normalizeScore(row.first_set_score);
-      const win = lane.target_scores.includes(firstSetScore);
       const hasScore = /^\d+:\d+$/.test(firstSetScore);
-      if (hasScore && win) wins += 1;
-      if (hasScore && !win) losses += 1;
-      if (hasScore) groupUnits += win ? res.protectedGrouped - 1 : -1;
-      acceptedRows.push({
+      const win = lane.target_scores.includes(firstSetScore);
+      const result = hasScore ? (win ? 'WIN' : 'LOSS') : 'NO_SCORE';
+      if (hasScore && win) s.wins += 1;
+      if (hasScore && !win) s.losses += 1;
+      if (hasScore) s.group_profit_units += win ? res.protectedGrouped - 1 : -1;
+
+      const month = clean(row.event_date).slice(0, 7) || 'UNKNOWN';
+      const mkey = `${month}|${lane.lane_key}`;
+      if (!monthlyMap.has(mkey)) monthlyMap.set(mkey, { month, lane_key: lane.lane_key, signals: 0, wins: 0, losses: 0, no_score: 0 });
+      const monthly = monthlyMap.get(mkey);
+      monthly.signals += 1;
+      if (result === 'WIN') monthly.wins += 1;
+      else if (result === 'LOSS') monthly.losses += 1;
+      else monthly.no_score += 1;
+
+      writeRow(acceptedOut, {
         lane_key: lane.lane_key,
         public_signal_name: lane.public_signal_name,
         model_bucket: lane.model_bucket,
@@ -247,92 +282,70 @@ function main() {
         event_key: row.event_key,
         match_name: row.match_name,
         tournament_name: row.tournament_name,
-        bookmaker: row.bookmaker,
+        bookmaker,
         first_set_score: row.first_set_score,
-        result: hasScore ? (win ? 'WIN' : 'LOSS') : 'NO_SCORE',
+        result,
         qualifying_grouped_odds: res.qualifyingGrouped,
         protected_grouped_odds: res.protectedGrouped,
         market_skew_bucket: res.skew,
         target_scores: lane.target_scores.join('/'),
         qualifying_scores: lane.qualifying_scores.join('/'),
-      });
+      }, acceptedFields);
     }
-    for (const [reason, count] of [...rejectCounts.entries()].sort()) {
-      rejectionRows.push({ lane_key: lane.lane_key, public_signal_name: lane.public_signal_name, reason, rows: count });
+  });
+  acceptedOut.end();
+
+  const laneFunnel = [...laneStats.values()].map((s) => ({
+    lane_key: s.lane_key,
+    public_signal_name: s.public_signal_name,
+    model_bucket: s.model_bucket,
+    fixture_candidate_rows: s.fixture_candidate_rows,
+    fixture_candidate_unique_matches: uniqueSize(s.fixture_candidate_set),
+    first_set_market_rows_all_books: s.first_set_market_rows_all_books,
+    first_set_market_unique_matches_all_books: uniqueSize(s.first_set_market_set_all_books),
+    bet365_first_set_rows: s.bet365_first_set_rows,
+    bet365_first_set_unique_matches: uniqueSize(s.bet365_first_set_set),
+    complete_qualifying_rows: s.complete_qualifying_rows,
+    complete_protected_rows: s.complete_protected_rows,
+    accepted_signal_rows: s.accepted_signal_rows,
+    coverage_fixture_to_bet365_pct: pct(uniqueSize(s.bet365_first_set_set), uniqueSize(s.fixture_candidate_set)),
+    acceptance_from_bet365_pct: pct(s.accepted_signal_rows, s.bet365_first_set_rows),
+    wins: s.wins,
+    losses: s.losses,
+    hit_rate_pct: pct(s.wins, s.wins + s.losses),
+    group_profit_units: Number(s.group_profit_units.toFixed(6)),
+    group_roi_pct: s.wins + s.losses ? Number(((s.group_profit_units / (s.wins + s.losses)) * 100).toFixed(2)) : 0,
+  }));
+
+  const rejectionRows = [];
+  for (const s of laneStats.values()) {
+    for (const [reason, rows] of [...s.reject_counts.entries()].sort()) {
+      rejectionRows.push({ lane_key: s.lane_key, public_signal_name: s.public_signal_name, reason, rows });
     }
-
-    laneFunnel.push({
-      lane_key: lane.lane_key,
-      public_signal_name: lane.public_signal_name,
-      model_bucket: lane.model_bucket,
-      fixture_candidate_rows: fixtureCandidates.length,
-      fixture_candidate_unique_matches: uniqCount(fixtureCandidates),
-      first_set_market_rows_all_books: marketCandidates.length,
-      first_set_market_unique_matches_all_books: uniqCount(marketCandidates),
-      bet365_first_set_rows: bookCandidates.length,
-      bet365_first_set_unique_matches: uniqCount(bookCandidates),
-      complete_qualifying_rows: completeQualifying.length,
-      complete_protected_rows: completeProtected.length,
-      accepted_signal_rows: accepted,
-      coverage_fixture_to_bet365_pct: pct(uniqCount(bookCandidates), uniqCount(fixtureCandidates)),
-      acceptance_from_bet365_pct: pct(accepted, bookCandidates.length),
-      wins,
-      losses,
-      hit_rate_pct: pct(wins, wins + losses),
-      group_profit_units: Number(groupUnits.toFixed(6)),
-      group_roi_pct: wins + losses ? Number(((groupUnits / (wins + losses)) * 100).toFixed(2)) : 0,
-    });
   }
-
-  const monthly = [];
-  const monthlyMap = new Map();
-  for (const row of acceptedRows) {
-    const month = clean(row.event_date).slice(0, 7) || 'UNKNOWN';
-    const key = `${month}|${row.lane_key}`;
-    if (!monthlyMap.has(key)) monthlyMap.set(key, { month, lane_key: row.lane_key, signals: 0, wins: 0, losses: 0, no_score: 0 });
-    const item = monthlyMap.get(key);
-    item.signals += 1;
-    if (row.result === 'WIN') item.wins += 1;
-    else if (row.result === 'LOSS') item.losses += 1;
-    else item.no_score += 1;
-  }
-  for (const item of monthlyMap.values()) {
-    item.hit_rate_pct = pct(item.wins, item.wins + item.losses);
-    monthly.push(item);
-  }
-  monthly.sort((a, b) => `${a.month}|${a.lane_key}`.localeCompare(`${b.month}|${b.lane_key}`));
-
-  const bookmakerMap = new Map();
-  for (const row of firstSetRows) {
-    const b = clean(row.bookmaker) || 'UNKNOWN';
-    if (!bookmakerMap.has(b)) bookmakerMap.set(b, { bookmaker: b, rows: 0, unique_matches_set: new Set() });
-    const item = bookmakerMap.get(b);
-    item.rows += 1;
-    if (clean(row.event_key)) item.unique_matches_set.add(clean(row.event_key));
-  }
-  const bookmakerCoverage = [...bookmakerMap.values()].map((r) => ({
+  const monthlyRows = [...monthlyMap.values()].sort((a, b) => `${a.month}|${a.lane_key}`.localeCompare(`${b.month}|${b.lane_key}`)).map((r) => ({ ...r, hit_rate_pct: pct(r.wins, r.wins + r.losses) }));
+  const bookmakerRows = [...bookmakerMap.values()].map((r) => ({
     bookmaker: r.bookmaker,
     rows: r.rows,
-    unique_matches: r.unique_matches_set.size,
-    pct_of_first_set_matches: pct(r.unique_matches_set.size, fixturesWithFirstSetMarket.size),
+    unique_matches: r.event_keys.size,
+    pct_of_first_set_matches: pct(r.event_keys.size, firstSetUnique.size),
   })).sort((a, b) => b.unique_matches - a.unique_matches);
 
   const summary = {
     generated_at: new Date().toISOString(),
-    mode: 'api_tennis_warehouse_coverage_audit',
-    source_files: { fixtures: fixturePath, first_set_wide: widePath, odds_long: fs.existsSync(oddsPath) ? oddsPath : null },
+    mode: 'api_tennis_warehouse_coverage_audit_streaming',
+    source_files: { fixtures: fixturePath, first_set_wide: widePath },
     bookmaker: bookmakerFilter,
     totals: {
-      fixture_rows: fixtures.length,
-      fixture_unique_matches: uniqCount(fixtures),
-      first_set_correct_score_rows: firstSetRows.length,
-      first_set_correct_score_unique_matches: fixturesWithFirstSetMarket.size,
-      bet365_first_set_rows: bet365Rows.length,
-      bet365_first_set_unique_matches: fixturesWithBet365FirstSet.size,
-      odds_long_rows: oddsRows.length,
-      fixture_to_first_set_market_pct: pct(fixturesWithFirstSetMarket.size, uniqCount(fixtures)),
-      fixture_to_bet365_first_set_pct: pct(fixturesWithBet365FirstSet.size, uniqCount(fixtures)),
-      first_set_market_to_bet365_pct: pct(fixturesWithBet365FirstSet.size, fixturesWithFirstSetMarket.size),
+      fixture_rows: fixtureRows,
+      fixture_unique_matches: fixtureUnique.size,
+      first_set_correct_score_rows: firstSetRows,
+      first_set_correct_score_unique_matches: firstSetUnique.size,
+      bet365_first_set_rows: bet365Rows,
+      bet365_first_set_unique_matches: bet365FirstSetUnique.size,
+      fixture_to_first_set_market_pct: pct(firstSetUnique.size, fixtureUnique.size),
+      fixture_to_bet365_first_set_pct: pct(bet365FirstSetUnique.size, fixtureUnique.size),
+      first_set_market_to_bet365_pct: pct(bet365FirstSetUnique.size, firstSetUnique.size),
     },
     lane_funnel: laneFunnel,
   };
@@ -340,9 +353,8 @@ function main() {
   writeJson(path.join(outDir, 'coverage_audit_summary.json'), summary);
   writeCsv(path.join(outDir, 'coverage_audit_lane_funnel.csv'), laneFunnel, Object.keys(laneFunnel[0] || {}));
   writeCsv(path.join(outDir, 'coverage_audit_rejections.csv'), rejectionRows, ['lane_key','public_signal_name','reason','rows']);
-  writeCsv(path.join(outDir, 'coverage_audit_monthly.csv'), monthly, ['month','lane_key','signals','wins','losses','no_score','hit_rate_pct']);
-  writeCsv(path.join(outDir, 'coverage_audit_bookmaker_coverage.csv'), bookmakerCoverage, ['bookmaker','rows','unique_matches','pct_of_first_set_matches']);
-  writeCsv(path.join(outDir, 'coverage_audit_accepted_rows.csv'), acceptedRows, ['lane_key','public_signal_name','model_bucket','event_date','event_time','event_key','match_name','tournament_name','bookmaker','first_set_score','result','qualifying_grouped_odds','protected_grouped_odds','market_skew_bucket','target_scores','qualifying_scores']);
+  writeCsv(path.join(outDir, 'coverage_audit_monthly.csv'), monthlyRows, ['month','lane_key','signals','wins','losses','no_score','hit_rate_pct']);
+  writeCsv(path.join(outDir, 'coverage_audit_bookmaker_coverage.csv'), bookmakerRows, ['bookmaker','rows','unique_matches','pct_of_first_set_matches']);
 
   const mainAccepted = laneFunnel.filter((r) => r.model_bucket === 'MAIN').reduce((sum, r) => sum + r.accepted_signal_rows, 0);
   const report = [
@@ -373,13 +385,16 @@ function main() {
     '',
     `Main accepted signal rows: ${mainAccepted}`,
     '',
-    '## What this tells us',
-    '- If fixture-to-Bet365 coverage is low, historical volume is likely undercounted by archived market availability.',
-    '- If Bet365 coverage is high but accepted rows are low, the filters are the true limiter.',
-    '- If accepted rows cluster in a few months, volume projections should be season/tournament aware.',
+    '## Read this correctly',
+    '- Low fixture-to-Bet365 coverage means historical volume is likely undercounted by archived market availability.',
+    '- High Bet365 coverage with low accepted rows means the filters are the true limiter.',
+    '- Month clustering means volume projections must be tournament/season aware.',
   ];
   fs.writeFileSync(path.join(outDir, 'coverage_audit_report.md'), report.join('\n'), 'utf8');
   console.log(JSON.stringify(summary, null, 2));
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
