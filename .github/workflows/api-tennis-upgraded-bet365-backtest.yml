@@ -1,0 +1,274 @@
+name: API Tennis Upgraded Bet365 Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      preset_range:
+        description: Use 15_months for 2025-02-17 through 2026-05-17, or custom for manual dates.
+        required: false
+        default: 'custom'
+        type: choice
+        options:
+          - custom
+          - 15_months
+      date_start:
+        description: Custom start date YYYY-MM-DD. Ignored when preset_range=15_months.
+        required: false
+        default: '2026-05-01'
+      date_stop:
+        description: Custom stop date YYYY-MM-DD. Ignored when preset_range=15_months.
+        required: false
+        default: '2026-05-07'
+      event_type_keys:
+        description: Comma-separated event_type_key values. Default 265,266 for ATP/WTA singles.
+        required: false
+        default: '265,266'
+      include_all_types:
+        description: If true, do not pass event_type_key. This can be huge and may include lower tiers.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      request_pause_ms:
+        description: Pause between API requests to reduce rate-limit risk.
+        required: false
+        default: '250'
+      include_raw_sample:
+        description: Save a small raw JSON sample for structure inspection.
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      raw_sample_limit:
+        description: Max raw samples per chunk.
+        required: false
+        default: '3'
+      bankroll:
+        description: Starting bankroll for drawdown/compounding simulation.
+        required: false
+        default: '3000'
+      risk_pcts:
+        description: Comma-separated risk fractions for compounding simulation.
+        required: false
+        default: '0.05,0.06,0.07'
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.plan.outputs.chunks }}
+      warehouse_run_id: ${{ steps.plan.outputs.warehouse_run_id }}
+    steps:
+      - name: Build date chunks
+        id: plan
+        shell: bash
+        run: |
+          node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const preset = '${{ github.event.inputs.preset_range }}';
+          const inputStart = '${{ github.event.inputs.date_start }}';
+          const inputStop = '${{ github.event.inputs.date_stop }}';
+          const includeAll = '${{ github.event.inputs.include_all_types }}' === 'true';
+          const start = preset === '15_months' ? '2025-02-17' : inputStart;
+          const stop = preset === '15_months' ? '2026-05-17' : inputStop;
+          const runId = `api-tennis-upgraded-bet365-backtest-${Date.now()}`;
+          const chunkDays = includeAll ? 3 : 7;
+          const chunks = [];
+          let d = new Date(`${start}T00:00:00Z`);
+          const end = new Date(`${stop}T00:00:00Z`);
+          while (d <= end) {
+            const chunkStart = new Date(d);
+            const chunkEnd = new Date(d);
+            chunkEnd.setUTCDate(chunkEnd.getUTCDate() + chunkDays - 1);
+            if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+            chunks.push({
+              date_start: chunkStart.toISOString().slice(0, 10),
+              date_stop: chunkEnd.toISOString().slice(0, 10),
+            });
+            d = new Date(chunkEnd);
+            d.setUTCDate(d.getUTCDate() + 1);
+          }
+          console.log(`chunks=${JSON.stringify(chunks)}`);
+          console.log(`warehouse_run_id=${runId}`);
+          NODE
+
+  warehouse:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check API Tennis key
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+        run: |
+          if [ -z "$API_TENNIS_KEY" ] && [ -z "$APITENNIS_API_KEY" ] && [ -z "$API_TENNIS_API_KEY" ]; then
+            echo "Missing API Tennis key. Add API_TENNIS_KEY, APITENNIS_API_KEY, or API_TENNIS_API_KEY in repo secrets."
+            exit 2
+          fi
+
+      - name: Export historical odds warehouse chunk
+        shell: bash
+        env:
+          API_TENNIS_KEY: ${{ secrets.API_TENNIS_KEY }}
+          APITENNIS_API_KEY: ${{ secrets.APITENNIS_API_KEY }}
+          API_TENNIS_API_KEY: ${{ secrets.API_TENNIS_API_KEY }}
+        run: |
+          node scripts/api_tennis_full_historical_odds_warehouse.mjs \
+            --out="artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}" \
+            --date-start='${{ matrix.chunk.date_start }}' \
+            --date-stop='${{ matrix.chunk.date_stop }}' \
+            --event-type-keys='${{ github.event.inputs.event_type_keys }}' \
+            --include-all-types='${{ github.event.inputs.include_all_types }}' \
+            --request-pause-ms='${{ github.event.inputs.request_pause_ms }}' \
+            --include-raw-sample='${{ github.event.inputs.include_raw_sample }}' \
+            --raw-sample-limit='${{ github.event.inputs.raw_sample_limit }}' \
+            --warehouse-run-id='${{ needs.plan.outputs.warehouse_run_id }}'
+
+      - name: Upload warehouse chunk artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgraded-bet365-warehouse-${{ matrix.chunk.date_start }}-${{ matrix.chunk.date_stop }}
+          path: |
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/fixtures_full.csv
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/odds_full_long.csv
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/market_inventory.csv
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/first_set_correct_score_wide.csv
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/moneyline_favorite.csv
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/run_summary.json
+            artifacts/output/api-tennis-upgraded-bet365-warehouse/${{ matrix.chunk.date_start }}_${{ matrix.chunk.date_stop }}/warehouse_report.md
+          if-no-files-found: warn
+
+  combine-and-backtest:
+    needs: [plan, warehouse]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download all warehouse chunk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: upgraded-bet365-warehouse-*
+          path: downloaded-artifacts
+          merge-multiple: false
+
+      - name: Combine warehouse chunks
+        shell: bash
+        run: |
+          mkdir -p combined-warehouse
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'downloaded-artifacts';
+          const outDir = 'combined-warehouse';
+          const fileNames = [
+            'fixtures_full.csv',
+            'odds_full_long.csv',
+            'first_set_correct_score_wide.csv',
+            'moneyline_favorite.csv',
+          ];
+          const dirs = fs.existsSync(root) ? fs.readdirSync(root).map((d) => path.join(root, d)).filter((p) => fs.statSync(p).isDirectory()).sort() : [];
+          const stats = { artifacts_found: dirs.length, files: {}, summaries: [], errors: 0 };
+
+          function appendCsv(name) {
+            const outPath = path.join(outDir, name.replace('.csv', '_combined.csv'));
+            fs.writeFileSync(outPath, '');
+            let header = null;
+            let rows = 0;
+            let chunks = 0;
+            for (const dir of dirs) {
+              const p = path.join(dir, name);
+              if (!fs.existsSync(p)) continue;
+              const lines = fs.readFileSync(p, 'utf8').split(/\r?\n/).filter(Boolean);
+              if (!lines.length) continue;
+              chunks += 1;
+              if (!header) {
+                header = lines[0];
+                fs.appendFileSync(outPath, header + '\n');
+              }
+              const body = lines.slice(1);
+              rows += body.length;
+              if (body.length) fs.appendFileSync(outPath, body.join('\n') + '\n');
+            }
+            stats.files[name] = { chunks, rows, output: outPath };
+          }
+
+          for (const name of fileNames) appendCsv(name);
+
+          for (const dir of dirs) {
+            const summaryPath = path.join(dir, 'run_summary.json');
+            if (fs.existsSync(summaryPath)) {
+              try {
+                const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+                stats.summaries.push(s);
+                if (Array.isArray(s.errors)) stats.errors += s.errors.length;
+              } catch (e) {
+                stats.summaries.push({ artifact: dir, parse_error: String(e) });
+              }
+            }
+          }
+
+          fs.writeFileSync(path.join(outDir, 'warehouse_combined_summary.json'), JSON.stringify({
+            generated_at: new Date().toISOString(),
+            warehouse_run_id: '${{ needs.plan.outputs.warehouse_run_id }}',
+            stats,
+          }, null, 2));
+          NODE
+
+      - name: Run upgraded Bet365 protected-score backtest
+        shell: bash
+        run: |
+          node scripts/backtest-upgraded-bet365-from-warehouse.mjs \
+            --warehouse-dir=combined-warehouse \
+            --out=artifacts/output/upgraded-bet365-backtest \
+            --bookmaker=bet365 \
+            --bankroll='${{ github.event.inputs.bankroll }}' \
+            --risk-pcts='${{ github.event.inputs.risk_pcts }}'
+
+      - name: Compress backtest output
+        shell: bash
+        run: |
+          cd artifacts/output/upgraded-bet365-backtest
+          zip -9 ../../../upgraded-bet365-backtest-output.zip ./*
+
+      - name: Upload upgraded backtest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgraded-bet365-backtest-output
+          path: |
+            upgraded-bet365-backtest-output.zip
+            artifacts/output/upgraded-bet365-backtest/upgraded_bet365_report.md
+            artifacts/output/upgraded-bet365-backtest/upgraded_bet365_backtest_summary.json
+            artifacts/output/upgraded-bet365-backtest/upgraded_bet365_lane_split.csv
+            artifacts/output/upgraded-bet365-backtest/upgraded_bet365_monthly_split.csv
+            artifacts/output/upgraded-bet365-backtest/upgraded_bet365_drawdown.csv
+          if-no-files-found: error
