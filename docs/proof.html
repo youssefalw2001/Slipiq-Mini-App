@@ -51,7 +51,7 @@
           <span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">VIP booster</span>
         </div>
         <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-7xl">FIRST SET<br><span class="text-lime number-glow">LAB.</span></h1>
-        <p class="max-w-xl font-mono text-xs uppercase leading-5 text-white/55">Live settled proof dashboard. Green is the conservative grouped model. Gold is the VIP Pocket Booster overlay: 1.00u grouped signal plus 0.50u exact-score booster only when a pocket fires. The replay is settled-history only, not a future guarantee.</p>
+        <p class="max-w-xl font-mono text-xs uppercase leading-5 text-white/55">Live settled proof dashboard. Green is the grouped score-cluster result. Gold is the VIP Pocket Booster overlay: 1.00u grouped signal plus 0.50u exact-score booster only when a pocket fires. The replay is settled-history only, not a future guarantee.</p>
       </div>
       <div class="rounded-2xl border border-white/10 bg-panel/80 p-5 font-mono shadow-terminal">
         <div class="text-[9px] uppercase tracking-widest text-white/35">Current status</div>
@@ -63,7 +63,7 @@
     <section id="models" class="space-y-4">
       <div class="border-l-2 border-lime pl-4">
         <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Separated ledgers</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Main model vs VIP Pocket Booster</h2>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Grouped model vs VIP Pocket Booster</h2>
       </div>
       <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4 font-mono">
         <div class="rounded-xl border border-white/5 bg-panel p-4 text-center shadow-terminal"><div class="text-[9px] uppercase text-white/35">Settled Signals</div><div id="settledSignals" class="mt-2 text-4xl font-black text-white">--</div><div id="wl" class="mt-1 text-[10px] uppercase text-white/40">--</div></div>
@@ -84,7 +84,7 @@
         <div class="rounded-xl border border-lime/20 bg-lime/5 p-4 text-center"><div class="text-[9px] uppercase text-lime/70">Net Profit</div><div id="netProfit" class="mt-2 text-3xl font-black text-lime">--</div></div>
         <div class="rounded-xl border border-red/20 bg-red/5 p-4 text-center"><div class="text-[9px] uppercase text-red/70">Max Drawdown</div><div id="maxDrawdown" class="mt-2 text-3xl font-black text-red">--</div></div>
       </div>
-      <p class="font-mono text-[10px] uppercase leading-5 text-white/45">Method: 5% of current bankroll is the base unit. Every signal risks 1.00u on the grouped model. VIP pocket rows add 0.50u exact-score booster. This is a replay of settled rows only.</p>
+      <p class="font-mono text-[10px] uppercase leading-5 text-white/45">Method: 5% of current bankroll is the base unit. Every signal risks 1.00u on the grouped score cluster. VIP pocket rows add 0.50u exact-score booster. This is a replay of settled rows only.</p>
     </section>
 
     <section id="ledger" class="space-y-4">
@@ -113,9 +113,19 @@
     const signedMoney=v=>{const n=number(v);if(n===null)return'$--';return `${n>=0?'+':'-'}${Math.abs(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0})}`};
     const pct=v=>{const n=number(v);return n===null?'--':`${n.toFixed(2)}%`};
     const dateShort=v=>{if(!v)return'--';const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+    function laneType(r){
+      const lane=String(r.strategy_lane||'').toUpperCase();
+      const name=String(r.public_signal_name||'').toUpperCase();
+      if(lane.includes('MIRROR')||name.includes('MIRROR')) return 'MIRROR WATCHLIST';
+      if(lane.includes('RESEARCH')||lane.includes('VIP')||name.includes('RESEARCH')) return 'RESEARCH / BOOSTER';
+      return 'MAIN';
+    }
     function groupLabel(r){
-      if((r.strategy_lane||'').includes('REVERSE')) return '2:6 / 4:6 / 5:7';
-      if((r.strategy_lane||'').includes('MIRROR')) return '6:3 / 6:4 / 7:5';
+      const lane=String(r.strategy_lane||'').toUpperCase();
+      const name=String(r.public_signal_name||'').toUpperCase();
+      const pocket=String(r.vip_pocket_labels||'').toUpperCase();
+      if(lane.includes('P2')||lane.includes('REVERSE')||name.includes('REVERSE')||pocket.includes('2:6')||pocket.includes('4:6')||pocket.includes('5:7')) return '2:6 / 4:6 / 5:7';
+      if(lane.includes('MIRROR')||name.includes('MIRROR')) return '6:3 / 6:4 / 7:5';
       return '6:2 / 6:3 / 6:4';
     }
     function card(r){
@@ -123,9 +133,9 @@
       const booster=Number(r.pocket_count||0)>0;
       const cls=win?'border-lime/20 bg-lime/5':'border-red/20 bg-red/5';
       return `<article class="rounded-xl border ${cls} p-4 font-mono shadow-terminal">
-        <div class="flex items-start justify-between gap-3"><div><div class="text-[9px] uppercase tracking-widest text-white/35">#${r.rn} // ${r.event_date||''}</div><div class="mt-1 text-sm font-black uppercase leading-tight text-white">${r.match_name||'Unknown match'}</div></div><div class="rounded border px-2 py-1 text-[9px] font-black uppercase ${r.display_status==='WIN'?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div></div>
+        <div class="flex items-start justify-between gap-3"><div><div class="text-[9px] uppercase tracking-widest text-white/35">#${r.rn} // ${r.event_date||''} // ${laneType(r)}</div><div class="mt-1 text-sm font-black uppercase leading-tight text-white">${r.match_name||'Unknown match'}</div><div class="mt-1 text-[9px] uppercase tracking-widest text-white/30">${r.public_signal_name||''}</div></div><div class="rounded border px-2 py-1 text-[9px] font-black uppercase ${r.display_status==='WIN'?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div></div>
         <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Main group</div><div class="mt-1 font-bold text-white">${groupLabel(r)}</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Signal group</div><div class="mt-1 font-bold text-white">${groupLabel(r)}</div></div>
           <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Actual score</div><div class="mt-1 font-bold text-white">${r.first_set_score||'--'}</div></div>
           <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">VIP booster</div><div class="mt-1 font-bold ${booster?'text-gold':'text-white/40'}">${r.vip_pocket_labels||'None'}</div></div>
           <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Total units</div><div class="mt-1 font-black ${win?'text-lime':'text-red'}">${signedUnits(r.total_units)}</div></div>
