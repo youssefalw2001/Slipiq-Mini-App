@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>First Set Lab // VIP Pocket Booster</title>
+  <meta name="description" content="VIP Pocket Booster ledger for First Set Lab, separating grouped model units from exact-score booster units." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']},colors:{ink:'#06090F',panel:'#0D111A',panel2:'#111827',lime:'#C6EF00',cyan:'#00F0FF',red:'#EF4444',gold:'#F59E0B'},boxShadow:{terminal:'0 0 0 1px rgba(255,255,255,.06),0 22px 55px rgba(0,0,0,.55)',neon:'0 0 30px rgba(198,239,0,.15)',goldGlow:'0 0 38px rgba(245,158,11,.18)'}}}}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>body{background:#06090F;color:#fff}.grid-bg{background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:24px 24px}.number-glow{text-shadow:0 0 28px rgba(198,239,0,.26)}.gold-glow{text-shadow:0 0 32px rgba(245,158,11,.35)}</style>
+</head>
+<body class="font-sans antialiased">
+  <div class="fixed inset-0 -z-10 pointer-events-none"><div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,.10),transparent_42%),radial-gradient(circle_at_0%_45%,rgba(198,239,0,.055),transparent_35%)]"></div><div class="absolute inset-0 grid-bg opacity-70"></div></div>
+  <main class="mx-auto max-w-xl px-4 py-8 space-y-8">
+    <section class="space-y-4 pt-8">
+      <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40"><span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span><span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span><span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">VIP Booster</span></div>
+      <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em]">VIP POCKET<br><span class="text-gold gold-glow">BOOSTER.</span></h1>
+      <p class="font-mono text-xs uppercase leading-5 text-white/55">This ledger keeps the normal grouped model intact, then adds a 0.50u exact-score booster only when a pre-defined pocket fires. Grouped units and booster units are separated.</p>
+      <a href="./proof.html" class="inline-block rounded border border-white/10 bg-white/5 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-white/60">Back to Proof Vault</a>
+    </section>
+
+    <section class="grid grid-cols-2 gap-2 font-mono">
+      <div class="rounded border border-white/5 bg-panel p-4 text-center"><div class="text-[9px] uppercase text-white/35">Settled</div><div id="settled" class="mt-2 text-3xl font-black text-white">--</div></div>
+      <div class="rounded border border-white/5 bg-panel p-4 text-center"><div class="text-[9px] uppercase text-white/35">Wins / Losses</div><div class="mt-2 text-2xl font-black"><span id="wins" class="text-lime">--</span><span class="text-white/20"> / </span><span id="losses" class="text-red">--</span></div></div>
+      <div class="rounded border border-lime/20 bg-lime/5 p-4 text-center shadow-neon"><div class="text-[9px] uppercase text-lime/70">Grouped Units</div><div id="groupUnits" class="mt-2 text-3xl font-black text-lime number-glow">--</div><div id="groupRoi" class="mt-1 text-[10px] uppercase text-white/45">ROI --</div></div>
+      <div class="rounded border border-gold/30 bg-gold/5 p-4 text-center shadow-goldGlow"><div class="text-[9px] uppercase text-gold/80">VIP Total Units</div><div id="vipUnits" class="mt-2 text-3xl font-black text-gold gold-glow">--</div><div id="vipRoi" class="mt-1 text-[10px] uppercase text-white/45">ROI --</div></div>
+    </section>
+
+    <section class="rounded-2xl border border-gold/30 bg-gold/5 p-5 font-mono shadow-goldGlow">
+      <div class="text-[9px] font-bold uppercase tracking-widest text-gold">VIP Booster Delta</div>
+      <div id="boosterUnits" class="mt-2 text-5xl font-black tracking-[-.06em] text-gold gold-glow">--</div>
+      <div id="boosterMeta" class="mt-2 text-[10px] uppercase tracking-wider text-white/50">Loading booster ledger...</div>
+    </section>
+
+    <section class="grid grid-cols-2 gap-2 font-mono text-[10px] uppercase">
+      <div class="rounded border border-white/5 bg-panel p-4"><div class="text-white/35">Pocket rows</div><div id="pocketRows" class="mt-2 text-2xl font-black text-white">--</div><div class="mt-1 text-white/35">Rows with booster fire</div></div>
+      <div class="rounded border border-lime/20 bg-lime/5 p-4"><div class="text-lime/70">Pocket hits</div><div id="pocketHits" class="mt-2 text-2xl font-black text-lime">--</div><div class="mt-1 text-white/35">Rows with positive booster</div></div>
+      <div class="rounded border border-cyan/20 bg-cyan/5 p-4"><div class="text-cyan/70">Total staked</div><div id="stakedUnits" class="mt-2 text-2xl font-black text-cyan">--</div><div class="mt-1 text-white/35">1u group + 0.50u pockets</div></div>
+      <div class="rounded border border-white/5 bg-panel p-4"><div class="text-white/35">Last update</div><div id="lastUpdated" class="mt-2 text-lg font-black text-white">--</div><div class="mt-1 text-white/35">Supabase live view</div></div>
+    </section>
+
+    <section class="rounded-xl border border-white/10 bg-panel/80 p-4 font-mono text-[10px] uppercase leading-5 text-white/45">
+      Main public proof remains grouped Core + Reverse. VIP Pocket Booster is a higher-exposure overlay and should be labeled aggressive. Historical/live results do not guarantee future outcomes.
+    </section>
+  </main>
+
+  <script>
+    const SUPABASE_URL='https://qjvpkkcbscsypymxyker.supabase.co';
+    const SUPABASE_KEY='sb_publishable_0EmM78iwc7vHitvHeon28Q_lCU8WCjl';
+    const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const $=id=>document.getElementById(id);
+    const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+    const signedUnits=v=>{const n=num(v);return n===null?'--':`${n>=0?'+':''}${n.toFixed(2)}u`};
+    const units=v=>{const n=num(v);return n===null?'--':`${n.toFixed(2)}u`};
+    const pct=v=>{const n=num(v);return n===null?'--':`${n>=0?'+':''}${n.toFixed(2)}%`};
+    const dateShort=v=>{if(!v)return'--';const d=new Date(v);return Number.isNaN(d.getTime())?'--':d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+    async function load(){
+      const {data,error}=await db.from('proof_vault_vip_pocket_booster_summary_v1').select('*').single();
+      if(error){console.error(error);$('boosterMeta').textContent='VIP booster view could not load.';return;}
+      $('settled').textContent=data.settled_signals??'--';
+      $('wins').textContent=data.wins??'--';
+      $('losses').textContent=data.losses??'--';
+      $('groupUnits').textContent=signedUnits(data.grouped_profit_units);
+      $('groupRoi').textContent=`Group ROI ${pct(data.grouped_roi_per_signal_pct)}`;
+      $('vipUnits').textContent=signedUnits(data.vip_pocket_total_profit_units);
+      $('vipRoi').textContent=`VIP ROI ${pct(data.vip_pocket_roi_on_total_staked_pct)}`;
+      $('boosterUnits').textContent=signedUnits(data.vip_pocket_booster_profit_units);
+      $('boosterMeta').textContent='Extra units from 0.50u exact-score pocket booster overlay';
+      $('pocketRows').textContent=data.vip_pocket_rows??'--';
+      $('pocketHits').textContent=data.vip_pocket_hit_rows??'--';
+      $('stakedUnits').textContent=units(data.vip_pocket_total_staked_units);
+      $('lastUpdated').textContent=dateShort(data.last_updated);
+    }
+    load();setInterval(load,60000);
+  </script>
+</body>
+</html>
