@@ -1,0 +1,126 @@
+name: Live Scanner Parity Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      warehouse_run_id:
+        description: Optional API Tennis Full Historical Odds Warehouse run ID. Blank = latest successful run.
+        required: false
+        default: ''
+      bankroll:
+        description: Starting bankroll for compounding replay.
+        required: false
+        default: '3000'
+      risk_pcts:
+        description: Comma-separated risk fractions for compounding replay.
+        required: false
+        default: '0.03,0.05,0.07'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  live-scanner-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve warehouse run id
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_RUN_ID: ${{ github.event.inputs.warehouse_run_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "${MANUAL_RUN_ID:-}" ]; then
+            RUN_ID="$MANUAL_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --workflow="api-tennis-full-historical-odds-warehouse.yml" \
+              --status=success \
+              --limit=1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+          fi
+          if [ -z "${RUN_ID:-}" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Could not resolve warehouse run id."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Using warehouse run id: $RUN_ID"
+
+      - name: Download combined warehouse artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p warehouse-artifact
+          gh run download "$RUN_ID" \
+            --name api-tennis-full-historical-odds-warehouse-combined \
+            --dir warehouse-artifact
+          find warehouse-artifact -maxdepth 2 -type f -print
+
+      - name: Extract combined warehouse
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p combined-warehouse
+          ZIP_PATH="warehouse-artifact/api-tennis-full-historical-odds-warehouse-combined.zip"
+          if [ ! -f "$ZIP_PATH" ]; then
+            ZIP_PATH=$(find warehouse-artifact -name 'api-tennis-full-historical-odds-warehouse-combined.zip' -type f | head -n 1)
+          fi
+          if [ -z "${ZIP_PATH:-}" ] || [ ! -f "$ZIP_PATH" ]; then
+            echo "Combined warehouse zip not found."
+            find warehouse-artifact -type f -print
+            exit 1
+          fi
+          unzip -o "$ZIP_PATH" -d combined-warehouse
+          test -f combined-warehouse/first_set_correct_score_wide_combined.csv
+          ls -lh combined-warehouse
+
+      - name: Run live scanner parity backtest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backtest-live-scanner-parity-from-warehouse.mjs \
+            --warehouse-dir=combined-warehouse \
+            --out=artifacts/output/live-scanner-parity-backtest \
+            --bankroll='${{ github.event.inputs.bankroll }}' \
+            --risk-pcts='${{ github.event.inputs.risk_pcts }}'
+
+      - name: Compress output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/live-scanner-parity-backtest
+          zip -9 ../../../live-scanner-parity-backtest.zip ./*
+
+      - name: Upload live scanner parity artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-scanner-parity-backtest
+          path: |
+            live-scanner-parity-backtest.zip
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_report.md
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_summary.json
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_summary.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_monthly.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_by_lane.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_compounding.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_unique_customer_rows.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_selected_room_signals.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_deduped_candidates.csv
+            artifacts/output/live-scanner-parity-backtest/live_scanner_parity_raw_candidates.csv
+          if-no-files-found: error
