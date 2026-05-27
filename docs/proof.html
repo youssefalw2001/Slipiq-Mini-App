@@ -1,72 +1,171 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>First Set Lab // Personal Receipt Vault</title>
-  <meta name="description" content="A personal tennis first-set receipt archive tracking V2 protected score-group price patterns, receipt values, historical market data, and settled research results." />
+  <title>First Set Lab // Live Proof Vault</title>
+  <meta name="description" content="First Set Lab live proof vault with grouped model units, VIP Pocket Booster units, settled-bet ledger, and 5 percent compounding replay." />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']},colors:{ink:'#06090F',panel:'#0D111A',panel2:'#111827',lime:'#C6EF00',cyan:'#00F0FF',red:'#EF4444',gold:'#F59E0B'},boxShadow:{terminal:'0 0 0 1px rgba(255,255,255,.06),0 22px 55px rgba(0,0,0,.55)',neon:'0 0 30px rgba(198,239,0,.15)',goldGlow:'0 0 38px rgba(245,158,11,.18)',cyanGlow:'0 0 30px rgba(0,240,255,.14)'}}}}
+    tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif'],mono:['JetBrains Mono','ui-monospace','monospace']},colors:{ink:'#06090F',panel:'#0D111A',panel2:'#111827',lime:'#C6EF00',cyan:'#00F0FF',red:'#EF4444',gold:'#F59E0B'},boxShadow:{terminal:'0 0 0 1px rgba(255,255,255,.06),0 22px 55px rgba(0,0,0,.55)',neon:'0 0 30px rgba(198,239,0,.15)',goldGlow:'0 0 38px rgba(245,158,11,.18)',cyanGlow:'0 0 30px rgba(0,240,255,.14)'}}}}
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body{background:#06090F;color:#fff;overflow-x:hidden}::selection{background:#C6EF00;color:#06090F}.grid-bg{background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:24px 24px}.gold-glow{text-shadow:0 0 32px rgba(245,158,11,.35)}.number-glow{text-shadow:0 0 28px rgba(198,239,0,.26)}.scan{position:relative;overflow:hidden}.scan:after{content:'';position:absolute;inset:-70% -30%;background:linear-gradient(110deg,transparent 44%,rgba(245,158,11,.10) 50%,transparent 56%);transform:translateX(-90%);animation:scan 5.5s infinite;pointer-events:none}@keyframes scan{0%,70%{transform:translateX(-90%)}100%{transform:translateX(90%)}}details summary::-webkit-details-marker{display:none}
+    body{background:#06090F;color:#fff;overflow-x:hidden}
+    ::selection{background:#C6EF00;color:#06090F}
+    .grid-bg{background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:24px 24px}
+    .number-glow{text-shadow:0 0 28px rgba(198,239,0,.26)}
+    .gold-glow{text-shadow:0 0 32px rgba(245,158,11,.35)}
+    .hide-scroll::-webkit-scrollbar{display:none}
   </style>
 </head>
 <body class="font-sans antialiased">
-  <div class="fixed inset-0 -z-10 pointer-events-none"><div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,240,255,.08),transparent_42%),radial-gradient(circle_at_0%_45%,rgba(198,239,0,.055),transparent_35%),radial-gradient(circle_at_100%_90%,rgba(245,158,11,.06),transparent_30%)]"></div><div class="absolute inset-0 grid-bg opacity-70"></div></div>
-  <header class="sticky top-0 z-50 border-b border-white/5 bg-ink/85 backdrop-blur-xl"><nav class="mx-auto flex max-w-xl items-center justify-between px-4 py-3"><div class="flex items-center gap-3"><span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime"></span></span><span class="font-mono text-[10px] font-bold uppercase tracking-[.2em] text-white/90">FSL // V2_PROTECTED_ARCHIVE</span></div><a href="#receipt-value" class="border border-gold/30 bg-gold/5 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gold">Receipt</a></nav></header>
+  <div class="fixed inset-0 -z-10 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,240,255,.08),transparent_42%),radial-gradient(circle_at_0%_45%,rgba(198,239,0,.055),transparent_35%),radial-gradient(circle_at_100%_90%,rgba(245,158,11,.08),transparent_30%)]"></div>
+    <div class="absolute inset-0 grid-bg opacity-70"></div>
+  </div>
 
-  <main class="mx-auto max-w-xl px-4 py-8 space-y-24">
-    <section class="min-h-[76vh] flex flex-col justify-center pt-6">
-      <div class="space-y-4"><div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40"><span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span><span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span><span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Public receipts</span><span class="rounded border border-cyan/20 bg-cyan/5 px-2 py-0.5 text-cyan">V2 protected</span></div><div class="flex items-end gap-3"><h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-6xl">FIRST SET<br><span class="text-lime number-glow">LAB.</span></h1><div class="mb-2 border-l border-gold/40 pl-3 font-mono text-[10px] font-bold uppercase leading-4 tracking-[.18em] text-gold">Personal<br>Receipt<br>Vault</div></div><p class="pt-3 font-mono text-xs uppercase leading-5 text-white/55">First Set Lab is a live first-set price intelligence archive built to decode tennis market inefficiencies. The launch model uses V2 protected score groups: old qualifying gates stay intact, then 6:2 and 5:7 protection is added where the archive showed missed coverage. Not picks. Not hype. A sharper way to read the first-set market.</p></div>
-      <div class="mt-8 grid grid-cols-2 gap-2 font-mono text-[10px] uppercase tracking-wider"><div class="rounded border border-white/5 bg-panel p-3 text-center text-white/45">Last update<br><span id="lastUpdated" class="mt-1 block text-white">Loading...</span></div><div class="rounded border border-lime/20 bg-lime/5 p-3 text-center text-lime">Status<br><span id="vaultStatus" class="mt-1 block">Syncing</span></div></div>
-      <div class="mt-5 grid grid-cols-3 gap-2 font-mono text-[9px] uppercase tracking-widest"><a href="#receipt-value" class="flex items-center justify-between border border-gold bg-gold/10 px-3 py-4 font-bold text-gold shadow-goldGlow">Receipt <span>&rarr;</span></a><a href="#historical-database" class="flex items-center justify-between border border-cyan/30 bg-cyan/5 px-3 py-4 font-bold text-cyan shadow-cyanGlow">Data <span>&rarr;</span></a><a href="#bet365-ledger" class="flex items-center justify-between border border-white/10 bg-white/5 px-3 py-4 font-bold text-white/70">Ledger <span>&rarr;</span></a></div>
-      <div class="mt-5 rounded border border-white/10 bg-panel/70 p-4 font-mono text-[10px] uppercase leading-5 text-white/45">This vault now separates the conservative group-model result from the receipt-value lens. The V2 record uses the grouped strategy price; the gold receipt lens shows the exact score value when it landed.</div>
+  <header class="sticky top-0 z-50 border-b border-white/5 bg-ink/85 backdrop-blur-xl">
+    <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-3">
+        <span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime"></span></span>
+        <span class="font-mono text-[10px] font-bold uppercase tracking-[.2em] text-white/90">FSL // Live Proof Vault</span>
+      </div>
+      <div class="flex gap-2 font-mono text-[10px] uppercase tracking-widest">
+        <a href="#models" class="border border-lime/25 bg-lime/5 px-3 py-1.5 text-lime">Models</a>
+        <a href="#ledger" class="border border-gold/30 bg-gold/5 px-3 py-1.5 text-gold">Ledger</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-8 space-y-12">
+    <section class="grid gap-6 lg:grid-cols-[1.1fr_.9fr] lg:items-end">
+      <div class="space-y-5">
+        <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40">
+          <span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span>
+          <span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span>
+          <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Grouped proof</span>
+          <span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">VIP booster</span>
+        </div>
+        <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-7xl">FIRST SET<br><span class="text-lime number-glow">LAB.</span></h1>
+        <p class="max-w-xl font-mono text-xs uppercase leading-5 text-white/55">Live settled proof dashboard. Green is the conservative grouped model. Gold is the VIP Pocket Booster overlay: 1.00u grouped signal plus 0.50u exact-score booster only when a pocket fires. The replay is settled-history only, not a future guarantee.</p>
+      </div>
+      <div class="rounded-2xl border border-white/10 bg-panel/80 p-5 font-mono shadow-terminal">
+        <div class="text-[9px] uppercase tracking-widest text-white/35">Current status</div>
+        <div id="status" class="mt-2 text-2xl font-black uppercase text-lime">Loading...</div>
+        <div id="lastUpdated" class="mt-2 text-[10px] uppercase text-white/45">Last update --</div>
+      </div>
     </section>
 
-    <section class="space-y-6" id="receipt-value"><div class="border-l-2 border-gold pl-4"><div class="font-mono text-[10px] uppercase tracking-widest text-gold">Best Receipt Value</div><h2 class="text-2xl font-black uppercase tracking-tight">The Score That Paid</h2></div><p class="font-mono text-[11px] uppercase leading-5 text-white/45">The green V2 model shows the group strategy. The gold receipt lens shows the exact-score value inside the group when the landed score had its own recorded price.</p><div class="scan rounded-2xl border border-gold/30 bg-gold/5 p-5 font-mono shadow-goldGlow"><div class="text-[9px] font-bold uppercase tracking-widest text-gold">$200 receipt value model</div><div id="receiptValueProfit" class="mt-2 text-5xl font-black tracking-[-.06em] text-gold gold-glow">+$--</div><div id="receiptValueMeta" class="mt-2 text-[10px] uppercase tracking-wider text-white/50">Loading receipt value...</div><div class="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase"><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Score</div><div id="bestReceiptScore" class="mt-1 font-bold text-white">--</div></div><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Odds</div><div id="bestReceiptOdds" class="mt-1 font-black text-gold">--</div></div><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/35">Return</div><div id="receiptValueReturn" class="mt-1 font-black text-lime">$--</div></div></div></div><div class="rounded-xl border border-white/10 bg-panel p-5 font-mono"><div class="text-[9px] font-bold uppercase tracking-widest text-white/35">Best receipt match</div><div id="bestReceiptMatch" class="mt-2 text-lg font-black uppercase leading-tight text-white">Loading best receipt...</div></div><div class="grid grid-cols-2 gap-2 font-mono"><div class="rounded border border-white/5 bg-panel p-4 text-center"><div class="text-[9px] uppercase text-white/35">V2 Settled Archive</div><div id="settledSignals" class="mt-2 text-3xl font-black text-white">--</div></div><div class="rounded border border-white/5 bg-panel p-4 text-center"><div class="text-[9px] uppercase text-white/35">Wins / Losses</div><div class="mt-2 text-2xl font-black"><span id="wins" class="text-lime">--</span><span class="text-white/20"> / </span><span id="losses" class="text-red">--</span></div></div><div class="rounded border border-lime/20 bg-lime/5 p-4 text-center shadow-neon"><div class="text-[9px] uppercase text-lime/70">V2 Group Units</div><div id="officialUnits" class="mt-2 text-3xl font-black text-lime number-glow">--</div><div id="officialRoi" class="mt-1 text-[10px] uppercase text-white/45">ROI --</div></div><div class="rounded border border-gold/30 bg-gold/5 p-4 text-center shadow-goldGlow"><div class="text-[9px] uppercase text-gold/80">Receipt Units</div><div id="receiptUnits" class="mt-2 text-3xl font-black text-gold">--</div><div id="receiptRoi" class="mt-1 text-[10px] uppercase text-white/45">Receipt ROI --</div></div></div></section>
+    <section id="models" class="space-y-4">
+      <div class="border-l-2 border-lime pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Separated ledgers</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Main model vs VIP Pocket Booster</h2>
+      </div>
+      <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4 font-mono">
+        <div class="rounded-xl border border-white/5 bg-panel p-4 text-center shadow-terminal"><div class="text-[9px] uppercase text-white/35">Settled Signals</div><div id="settledSignals" class="mt-2 text-4xl font-black text-white">--</div><div id="wl" class="mt-1 text-[10px] uppercase text-white/40">--</div></div>
+        <div class="rounded-xl border border-lime/20 bg-lime/5 p-4 text-center shadow-neon"><div class="text-[9px] uppercase text-lime/70">Grouped Units</div><div id="groupUnits" class="mt-2 text-4xl font-black text-lime number-glow">--</div><div id="groupRoi" class="mt-1 text-[10px] uppercase text-white/45">Group ROI --</div></div>
+        <div class="rounded-xl border border-gold/30 bg-gold/5 p-4 text-center shadow-goldGlow"><div class="text-[9px] uppercase text-gold/80">Booster Units</div><div id="boosterUnits" class="mt-2 text-4xl font-black text-gold gold-glow">--</div><div id="pocketMeta" class="mt-1 text-[10px] uppercase text-white/45">Pocket rows --</div></div>
+        <div class="rounded-xl border border-gold/30 bg-gold/5 p-4 text-center shadow-goldGlow"><div class="text-[9px] uppercase text-gold/80">VIP Total Units</div><div id="vipUnits" class="mt-2 text-4xl font-black text-gold gold-glow">--</div><div id="vipRoi" class="mt-1 text-[10px] uppercase text-white/45">VIP ROI --</div></div>
+      </div>
+    </section>
 
-    <section class="space-y-6" id="historical-database"><div class="border-l-2 border-cyan pl-4"><div class="font-mono text-[10px] uppercase tracking-widest text-cyan">Database Layer</div><h2 class="text-2xl font-black uppercase tracking-tight">Historical Market Database</h2></div><div class="scan rounded-2xl border border-cyan/30 bg-cyan/5 p-5 font-mono shadow-cyanGlow"><div class="text-[9px] font-bold uppercase tracking-widest text-cyan">Research file coming next</div><div class="mt-2 text-6xl font-black tracking-[-.08em] text-cyan">99,000+</div><div class="mt-1 text-[11px] uppercase tracking-widest text-white/55">historical first-set market rows scanned</div></div><div class="grid grid-cols-2 gap-2 font-mono text-[10px] uppercase"><div class="rounded border border-white/5 bg-panel p-4"><div class="text-white/35">Research depth</div><div class="mt-2 text-2xl font-black text-white">99K+</div><div class="mt-1 text-white/35">priced rows behind the vault</div></div><div class="rounded border border-cyan/20 bg-cyan/5 p-4"><div class="text-cyan/70">Primary lane</div><div class="mt-2 text-2xl font-black text-cyan">Bet365</div><div class="mt-1 text-white/35">main proof market</div></div><div class="rounded border border-gold/20 bg-gold/5 p-4"><div class="text-gold/70">Core market</div><div class="mt-2 text-2xl font-black text-gold">Score Groups</div><div class="mt-1 text-white/35">first-set structure</div></div><div class="rounded border border-lime/20 bg-lime/5 p-4"><div class="text-lime/70">Launch layer</div><div class="mt-2 text-2xl font-black text-lime">V2 Protected</div><div class="mt-1 text-white/35">same gate, wider coverage</div></div></div></section>
+    <section class="space-y-4">
+      <div class="border-l-2 border-cyan pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">5% compound replay</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">$3,000 settled-history replay</h2>
+      </div>
+      <div class="grid gap-3 md:grid-cols-4 font-mono">
+        <div class="rounded-xl border border-white/5 bg-panel p-4 text-center"><div class="text-[9px] uppercase text-white/35">Starting Bankroll</div><div class="mt-2 text-3xl font-black text-white">$3,000</div></div>
+        <div class="rounded-xl border border-cyan/25 bg-cyan/5 p-4 text-center shadow-cyanGlow"><div class="text-[9px] uppercase text-cyan/70">Final Balance</div><div id="finalBalance" class="mt-2 text-3xl font-black text-cyan">--</div></div>
+        <div class="rounded-xl border border-lime/20 bg-lime/5 p-4 text-center"><div class="text-[9px] uppercase text-lime/70">Net Profit</div><div id="netProfit" class="mt-2 text-3xl font-black text-lime">--</div></div>
+        <div class="rounded-xl border border-red/20 bg-red/5 p-4 text-center"><div class="text-[9px] uppercase text-red/70">Max Drawdown</div><div id="maxDrawdown" class="mt-2 text-3xl font-black text-red">--</div></div>
+      </div>
+      <p class="font-mono text-[10px] uppercase leading-5 text-white/45">Method: 5% of current bankroll is the base unit. Every signal risks 1.00u on the grouped model. VIP pocket rows add 0.50u exact-score booster. This is a replay of settled rows only.</p>
+    </section>
 
-    <section class="space-y-6" id="bet365-ledger"><div class="border-l-2 border-gold pl-4"><div class="font-mono text-[10px] uppercase tracking-widest text-gold">V2 Ledger By Date</div><h2 class="text-2xl font-black uppercase tracking-tight">Daily Receipt Map</h2></div><p class="font-mono text-[11px] uppercase leading-5 text-white/45">Each date shows settled V2 protected archive records, group-model units, receipt-lens units, and example receipts when available.</p><div id="receiptList" class="space-y-3"><div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading date ledger...</div></div></section>
+    <section id="ledger" class="space-y-4">
+      <div class="border-l-2 border-gold pl-4">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Current settled bets</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Signal-by-signal risk ledger</h2>
+      </div>
+      <div id="ledgerList" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div class="rounded-xl border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading settled ledger...</div>
+      </div>
+    </section>
 
-    <section class="space-y-6"><div class="border-l-2 border-cyan pl-4"><div class="font-mono text-[10px] uppercase tracking-widest text-cyan">The Personal Standard</div><h2 class="text-2xl font-black uppercase tracking-tight">Why The Vault Matters</h2></div><p class="font-mono text-xs uppercase leading-5 text-white/50">I built this as a personal research archive, not a perfect-looking highlight reel. Every miss stays visible because the miss usually explains what the model should read next.</p><div class="grid grid-cols-2 gap-3 font-mono text-[11px]"><div class="rounded-lg border border-white/5 bg-panel p-4 opacity-70"><div class="text-[9px] uppercase text-white/40">What most pages show</div><div class="mt-2 text-base font-bold text-white">Only green</div><div class="mt-4 flex justify-between border-t border-white/5 pt-2"><span>Context</span><span class="font-bold text-red">Missing</span></div><div class="mt-1 text-[9px] uppercase text-white/30">No record, no lesson</div></div><div class="rounded-lg border border-cyan/30 bg-cyan/5 p-4 shadow-cyanGlow"><div class="text-[9px] font-bold uppercase tracking-wider text-cyan">What this vault shows</div><div class="mt-2 text-base font-bold text-white">The full ledger</div><div class="mt-4 flex justify-between border-t border-cyan/10 pt-2"><span>Every result</span><span class="font-bold text-cyan">Tracked</span></div><div class="mt-1 text-[9px] uppercase text-cyan/50">That is how the read gets sharper</div></div></div><div class="rounded-xl border border-gold/30 bg-gold/5 p-5 font-mono shadow-goldGlow"><div class="text-[9px] font-black uppercase tracking-widest text-gold">Quote</div><div class="mt-2 text-xl font-black uppercase leading-tight text-white">"What gets tracked gets sharper."</div><div class="mt-3 text-[10px] uppercase leading-5 text-white/45">The dopamine is the receipt. The intelligence is the ledger behind it. This is why the system is different: it does not need a clean-looking feed to tell the story.</div></div></section>
-
-    <section class="rounded-2xl border border-lime/20 bg-lime/5 p-6 shadow-neon space-y-4"><div class="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-lime"><span>!</span><span>Personal Proof Rule</span></div><h3 class="text-3xl font-black uppercase leading-none tracking-tight text-white">Nothing Gets<br>Deleted.</h3><p class="font-mono text-xs uppercase leading-5 text-white/60">This is my public receipt vault. Wins stay because they show the upside. Losses stay because they protect the truth. The goal is not to sound like a company. The goal is to build a smarter personal record that keeps improving every time the market shows a new shape.</p><div class="grid grid-cols-3 gap-2 font-mono text-[9px] uppercase"><div class="rounded border border-lime/20 bg-ink/70 p-3 text-center text-lime">Full ledger</div><div class="rounded border border-gold/20 bg-ink/70 p-3 text-center text-gold">Receipt rush</div><div class="rounded border border-cyan/20 bg-ink/70 p-3 text-center text-cyan">Sharper read</div></div></section>
+    <section class="rounded-xl border border-white/10 bg-panel/80 p-5 font-mono text-[10px] uppercase leading-5 text-white/45">
+      Educational data analysis and decision-support only. Sports market modeling contains variance. Historical settled results do not guarantee future results, profit, certainty, or safety. Never risk funds needed for basic livelihood.
+    </section>
   </main>
-
-  <footer class="space-y-4 border-t border-white/5 bg-panel/30 px-4 py-12 text-center font-mono text-[9px] uppercase tracking-[.18em] text-white/30"><div class="mx-auto max-w-xl space-y-2 leading-relaxed"><p class="font-bold text-white/40">18+ only // Personal research archive</p><p>Educational data analysis and decision-support. Sports market modeling contains inherent variance.</p><p>Historical and live-tracked results do not guarantee future results, profit, or certainty.</p><p>Receipt value and example highlights are display lenses using stored odds and a $200 example amount. They are not guarantees or financial promises.</p><p>Never risk funds required for basic livelihood. No locks. No guarantees.</p><p class="pt-4 text-white/20">First Set Lab // V2 Protected Receipt Archive v5.3</p></div></footer>
 
   <script>
     const SUPABASE_URL='https://qjvpkkcbscsypymxyker.supabase.co';
     const SUPABASE_KEY='sb_publishable_0EmM78iwc7vHitvHeon28Q_lCU8WCjl';
     const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    const RECEIPT_EXAMPLE_STAKE=200;
     const $=id=>document.getElementById(id);
-    const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
-    const money=v=>{const n=num(v);return n===null?'$--':n.toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0})};
-    const signedMoney=v=>{const n=num(v);if(n===null)return'$--';const abs=Math.abs(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0});return`${n>=0?'+':'-'}${abs}`};
-    const signedUnits=v=>{const n=num(v);return n===null?'--':`${n>=0?'+':''}${n.toFixed(2)}u`};
-    const pct=v=>{const n=num(v);return n===null?'--':`${n>=0?'+':''}${n.toFixed(2)}%`};
-    const american=v=>{const n=num(v);return n===null?'--':(n>0?`+${Math.round(n)}`:`${Math.round(n)}`)};
-    const decimalToAmerican=v=>{const d=num(v);if(d===null||d<=1)return null;return d>=2?Math.round((d-1)*100):-Math.round(100/(d-1))};
-    const dateShort=v=>{if(!v)return'--';const d=new Date(v);return Number.isNaN(d.getTime())?'--':d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
-    const dateLabel=v=>{if(!v)return'Unknown date';const d=new Date(`${v}T00:00:00Z`);return Number.isNaN(d.getTime())?v:d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})};
-    function groupDecimal(r){return num(r.original_official_decimal_odds)??num(r.grouped_odds)??num(r.official_decimal_odds)??null}
-    function groupProfit(r){if(r.display_status==='OPEN')return null;if(r.display_status==='WIN'){const d=groupDecimal(r);return d===null?0:d-1}return -1}
-    function receiptProfit(r){if(r.display_status==='OPEN')return null;if(r.display_status==='WIN'){const rp=num(r.receipt_profit_units);if(rp!==null)return rp;const d=num(r.receipt_decimal_odds);return d===null?groupProfit(r):d-1}return -1}
-    function enrichRows(rows){return (rows||[]).map(r=>{const g=groupProfit(r);const rp=receiptProfit(r);const gd=groupDecimal(r);return {...r,group_profit_units:g,receipt_profit_units_calc:rp,group_american_odds:decimalToAmerican(gd),has_dopamine_receipt:r.display_status==='WIN'&&rp!==null&&g!==null&&rp>g}})}
-    function buildSummary(rows){const settled=rows.filter(r=>r.display_status==='WIN'||r.display_status==='LOSS');const wins=settled.filter(r=>r.display_status==='WIN').length;const losses=settled.filter(r=>r.display_status==='LOSS').length;const groupUnits=settled.reduce((s,r)=>s+(num(r.group_profit_units)??0),0);const receiptUnits=settled.reduce((s,r)=>s+(num(r.receipt_profit_units_calc)??0),0);const best=settled.filter(r=>r.display_status==='WIN').sort((a,b)=>(num(b.receipt_profit_units_calc)??-999)-(num(a.receipt_profit_units_calc)??-999))[0]||{};const last=rows.map(r=>r.updated_at||r.settled_at).filter(Boolean).sort().pop();return{last_updated:last,settled_signals:settled.length,wins,losses,official_profit_units:groupUnits,receipt_profit_units:receiptUnits,official_roi_pct:settled.length?groupUnits/settled.length*100:0,receipt_roi_pct:settled.length?receiptUnits/settled.length*100:0,best_receipt_match:best.match_name,best_receipt_score:best.first_set_score,best_receipt_american_odds:best.receipt_american_odds,best_receipt_profit_units:best.receipt_profit_units_calc}}
-    function buildDailyRows(rows){const groups=rows.filter(r=>r.display_status==='WIN'||r.display_status==='LOSS').reduce((a,r)=>{const k=r.event_date||'unknown';(a[k]||=[]).push(r);return a},{});return Object.entries(groups).map(([event_date,arr])=>{const wins=arr.filter(r=>r.display_status==='WIN').length;const losses=arr.filter(r=>r.display_status==='LOSS').length;const official_profit_units=arr.reduce((s,r)=>s+(num(r.group_profit_units)??0),0);const receipt_profit_units=arr.reduce((s,r)=>s+(num(r.receipt_profit_units_calc)??0),0);return{event_date,settled_signals:arr.length,wins,losses,official_profit_units,receipt_profit_units,official_roi_pct:arr.length?official_profit_units/arr.length*100:0,receipt_roi_pct:arr.length?receipt_profit_units/arr.length*100:0}}).sort((a,b)=>String(b.event_date).localeCompare(String(a.event_date)))}
-    function renderSummary(s){$('lastUpdated').textContent=dateShort(s.last_updated);$('vaultStatus').textContent='Live';const units=num(s.best_receipt_profit_units)??0;const profit=units*RECEIPT_EXAMPLE_STAKE;const total=profit+RECEIPT_EXAMPLE_STAKE;$('receiptValueProfit').textContent=signedMoney(profit);$('receiptValueReturn').textContent=money(total);$('receiptValueMeta').textContent=`${money(RECEIPT_EXAMPLE_STAKE)} exact-score receipt lens // group model shown separately`;$('settledSignals').textContent=s.settled_signals??'--';$('wins').textContent=s.wins??'--';$('losses').textContent=s.losses??'--';$('officialUnits').textContent=signedUnits(s.official_profit_units);$('officialRoi').textContent=`Group ROI ${pct(s.official_roi_pct)}`;$('receiptUnits').textContent=signedUnits(s.receipt_profit_units);$('receiptRoi').textContent=`Receipt ROI ${pct(s.receipt_roi_pct)}`;$('bestReceiptMatch').textContent=s.best_receipt_match||'No winning receipt yet';$('bestReceiptScore').textContent=s.best_receipt_score||'--';$('bestReceiptOdds').textContent=american(s.best_receipt_american_odds)}
-    function receiptCard(r){const isWin=r.display_status==='WIN';const isLoss=r.display_status==='LOSS';const official=american(r.group_american_odds);const receipt=american(r.receipt_american_odds);const showReceipt=isWin&&r.has_dopamine_receipt;const cls=isWin?'text-lime border-lime/25 bg-lime/5':isLoss?'text-red border-red/25 bg-red/5':'text-cyan border-cyan/25 bg-cyan/5';const resultUnits=r.display_status==='OPEN'?'Pending':signedUnits(r.group_profit_units);return `<article class="rounded-xl border border-white/5 bg-panel p-4 font-mono shadow-terminal"><div class="flex items-start justify-between gap-3"><div><div class="text-[9px] uppercase tracking-widest text-white/35">${r.public_signal_name||r.strategy_lane||'Signal'}</div><div class="mt-1 text-sm font-black uppercase leading-tight text-white">${r.match_name||'Unknown match'}</div></div><div class="rounded border px-2 py-1 text-[9px] font-black uppercase ${cls}">${r.display_status}</div></div><div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase"><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Cluster</div><div class="mt-1 font-bold text-white">${r.score_cluster||r.public_target||r.selected_side||'--'}</div></div><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Result</div><div class="mt-1 font-bold text-white">${r.first_set_score||'Pending'}</div></div><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Group odds</div><div class="mt-1 font-black text-cyan">${official}</div></div><div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Receipt odds</div><div class="mt-1 font-black ${showReceipt?'text-gold':'text-white/70'}">${showReceipt?receipt:official}</div></div></div><div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[10px] uppercase"><span class="text-white/35">V2 group model // ${dateShort(r.updated_at)}</span><span class="font-black ${isLoss?'text-red':isWin?'text-lime':'text-cyan'}">${resultUnits}</span></div></article>`}
-    function positiveExampleBlock(r){if(!r)return'';const groupNet=(num(r.group_profit_units)??0)*RECEIPT_EXAMPLE_STAKE;const receiptNet=(num(r.receipt_profit_units_calc)??0)*RECEIPT_EXAMPLE_STAKE;const receiptTotal=receiptNet+RECEIPT_EXAMPLE_STAKE;return `<div class="mt-3 rounded-xl border border-gold/30 bg-gold/5 p-4 shadow-goldGlow"><div class="text-[9px] font-black uppercase tracking-widest text-gold">Best winning example from this date</div><div class="mt-2 text-xs font-black uppercase leading-tight text-white">${r.match_name||'Receipt'} // result ${r.first_set_score||'landed'}</div><div class="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase"><div class="rounded border border-cyan/20 bg-cyan/5 p-3"><div class="text-cyan/70">Group model</div><div class="mt-1 font-black text-cyan">${signedMoney(groupNet)}</div><div class="mt-1 text-white/35">${money(RECEIPT_EXAMPLE_STAKE)} at grouped price</div></div><div class="rounded border border-gold/20 bg-ink/70 p-3"><div class="text-gold/70">Receipt lens</div><div class="mt-1 font-black text-gold">${signedMoney(receiptNet)}</div><div class="mt-1 text-white/35">${money(receiptTotal)} total return lens</div></div></div></div>`}
-    function renderByDate(rows,dailyRows){const list=$('receiptList');if(!rows.length){list.innerHTML='<div class="rounded border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">No receipts found yet.</div>';return}const daily=Object.fromEntries((dailyRows||[]).map(r=>[r.event_date,r]));const groups=rows.reduce((a,r)=>{const k=r.event_date||'unknown';(a[k]||=[]).push(r);return a},{});const dates=Object.keys(groups).sort((a,b)=>String(b).localeCompare(String(a)));list.innerHTML=dates.map((date,i)=>{const dayRows=groups[date];const day=daily[date]||{};const wins=day.wins??dayRows.filter(r=>r.display_status==='WIN').length;const losses=day.losses??dayRows.filter(r=>r.display_status==='LOSS').length;const open=dayRows.filter(r=>r.display_status==='OPEN').length;const bestWin=dayRows.filter(r=>r.display_status==='WIN').sort((a,b)=>(num(b.receipt_profit_units_calc)??0)-(num(a.receipt_profit_units_calc)??0))[0];return `<details ${i<2?'open':''} class="rounded-xl border border-white/10 bg-panel2 p-3 shadow-terminal"><summary class="cursor-pointer font-mono uppercase"><div class="flex items-center justify-between gap-3"><div><div class="text-[9px] tracking-widest text-gold">${date}</div><div class="mt-1 text-sm font-black text-white">${dateLabel(date)}</div></div><div class="text-right text-[10px] text-white/45"><span class="text-lime">${wins}W</span> / <span class="text-red">${losses}L</span>${open?` / <span class="text-cyan">${open}O</span>`:''}<br><span>${dayRows.length} records</span></div></div><div class="mt-3 grid grid-cols-2 gap-2 text-[10px]"><div class="rounded border border-lime/20 bg-lime/5 p-3"><div class="text-lime/70">Group day</div><div class="mt-1 font-black text-lime">${signedUnits(day.official_profit_units??0)}</div><div class="mt-1 text-white/35">ROI ${pct(day.official_roi_pct??0)}</div></div><div class="rounded border border-gold/20 bg-gold/5 p-3"><div class="text-gold/70">Receipt lens</div><div class="mt-1 font-black text-gold">${signedUnits(day.receipt_profit_units??0)}</div><div class="mt-1 text-white/35">ROI ${pct(day.receipt_roi_pct??0)}</div></div></div>${positiveExampleBlock(bestWin)}</summary><div class="mt-4 space-y-3">${dayRows.map(receiptCard).join('')}</div></details>`}).join('')}
-    async function loadVault(){try{$('vaultStatus').textContent='Syncing';const {data:rawReceipts,error:receiptsError}=await db.from('proof_vault_recent_receipts_v2_protected').select('event_date,match_name,public_signal_name,strategy_lane,score_cluster,public_target,selected_side,first_set_score,display_status,official_decimal_odds,original_official_decimal_odds,receipt_decimal_odds,official_american_odds,receipt_american_odds,official_profit_units,receipt_profit_units,has_dopamine_receipt,updated_at,settled_at,status,protection_type').order('event_date',{ascending:false}).order('updated_at',{ascending:false}).limit(200);if(receiptsError)throw receiptsError;const receipts=enrichRows(rawReceipts||[]);const summary=buildSummary(receipts);const dailyRows=buildDailyRows(receipts);renderSummary(summary);renderByDate(receipts,dailyRows);$('vaultStatus').textContent='Live'}catch(err){console.error(err);$('vaultStatus').textContent='Offline';$('receiptList').innerHTML='<div class="rounded border border-red/25 bg-red/5 p-4 font-mono text-xs uppercase text-red">Vault could not load. Static page remains visible.</div>'}}
-    loadVault();setInterval(loadVault,60000);
+    const number=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+    const signedUnits=v=>{const n=number(v);return n===null?'--':`${n>=0?'+':''}${n.toFixed(2)}u`};
+    const money=v=>{const n=number(v);return n===null?'$--':n.toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0})};
+    const signedMoney=v=>{const n=number(v);if(n===null)return'$--';return `${n>=0?'+':'-'}${Math.abs(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0})}`};
+    const pct=v=>{const n=number(v);return n===null?'--':`${n.toFixed(2)}%`};
+    const dateShort=v=>{if(!v)return'--';const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+    function groupLabel(r){
+      if((r.strategy_lane||'').includes('REVERSE')) return '2:6 / 4:6 / 5:7';
+      if((r.strategy_lane||'').includes('MIRROR')) return '6:3 / 6:4 / 7:5';
+      return '6:2 / 6:3 / 6:4';
+    }
+    function card(r){
+      const win=Number(r.pnl)>=0;
+      const booster=Number(r.pocket_count||0)>0;
+      const cls=win?'border-lime/20 bg-lime/5':'border-red/20 bg-red/5';
+      return `<article class="rounded-xl border ${cls} p-4 font-mono shadow-terminal">
+        <div class="flex items-start justify-between gap-3"><div><div class="text-[9px] uppercase tracking-widest text-white/35">#${r.rn} // ${r.event_date||''}</div><div class="mt-1 text-sm font-black uppercase leading-tight text-white">${r.match_name||'Unknown match'}</div></div><div class="rounded border px-2 py-1 text-[9px] font-black uppercase ${r.display_status==='WIN'?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div></div>
+        <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Main group</div><div class="mt-1 font-bold text-white">${groupLabel(r)}</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Actual score</div><div class="mt-1 font-bold text-white">${r.first_set_score||'--'}</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">VIP booster</div><div class="mt-1 font-bold ${booster?'text-gold':'text-white/40'}">${r.vip_pocket_labels||'None'}</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Total units</div><div class="mt-1 font-black ${win?'text-lime':'text-red'}">${signedUnits(r.total_units)}</div></div>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase">
+          <div class="rounded border border-white/5 bg-panel2 p-3"><div class="text-white/30">Balance before</div><div class="mt-1 font-black text-white">${money(r.balance_before)}</div></div>
+          <div class="rounded border border-cyan/20 bg-cyan/5 p-3"><div class="text-cyan/70">5% base unit</div><div class="mt-1 font-black text-cyan">${money(r.base_unit_5pct)}</div></div>
+          <div class="rounded border border-gold/20 bg-gold/5 p-3"><div class="text-gold/70">Cash risked</div><div class="mt-1 font-black text-gold">${money(r.total_cash_risked)}</div></div>
+          <div class="rounded border border-white/5 bg-panel2 p-3"><div class="text-white/30">P/L</div><div class="mt-1 font-black ${win?'text-lime':'text-red'}">${signedMoney(r.pnl)}</div></div>
+        </div>
+        <div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[10px] uppercase"><span class="text-white/35">After signal</span><span class="font-black text-white">${money(r.balance_after)}</span></div>
+      </article>`;
+    }
+    async function load(){
+      $('status').textContent='Syncing';
+      const [summaryRes, ledgerRes]=await Promise.all([
+        db.from('proof_vault_vip_pocket_booster_summary_v1').select('*').single(),
+        db.from('proof_vault_vip_pocket_booster_5pct_compound_v1').select('*').order('rn',{ascending:true})
+      ]);
+      if(summaryRes.error||ledgerRes.error){console.error(summaryRes.error||ledgerRes.error);$('status').textContent='Offline';return;}
+      const s=summaryRes.data||{};
+      const rows=ledgerRes.data||[];
+      const last=rows[rows.length-1]||{};
+      const maxDd=Math.max(0,...rows.map(r=>Number(r.drawdown_pct)||0));
+      $('status').textContent='Live';
+      $('lastUpdated').textContent=`Last update ${dateShort(s.last_updated)}`;
+      $('settledSignals').textContent=s.settled_signals??'--';
+      $('wl').textContent=`${s.wins??'--'}W / ${s.losses??'--'}L`;
+      $('groupUnits').textContent=signedUnits(s.grouped_profit_units);
+      $('groupRoi').textContent=`Group ROI ${pct(s.grouped_roi_per_signal_pct)}`;
+      $('boosterUnits').textContent=signedUnits(s.vip_pocket_booster_profit_units);
+      $('pocketMeta').textContent=`${s.vip_pocket_rows??'--'} pocket rows // ${s.vip_pocket_hit_rows??'--'} hits`;
+      $('vipUnits').textContent=signedUnits(s.vip_pocket_total_profit_units);
+      $('vipRoi').textContent=`VIP ROI ${pct(s.vip_pocket_roi_on_total_staked_pct)}`;
+      $('finalBalance').textContent=money(last.balance_after);
+      $('netProfit').textContent=signedMoney((Number(last.balance_after)||3000)-3000);
+      $('maxDrawdown').textContent=pct(maxDd);
+      $('ledgerList').innerHTML=rows.slice().reverse().map(card).join('')||'<div class="rounded-xl border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">No settled rows found.</div>';
+    }
+    load();setInterval(load,60000);
   </script>
 </body>
 </html>
