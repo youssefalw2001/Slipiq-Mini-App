@@ -32,7 +32,7 @@ const SUPABASE_KEY = args['supabase-key'] || process.env.SUPABASE_SERVICE_ROLE_K
 const CHAIN_ID = Number(args['chain-id'] || process.env.AZURO_CHAIN_ID || '137');
 const ACCOUNT = args.account || process.env.AZURO_ACCOUNT || undefined;
 const LIMIT = Number(args.limit || process.env.LIMIT || '50') || 50;
-const PER_PAGE = Number(args['per-page'] || process.env.AZURO_PER_PAGE || '50') || 50;
+const PER_PAGE = Number(args['per-page'] || process.env.AZURO_PER_PAGE || '100') || 100;
 const OUT_DIR = args.out || 'artifacts/output/azuro-toolkit-first-set-score-audit';
 const RUN_ID = args['run-id'] || `azuro_toolkit_audit_${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const WRITE_SUPABASE = String(args['write-supabase'] || process.env.WRITE_SUPABASE || 'true') !== 'false';
@@ -67,6 +67,15 @@ function parsePlayers(matchName) {
   const raw = clean(matchName).replace(/\s+vs\.?\s+/i, ' v ').replace(/\s+@\s+/i, ' v ').replace(/\s+-\s+/i, ' v ');
   const parts = raw.split(/\s+v\s+/i).map(clean).filter(Boolean);
   return parts.length >= 2 ? [parts[0], parts.slice(1).join(' v ')] : [raw, ''];
+}
+
+function playerParts(name) {
+  const raw = norm(name).replace(/\./g, ' ');
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  const initials = tokens.filter((t) => t.length === 1);
+  const words = tokens.filter((t) => t.length > 1);
+  const surname = words.length ? words[words.length - 1] : (tokens[tokens.length - 1] || '');
+  return { raw, tokens, initials, words, surname };
 }
 
 function scoreFromTitle(value) {
@@ -144,31 +153,61 @@ function gameText(game) {
   ].filter(Boolean).join(' '));
 }
 
-function chooseGame(signal, games) {
-  const [p1, p2] = parsePlayers(signal.match_name).map(norm);
+function playerMatchScore(player, text) {
+  if (!player.surname) return 0;
+  let score = 0;
+  if (text.includes(player.surname)) score += 6;
+  if (player.raw && text.includes(player.raw)) score += 3;
+  for (const word of player.words) {
+    if (word !== player.surname && word.length > 2 && text.includes(word)) score += 1;
+  }
+  for (const init of player.initials) {
+    const initialRegex = new RegExp(`\\b${init}[a-z]+\\s+${player.surname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+    if (initialRegex.test(text)) score += 1;
+  }
+  return score;
+}
+
+function gameScore(signal, game) {
+  const [p1Raw, p2Raw] = parsePlayers(signal.match_name);
+  const p1 = playerParts(p1Raw);
+  const p2 = playerParts(p2Raw);
+  const tx = gameText(game);
   const eventMs = new Date(signal.starts_at || signal.event_date || signal.scanned_at).getTime();
-  const scored = (games || []).map((game) => {
-    const tx = gameText(game);
-    let score = 0;
-    if (p1 && tx.includes(p1)) score += 5;
-    if (p2 && tx.includes(p2)) score += 5;
-    if (tx.includes('tennis')) score += 1;
-    const startsAt = Number(game.startsAt || 0) * 1000;
-    if (eventMs && startsAt && Math.abs(startsAt - eventMs) <= 48 * 3600 * 1000) score += 2;
-    return { game, score };
-  }).sort((a, b) => b.score - a.score);
-  return scored[0]?.score >= 7 ? scored[0].game : null;
+  let score = playerMatchScore(p1, tx) + playerMatchScore(p2, tx);
+  if (tx.includes('tennis')) score += 1;
+  const startsAt = Number(game.startsAt || 0) * 1000;
+  if (eventMs && startsAt && Math.abs(startsAt - eventMs) <= 72 * 3600 * 1000) score += 2;
+  return { score, text: tx, title: clean(game.title || game.slug || game.gameId || game.id), startsAt: game.startsAt };
+}
+
+function chooseGame(signal, games) {
+  const scored = (games || []).map((game) => ({ game, ...gameScore(signal, game) })).sort((a, b) => b.score - a.score);
+  return scored[0]?.score >= 12 ? scored[0].game : null;
+}
+
+function topCandidates(signal, games, n = 5) {
+  return (games || [])
+    .map((game) => ({ gameId: game.gameId || game.id, title: clean(game.title || game.slug), startsAt: game.startsAt, ...gameScore(signal, game) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, n);
 }
 
 async function discoverGame(signal) {
   const [p1, p2] = parsePlayers(signal.match_name);
-  const queries = [`${p1} ${p2}`.trim(), p1, p2].filter((q) => clean(q).length >= 3);
+  const pp1 = playerParts(p1);
+  const pp2 = playerParts(p2);
+  const queries = [`${p1} ${p2}`.trim(), `${pp1.surname} ${pp2.surname}`.trim(), pp1.surname, pp2.surname, p1, p2]
+    .filter((q, i, arr) => clean(q).length >= 3 && arr.indexOf(q) === i);
   const errors = [];
+  const diagnostics = [];
   for (const query of queries) {
     try {
-      const { games } = await searchGames({ chainId: CHAIN_ID, query, page: 1, perPage: PER_PAGE });
+      const result = await searchGames({ chainId: CHAIN_ID, query, page: 1, perPage: PER_PAGE });
+      const games = result?.games || [];
+      diagnostics.push({ method: 'searchGames', query, count: games.length, top: topCandidates(signal, games, 3) });
       const game = chooseGame(signal, games);
-      if (game) return { game, method: 'searchGames', raw: games };
+      if (game) return { game, method: 'searchGames', raw: games, diagnostics };
     } catch (error) {
       errors.push(`searchGames(${query}) => ${error.message}`);
     }
@@ -176,13 +215,15 @@ async function discoverGame(signal) {
   for (const state of [GameState.Prematch, GameState.Live]) {
     try {
       const result = await getGamesByFilters({ chainId: CHAIN_ID, state, sportSlug: 'tennis', page: 1, perPage: PER_PAGE });
-      const game = chooseGame(signal, result.games || []);
-      if (game) return { game, method: `getGamesByFilters:${state}`, raw: result.games || [] };
+      const games = result?.games || [];
+      diagnostics.push({ method: 'getGamesByFilters', state, count: games.length, top: topCandidates(signal, games, 5) });
+      const game = chooseGame(signal, games);
+      if (game) return { game, method: `getGamesByFilters:${state}`, raw: games, diagnostics };
     } catch (error) {
       errors.push(`getGamesByFilters(${state}) => ${error.message}`);
     }
   }
-  return { game: null, method: null, raw: null, errors };
+  return { game: null, method: null, raw: null, errors, diagnostics };
 }
 
 function isFirstSetScore(condition) {
@@ -191,8 +232,9 @@ function isFirstSetScore(condition) {
 }
 
 function findCondition(conditions, targets) {
-  const candidates = (conditions || []).filter(isFirstSetScore);
-  const fallback = candidates.length ? candidates : (conditions || []);
+  const list = Array.isArray(conditions) ? conditions : (conditions?.conditions || conditions?.items || []);
+  const candidates = list.filter(isFirstSetScore);
+  const fallback = candidates.length ? candidates : list;
   let best = null;
   for (const condition of fallback) {
     const scoreMap = Object.fromEntries((condition.outcomes || []).map((outcome) => [scoreFromTitle(outcome.title), outcome]).filter(([score]) => score));
@@ -249,14 +291,16 @@ async function auditSignal(signal) {
   try {
     const found = await discoverGame(signal);
     if (!found.game) {
-      const row = { ...base, decision: 'MISSING_GAME', reason: (found.errors || []).slice(0, 3).join(' | '), score_outcomes_json: {}, raw_match_json: { errors: found.errors || [] }, raw_conditions_json: null, raw_calculations_json: null };
-      return row;
+      const reason = `No Toolkit game matched. Diagnostics: ${JSON.stringify((found.diagnostics || []).slice(0, 4))}`;
+      return { ...base, decision: 'MISSING_GAME', reason, score_outcomes_json: {}, raw_match_json: { errors: found.errors || [], diagnostics: found.diagnostics || [] }, raw_conditions_json: null, raw_calculations_json: null };
     }
     const game = found.game;
-    const conditions = await getConditionsByGameIds({ chainId: CHAIN_ID, gameIds: [game.gameId || game.id] });
+    const gameId = game.gameId || game.id;
+    const conditionsResult = await getConditionsByGameIds({ chainId: CHAIN_ID, gameIds: [gameId] });
+    const conditions = Array.isArray(conditionsResult) ? conditionsResult : (conditionsResult?.conditions || conditionsResult?.items || conditionsResult?.data || []);
     const picked = findCondition(conditions, signal.target_scores);
     if (!picked) {
-      const row = { ...base, azuro_game_id: game.gameId || game.id, azuro_game_title: game.title, azuro_league: game.league?.name, azuro_sport: game.sport?.name, score_outcomes_json: {}, raw_match_json: game, raw_conditions_json: conditions, raw_calculations_json: null };
+      const row = { ...base, azuro_game_id: gameId, azuro_game_title: game.title, azuro_league: game.league?.name, azuro_sport: game.sport?.name, score_outcomes_json: {}, raw_match_json: { game, discovery: found.diagnostics || [] }, raw_conditions_json: conditionsResult, raw_calculations_json: null };
       const [decision, reason] = classify(row);
       return { ...row, decision, reason };
     }
@@ -266,12 +310,12 @@ async function auditSignal(signal) {
     for (const score of signal.target_scores) {
       const outcome = picked.scoreMap[score];
       if (!outcome) continue;
-      const calc = await calcLimit(condition.conditionId, outcome.outcomeId);
+      const calc = await calcLimit(condition.conditionId || condition.id, outcome.outcomeId || outcome.id);
       calcs[score] = calc;
       outcomeRows.push({
         score,
-        outcomeId: outcome.outcomeId,
-        odds: dec(outcome.odds),
+        outcomeId: outcome.outcomeId || outcome.id,
+        odds: dec(outcome.odds || outcome.currentOdds || outcome.price),
         title: outcome.title,
         maxBet: n(calc.maxBet),
         maxPayout: n(calc.maxPayout),
@@ -281,7 +325,7 @@ async function auditSignal(signal) {
     const azuroGrouped = groupedOdds(outcomeRows.map((r) => r.odds));
     const row = {
       ...base,
-      azuro_game_id: game.gameId || game.id,
+      azuro_game_id: gameId,
       azuro_game_title: game.title,
       azuro_league: game.league?.name,
       azuro_sport: game.sport?.name,
@@ -293,7 +337,7 @@ async function auditSignal(signal) {
       min_score_max_bet: outcomeRows.every((r) => n(r.maxBet) !== null) ? Math.min(...outcomeRows.map((r) => n(r.maxBet))) : null,
       min_score_max_payout: outcomeRows.every((r) => n(r.maxPayout) !== null) ? Math.min(...outcomeRows.map((r) => n(r.maxPayout))) : null,
       max_group_stake: maxGroupStake(outcomeRows),
-      raw_match_json: game,
+      raw_match_json: { game, discovery: found.diagnostics || [] },
       raw_conditions_json: condition,
       raw_calculations_json: calcs,
     };
@@ -343,9 +387,9 @@ async function main() {
   const fields = ['run_id','match_name','event_date','strategy_lane','target_scores','baseline_grouped_odds','azuro_game_id','azuro_game_title','azuro_market_title','azuro_grouped_odds','edge_vs_baseline','min_score_max_bet','min_score_max_payout','max_group_stake','decision','reason'];
   writeCsv(path.join(OUT_DIR, 'azuro_toolkit_first_set_score_audit.csv'), rows.map(csvRow), fields);
   writeJson(path.join(OUT_DIR, 'azuro_toolkit_first_set_score_audit.json'), rows);
-  const summary = { run_id: RUN_ID, generated_at: new Date().toISOString(), chain_id: CHAIN_ID, signals_checked: rows.length, decisions: summarize(rows), note: 'Safe Toolkit coverage audit only. No signing, no order creation, no wallet action.' };
+  const summary = { run_id: RUN_ID, generated_at: new Date().toISOString(), chain_id: CHAIN_ID, signals_checked: rows.length, decisions: summarize(rows), note: 'Safe Toolkit coverage audit only. No signing, no order creation, no wallet action. Matching is surname-aware and diagnostics are stored in raw_match_json.' };
   writeJson(path.join(OUT_DIR, 'azuro_toolkit_first_set_score_summary.json'), summary);
-  fs.writeFileSync(path.join(OUT_DIR, 'azuro_toolkit_first_set_score_report.md'), ['# Azuro Toolkit First-Set Score Audit', '', `Run ID: ${RUN_ID}`, `Generated: ${summary.generated_at}`, `Chain ID: ${CHAIN_ID}`, `Signals checked: ${rows.length}`, '', '## Decisions', ...Object.entries(summary.decisions).map(([k, v]) => `- ${k}: ${v}`), '', '## Notes', '- Uses @azuro-org/toolkit searchGames/getGamesByFilters/getConditionsByGameIds/getBetCalculation.', '- Safe audit only: no signing, no order creation, no wallet action.'].join('\n') + '\n', 'utf8');
+  fs.writeFileSync(path.join(OUT_DIR, 'azuro_toolkit_first_set_score_report.md'), ['# Azuro Toolkit First-Set Score Audit', '', `Run ID: ${RUN_ID}`, `Generated: ${summary.generated_at}`, `Chain ID: ${CHAIN_ID}`, `Signals checked: ${rows.length}`, '', '## Decisions', ...Object.entries(summary.decisions).map(([k, v]) => `- ${k}: ${v}`), '', '## Notes', '- Uses @azuro-org/toolkit searchGames/getGamesByFilters/getConditionsByGameIds/getBetCalculation.', '- Matching is surname-aware for abbreviated names like C. Ruud vs T. Paul.', '- Safe audit only: no signing, no order creation, no wallet action.'].join('\n') + '\n', 'utf8');
   if (WRITE_SUPABASE) await supabaseInsert('azuro_execution_audit_v1', rows);
   console.log(JSON.stringify(summary, null, 2));
 }
