@@ -3,22 +3,43 @@ name: Azuro DGPredict Coverage Audit
 on:
   workflow_dispatch:
     inputs:
+      source_mode:
+        description: Feed source mode. Use backend for Azuro V3 feed; subgraph is research-only.
+        required: false
+        default: 'backend'
+        type: choice
+        options:
+          - backend
+          - subgraph
+          - auto
+      score_mode:
+        description: Score group to audit
+        required: false
+        default: 'protected3'
+        type: choice
+        options:
+          - protected3
+          - gate2
       azuro_api_base:
-        description: Azuro/Onchainfeed public REST API base URL. Do not use a Graph/blocks subgraph URL here.
+        description: Azuro/Onchainfeed public Backend API base URL. Do not put a subgraph URL here.
         required: false
         default: 'https://api.onchainfeed.org/api/v1/public'
+      azuro_subgraph_url:
+        description: Optional GraphQL subgraph URL for research-only subgraph mode.
+        required: false
+        default: ''
       app_id:
         description: Azuro app id / integration id
         required: false
         default: 'dgpredict'
       chain_id:
-        description: Optional chain id, e.g. 137, 80002, etc.
+        description: Chain id. Polygon mainnet is 137.
         required: false
-        default: ''
+        default: '137'
       environment:
-        description: Optional Azuro environment name
+        description: Azuro V3 environment, e.g. PolygonUSDT
         required: false
-        default: ''
+        default: 'PolygonUSDT'
       limit:
         description: Max First Set Lab signals to audit
         required: false
@@ -58,7 +79,10 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          AZURO_SOURCE_MODE: ${{ github.event.inputs.source_mode }}
+          SCORE_MODE: ${{ github.event.inputs.score_mode }}
           AZURO_API_BASE: ${{ github.event.inputs.azuro_api_base }}
+          AZURO_SUBGRAPH_URL: ${{ github.event.inputs.azuro_subgraph_url }}
           AZURO_APP_ID: ${{ github.event.inputs.app_id }}
           AZURO_CHAIN_ID: ${{ github.event.inputs.chain_id }}
           AZURO_ENVIRONMENT: ${{ github.event.inputs.environment }}
@@ -77,13 +101,20 @@ jobs:
             exit 1
           fi
           if echo "${AZURO_API_BASE}" | grep -qiE 'subgraph|thegraph|studio.thegraph|blocks'; then
-            echo "AZURO_API_BASE must be an Azuro/Onchainfeed REST API base, not a Graph/blocks subgraph URL."
-            echo "Use https://api.onchainfeed.org/api/v1/public for this workflow."
+            echo "AZURO_API_BASE must be an Azuro/Onchainfeed Backend API base, not a Graph/subgraph URL."
+            echo "Use azuro_subgraph_url for research-only subgraph mode."
+            exit 1
+          fi
+          if [ "${AZURO_SOURCE_MODE}" = "subgraph" ] && [ -z "${AZURO_SUBGRAPH_URL:-}" ]; then
+            echo "source_mode=subgraph requires azuro_subgraph_url."
             exit 1
           fi
           node scripts/audit-azuro-dgpredict-first-set-score-coverage.mjs \
             --out=artifacts/output/azuro-dgpredict-coverage-audit \
+            --source-mode="${AZURO_SOURCE_MODE}" \
+            --score-mode="${SCORE_MODE}" \
             --azuro-api-base="${AZURO_API_BASE}" \
+            --azuro-subgraph-url="${AZURO_SUBGRAPH_URL}" \
             --app-id="${AZURO_APP_ID}" \
             --chain-id="${AZURO_CHAIN_ID}" \
             --environment="${AZURO_ENVIRONMENT}" \
