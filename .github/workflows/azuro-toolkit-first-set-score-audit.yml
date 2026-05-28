@@ -18,7 +18,7 @@ on:
       per_page:
         description: Azuro Toolkit page size for game discovery
         required: false
-        default: '50'
+        default: '100'
       min_group_stake:
         description: Minimum grouped stake for BETTABLE decision
         required: false
@@ -77,7 +77,7 @@ jobs:
             echo "Missing SUPABASE_SERVICE_ROLE_KEY secret"
             exit 1
           fi
-          node scripts/audit-azuro-toolkit-first-set-score-coverage.mjs \
+          node scripts/audit-azuro-toolkit-first-set-score-coverage-v2.mjs \
             --out=artifacts/output/azuro-toolkit-first-set-score-audit \
             --chain-id="${AZURO_CHAIN_ID}" \
             --account="${AZURO_ACCOUNT}" \
