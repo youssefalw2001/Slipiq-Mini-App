@@ -49,7 +49,11 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/output/azuro-gnosis-first-set-correct-score
           node scripts/find-azuro-gnosis-first-set-correct-score.mjs \
-            > artifacts/output/azuro-gnosis-first-set-correct-score/results.json
+            > artifacts/output/azuro-gnosis-first-set-correct-score/results.json || true
+          if [ ! -s artifacts/output/azuro-gnosis-first-set-correct-score/results.json ]; then
+            printf '{"ok":false,"error":"scanner produced empty output"}\n' \
+              > artifacts/output/azuro-gnosis-first-set-correct-score/results.json
+          fi
           cat artifacts/output/azuro-gnosis-first-set-correct-score/results.json
 
       - name: Upload scan artifact
