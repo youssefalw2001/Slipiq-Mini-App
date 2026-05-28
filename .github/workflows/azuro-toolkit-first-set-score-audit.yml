@@ -28,9 +28,9 @@ on:
         required: false
         default: '0'
       write_supabase:
-        description: Write audit rows to Supabase azuro_execution_audit_v1
+        description: Disabled for this Toolkit artifact workflow until row normalization is added
         required: false
-        default: 'true'
+        default: 'false'
 
 permissions:
   contents: read
@@ -66,7 +66,6 @@ jobs:
           AZURO_PER_PAGE: ${{ github.event.inputs.per_page }}
           MIN_GROUP_STAKE: ${{ github.event.inputs.min_group_stake }}
           MIN_EDGE: ${{ github.event.inputs.min_edge }}
-          WRITE_SUPABASE: ${{ github.event.inputs.write_supabase }}
         run: |
           set -euo pipefail
           if [ -z "${SUPABASE_URL:-}" ]; then
@@ -85,7 +84,7 @@ jobs:
             --per-page="${AZURO_PER_PAGE}" \
             --min-group-stake="${MIN_GROUP_STAKE}" \
             --min-edge="${MIN_EDGE}" \
-            --write-supabase="${WRITE_SUPABASE}"
+            --write-supabase="false"
 
       - name: Compress output
         shell: bash
