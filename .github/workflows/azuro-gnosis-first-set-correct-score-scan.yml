@@ -1,0 +1,60 @@
+name: Azuro Gnosis First Set Correct Score Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      page_size:
+        description: Subgraph page size
+        required: false
+        default: '100'
+      max_pages:
+        description: Max subgraph pages to scan
+        required: false
+        default: '20'
+      print_all_tennis_markets:
+        description: Print all decoded tennis markets to logs for debugging
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install scanner dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save axios @azuro-org/dictionaries
+
+      - name: Run Gnosis first-set correct-score scan
+        shell: bash
+        env:
+          PAGE_SIZE: ${{ github.event.inputs.page_size }}
+          MAX_PAGES: ${{ github.event.inputs.max_pages }}
+          PRINT_ALL_TENNIS_MARKETS: ${{ github.event.inputs.print_all_tennis_markets }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/output/azuro-gnosis-first-set-correct-score
+          node scripts/find-azuro-gnosis-first-set-correct-score.mjs \
+            > artifacts/output/azuro-gnosis-first-set-correct-score/results.json
+          cat artifacts/output/azuro-gnosis-first-set-correct-score/results.json
+
+      - name: Upload scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azuro-gnosis-first-set-correct-score-scan
+          path: artifacts/output/azuro-gnosis-first-set-correct-score/results.json
+          if-no-files-found: error
