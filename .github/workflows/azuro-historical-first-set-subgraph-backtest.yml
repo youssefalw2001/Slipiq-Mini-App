@@ -1,0 +1,116 @@
+name: Azuro Historical First Set Subgraph Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_view:
+        description: Supabase source view for historical alerts
+        required: false
+        default: 'proof_vault_recent_receipts_v2_protected'
+      limit:
+        description: Max Supabase signals to backtest
+        required: false
+        default: '50'
+      subgraph_url:
+        description: Azuro data-feed subgraph URL. Defaults to Polygon data-feed.
+        required: false
+        default: 'https://thegraph-1.onchainfeed.org/subgraphs/name/azuro-protocol/azuro-data-feed-polygon'
+      blocks_subgraph_url:
+        description: Blocks subgraph URL for timestamp to block lookup. Required.
+        required: true
+        default: ''
+      chain_id:
+        description: Chain label for output rows
+        required: false
+        default: 'polygon'
+      block_window_seconds:
+        description: Lookback/forward window for timestamp to block lookup
+        required: false
+        default: '900'
+      match_window_hours:
+        description: Time window around match_date for game mapping
+        required: false
+        default: '36'
+      games_first:
+        description: Max games to fetch around each match window
+        required: false
+        default: '200'
+      write_supabase:
+        description: Write rows to public.azuro_historical_backtest_v1
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install requests pandas
+
+      - name: Run historical Azuro subgraph backtest
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WRITE_SUPABASE: ${{ github.event.inputs.write_supabase }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL secret"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "Missing SUPABASE_SERVICE_ROLE_KEY secret"
+            exit 1
+          fi
+          if [ -z "${{ github.event.inputs.blocks_subgraph_url }}" ]; then
+            echo "blocks_subgraph_url is required for exact timestamp-to-block replay"
+            exit 1
+          fi
+          python scripts/backtest-azuro-historical-first-set-subgraph.py \
+            --out-dir=artifacts/output/azuro-historical-first-set-backtest \
+            --source-view="${{ github.event.inputs.source_view }}" \
+            --limit="${{ github.event.inputs.limit }}" \
+            --subgraph-url="${{ github.event.inputs.subgraph_url }}" \
+            --blocks-subgraph-url="${{ github.event.inputs.blocks_subgraph_url }}" \
+            --chain-id="${{ github.event.inputs.chain_id }}" \
+            --block-window-seconds="${{ github.event.inputs.block_window_seconds }}" \
+            --match-window-hours="${{ github.event.inputs.match_window_hours }}" \
+            --games-first="${{ github.event.inputs.games_first }}" \
+            --write-supabase="${WRITE_SUPABASE}"
+
+      - name: Compress output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/azuro-historical-first-set-backtest
+          zip -9 ../../../azuro-historical-first-set-backtest.zip ./*
+
+      - name: Upload historical backtest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azuro-historical-first-set-backtest
+          path: |
+            azuro-historical-first-set-backtest.zip
+            artifacts/output/azuro-historical-first-set-backtest/azuro_historical_first_set_backtest.csv
+            artifacts/output/azuro-historical-first-set-backtest/azuro_historical_first_set_backtest.json
+            artifacts/output/azuro-historical-first-set-backtest/azuro_historical_first_set_backtest_summary.json
+            artifacts/output/azuro-historical-first-set-backtest/sample_time_travel_queries.graphql
+          if-no-files-found: error
