@@ -1,0 +1,107 @@
+name: Azuro Toolkit First Set Score Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      chain_id:
+        description: Azuro chain id, e.g. 137 for Polygon
+        required: false
+        default: '137'
+      account:
+        description: Optional wallet address for getBetCalculation limit checks. Leave blank for coverage-only where supported.
+        required: false
+        default: ''
+      limit:
+        description: Max First Set Lab signals to audit
+        required: false
+        default: '50'
+      per_page:
+        description: Azuro Toolkit page size for game discovery
+        required: false
+        default: '50'
+      min_group_stake:
+        description: Minimum grouped stake for BETTABLE decision
+        required: false
+        default: '5'
+      min_edge:
+        description: Minimum Azuro grouped odds edge over baseline
+        required: false
+        default: '0'
+      write_supabase:
+        description: Write audit rows to Supabase azuro_execution_audit_v1
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  toolkit-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Azuro Toolkit runtime dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save @azuro-org/toolkit viem
+
+      - name: Run Azuro Toolkit first-set score audit
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          AZURO_CHAIN_ID: ${{ github.event.inputs.chain_id }}
+          AZURO_ACCOUNT: ${{ github.event.inputs.account }}
+          LIMIT: ${{ github.event.inputs.limit }}
+          AZURO_PER_PAGE: ${{ github.event.inputs.per_page }}
+          MIN_GROUP_STAKE: ${{ github.event.inputs.min_group_stake }}
+          MIN_EDGE: ${{ github.event.inputs.min_edge }}
+          WRITE_SUPABASE: ${{ github.event.inputs.write_supabase }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL secret"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "Missing SUPABASE_SERVICE_ROLE_KEY secret"
+            exit 1
+          fi
+          node scripts/audit-azuro-toolkit-first-set-score-coverage.mjs \
+            --out=artifacts/output/azuro-toolkit-first-set-score-audit \
+            --chain-id="${AZURO_CHAIN_ID}" \
+            --account="${AZURO_ACCOUNT}" \
+            --limit="${LIMIT}" \
+            --per-page="${AZURO_PER_PAGE}" \
+            --min-group-stake="${MIN_GROUP_STAKE}" \
+            --min-edge="${MIN_EDGE}" \
+            --write-supabase="${WRITE_SUPABASE}"
+
+      - name: Compress output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/azuro-toolkit-first-set-score-audit
+          zip -9 ../../../azuro-toolkit-first-set-score-audit.zip ./*
+
+      - name: Upload Azuro Toolkit audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azuro-toolkit-first-set-score-audit
+          path: |
+            azuro-toolkit-first-set-score-audit.zip
+            artifacts/output/azuro-toolkit-first-set-score-audit/azuro_toolkit_first_set_score_report.md
+            artifacts/output/azuro-toolkit-first-set-score-audit/azuro_toolkit_first_set_score_summary.json
+            artifacts/output/azuro-toolkit-first-set-score-audit/azuro_toolkit_first_set_score_audit.csv
+            artifacts/output/azuro-toolkit-first-set-score-audit/azuro_toolkit_first_set_score_audit.json
+          if-no-files-found: error
