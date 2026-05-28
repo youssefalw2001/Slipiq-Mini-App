@@ -3,6 +3,10 @@ name: Azuro Gnosis First Set Correct Score Scan
 on:
   workflow_dispatch:
     inputs:
+      subgraph_url:
+        description: Azuro Gnosis subgraph URL to scan
+        required: false
+        default: 'https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis'
       page_size:
         description: Subgraph page size
         required: false
@@ -42,6 +46,7 @@ jobs:
       - name: Run Gnosis first-set correct-score scan
         shell: bash
         env:
+          AZURO_GNOSIS_SUBGRAPH_URL: ${{ github.event.inputs.subgraph_url }}
           PAGE_SIZE: ${{ github.event.inputs.page_size }}
           MAX_PAGES: ${{ github.event.inputs.max_pages }}
           PRINT_ALL_TENNIS_MARKETS: ${{ github.event.inputs.print_all_tennis_markets }}
