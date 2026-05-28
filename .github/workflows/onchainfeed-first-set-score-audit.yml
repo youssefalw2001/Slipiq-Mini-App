@@ -1,0 +1,119 @@
+name: Onchainfeed First Set Score Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      azuro_api_base:
+        description: Onchainfeed/Azuro public API base URL
+        required: false
+        default: 'https://api.onchainfeed.org/api/v1/public'
+      environment:
+        description: Azuro environment, for example PolygonUSDT
+        required: false
+        default: 'PolygonUSDT'
+      app_id:
+        description: App/integration id
+        required: false
+        default: 'dgpredict'
+      chain_id:
+        description: Optional chain id
+        required: false
+        default: ''
+      limit:
+        description: Max First Set Lab signals to audit
+        required: false
+        default: '50'
+      min_group_stake:
+        description: Minimum executable grouped stake for BETTABLE
+        required: false
+        default: '5'
+      min_edge:
+        description: Minimum grouped odds edge over baseline
+        required: false
+        default: '0'
+      stake_probe:
+        description: Stake amount used for calculation API probe
+        required: false
+        default: '1'
+      token_decimals:
+        description: Betting token decimals, usually 6 for USDT/USDC style tokens
+        required: false
+        default: '6'
+      write_supabase:
+        description: Write audit rows to Supabase azuro_execution_audit_v1
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Onchainfeed first-set score audit
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          AZURO_API_BASE: ${{ github.event.inputs.azuro_api_base }}
+          AZURO_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          AZURO_APP_ID: ${{ github.event.inputs.app_id }}
+          AZURO_CHAIN_ID: ${{ github.event.inputs.chain_id }}
+          LIMIT: ${{ github.event.inputs.limit }}
+          MIN_GROUP_STAKE: ${{ github.event.inputs.min_group_stake }}
+          MIN_EDGE: ${{ github.event.inputs.min_edge }}
+          STAKE_PROBE: ${{ github.event.inputs.stake_probe }}
+          BET_TOKEN_DECIMALS: ${{ github.event.inputs.token_decimals }}
+          WRITE_SUPABASE: ${{ github.event.inputs.write_supabase }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL secret"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "Missing SUPABASE_SERVICE_ROLE_KEY secret"
+            exit 1
+          fi
+          node scripts/audit-onchainfeed-first-set-score-coverage.mjs \
+            --out=artifacts/output/onchainfeed-first-set-score-audit \
+            --azuro-api-base="${AZURO_API_BASE}" \
+            --environment="${AZURO_ENVIRONMENT}" \
+            --app-id="${AZURO_APP_ID}" \
+            --chain-id="${AZURO_CHAIN_ID}" \
+            --limit="${LIMIT}" \
+            --min-group-stake="${MIN_GROUP_STAKE}" \
+            --min-edge="${MIN_EDGE}" \
+            --stake-probe="${STAKE_PROBE}" \
+            --token-decimals="${BET_TOKEN_DECIMALS}" \
+            --write-supabase="${WRITE_SUPABASE}"
+
+      - name: Compress output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/onchainfeed-first-set-score-audit
+          zip -9 ../../../onchainfeed-first-set-score-audit.zip ./*
+
+      - name: Upload Onchainfeed audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onchainfeed-first-set-score-audit
+          path: |
+            onchainfeed-first-set-score-audit.zip
+            artifacts/output/onchainfeed-first-set-score-audit/onchainfeed_first_set_score_report.md
+            artifacts/output/onchainfeed-first-set-score-audit/onchainfeed_first_set_score_summary.json
+            artifacts/output/onchainfeed-first-set-score-audit/onchainfeed_first_set_score_audit.csv
+            artifacts/output/onchainfeed-first-set-score-audit/onchainfeed_first_set_score_audit.json
+          if-no-files-found: error
