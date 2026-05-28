@@ -3,13 +3,13 @@
   Azuro Gnosis tennis 1st Set - Correct Score scanner.
 
   Safe read-only utility:
-  - Queries the official Azuro Gnosis subgraph.
-  - Uses @azuro-org/dictionaries to decode market/selection names.
-  - Prints conditionId, outcomeIds, scores, and odds for matching tennis markets.
+  - Queries the Azuro Gnosis subgraph.
+  - Dynamically loads @azuro-org/dictionaries so export mismatches do not crash import.
+  - Attempts schema variants and always prints diagnostic JSON to stdout.
+  - No wallet, no signing, no orders.
 */
 
 import axios from 'axios';
-import { getMarketName, getSelectionName } from '@azuro-org/dictionaries';
 
 const SUBGRAPH_URL = process.env.AZURO_GNOSIS_SUBGRAPH_URL || 'https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis';
 const TARGET_MARKET = process.env.TARGET_MARKET || '1st Set - Correct Score';
@@ -17,38 +17,102 @@ const PAGE_SIZE = Number(process.env.PAGE_SIZE || '100');
 const MAX_PAGES = Number(process.env.MAX_PAGES || '20');
 const PRINT_ALL_TENNIS_MARKETS = String(process.env.PRINT_ALL_TENNIS_MARKETS || 'false') === 'true';
 
-const LIVE_TENNIS_QUERY = `
-  query LiveTennisGames($first: Int!, $skip: Int!) {
-    games(
-      first: $first
-      skip: $skip
-      where: {
-        sport_: { name: "Tennis" }
-        status: Created
-      }
-      orderBy: startsAt
-      orderDirection: asc
-    ) {
-      id
-      gameId
-      title
-      startsAt
-      status
-      sport { name }
-      conditions {
-        id
-        conditionId
-        status
-        outcomes {
+const QUERY_VARIANTS = [
+  {
+    name: 'sport_name_status_created',
+    query: `
+      query LiveTennisGames($first: Int!, $skip: Int!) {
+        games(
+          first: $first
+          skip: $skip
+          where: { sport_: { name: "Tennis" }, status: Created }
+          orderBy: startsAt
+          orderDirection: asc
+        ) {
           id
-          outcomeId
-          currentOdds
-          odds
+          gameId
+          title
+          startsAt
+          status
+          sport { name }
+          conditions {
+            id
+            conditionId
+            status
+            outcomes { id outcomeId currentOdds odds }
+          }
         }
       }
-    }
-  }
-`;
+    `,
+  },
+  {
+    name: 'sport_name_state_created',
+    query: `
+      query LiveTennisGames($first: Int!, $skip: Int!) {
+        games(
+          first: $first
+          skip: $skip
+          where: { sport_: { name: "Tennis" }, state: Created }
+          orderBy: startsAt
+          orderDirection: asc
+        ) {
+          id
+          gameId
+          title
+          startsAt
+          state
+          sport { name }
+          conditions {
+            id
+            conditionId
+            state
+            outcomes { id outcomeId currentOdds odds }
+          }
+        }
+      }
+    `,
+  },
+  {
+    name: 'unfiltered_with_status',
+    query: `
+      query LiveTennisGames($first: Int!, $skip: Int!) {
+        games(first: $first, skip: $skip, orderBy: startsAt, orderDirection: asc) {
+          id
+          gameId
+          title
+          startsAt
+          status
+          sport { name }
+          conditions {
+            id
+            conditionId
+            status
+            outcomes { id outcomeId currentOdds odds }
+          }
+        }
+      }
+    `,
+  },
+  {
+    name: 'unfiltered_minimal',
+    query: `
+      query LiveTennisGames($first: Int!, $skip: Int!) {
+        games(first: $first, skip: $skip) {
+          id
+          gameId
+          title
+          startsAt
+          sport { name }
+          conditions {
+            id
+            conditionId
+            outcomes { id outcomeId }
+          }
+        }
+      }
+    `,
+  },
+];
 
 function normalize(value) {
   return String(value ?? '')
@@ -74,62 +138,110 @@ function isTargetMarket(marketName) {
 
 function decimalOdds(value) {
   if (value === null || value === undefined || value === '') return null;
-
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 1) return null;
-
-  // Some Azuro odds values are returned scaled by 1e12.
   return n > 1_000_000 ? n / 1e12 : n;
 }
 
-function safeDecode(fn, payload) {
+async function loadDictionaries() {
   try {
-    return fn(payload);
-  } catch {
-    return null;
+    const mod = await import('@azuro-org/dictionaries');
+    const exports = Object.keys(mod).sort();
+    return {
+      ok: true,
+      exports,
+      getMarketName: typeof mod.getMarketName === 'function' ? mod.getMarketName : null,
+      getSelectionName: typeof mod.getSelectionName === 'function' ? mod.getSelectionName : null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      exports: [],
+      error: error.message,
+      getMarketName: null,
+      getSelectionName: null,
+    };
   }
+}
+
+function callDictionary(fn, outcomeId) {
+  if (!fn) return null;
+  const attempts = [
+    () => fn({ outcomeId }),
+    () => fn(outcomeId),
+    () => fn(String(outcomeId)),
+    () => fn(Number(outcomeId)),
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      const value = attempt();
+      if (value !== null && value !== undefined && String(value).trim() !== '') return value;
+    } catch {
+      // try next form
+    }
+  }
+
+  return null;
 }
 
 async function graphql(query, variables = {}) {
   const { data } = await axios.post(
     SUBGRAPH_URL,
     { query, variables },
-    {
-      headers: { 'content-type': 'application/json' },
-      timeout: 30_000,
-    },
+    { headers: { 'content-type': 'application/json' }, timeout: 30_000 },
   );
 
-  if (data.errors?.length) {
-    throw new Error(JSON.stringify(data.errors, null, 2));
-  }
-
+  if (data.errors?.length) throw new Error(JSON.stringify(data.errors));
   return data.data;
 }
 
-async function fetchLiveTennisGames() {
+function isTennisGame(game) {
+  const text = normalize([game.sport?.name, game.title].filter(Boolean).join(' '));
+  return text.includes('tennis');
+}
+
+function isCreatedGame(game) {
+  const value = normalize(game.status ?? game.state ?? 'created');
+  return !value || value === 'created' || value === 'live' || value === 'prematch';
+}
+
+async function fetchGamesWithVariant(variant) {
   const games = [];
 
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const skip = page * PAGE_SIZE;
-    const data = await graphql(LIVE_TENNIS_QUERY, { first: PAGE_SIZE, skip });
+    const data = await graphql(variant.query, { first: PAGE_SIZE, skip });
     const batch = data.games ?? [];
-
     games.push(...batch);
-
     if (batch.length < PAGE_SIZE) break;
   }
 
-  return games;
+  return games.filter((game) => isTennisGame(game) && isCreatedGame(game));
 }
 
-function decodeCondition(condition) {
+async function fetchLiveTennisGames() {
+  const errors = [];
+
+  for (const variant of QUERY_VARIANTS) {
+    try {
+      const games = await fetchGamesWithVariant(variant);
+      return { variant: variant.name, games, errors };
+    } catch (error) {
+      errors.push({ variant: variant.name, error: error.message });
+    }
+  }
+
+  return { variant: null, games: [], errors };
+}
+
+function decodeCondition(condition, dictionaries) {
   const outcomes = condition.outcomes ?? [];
 
   const decodedOutcomes = outcomes.map((outcome) => {
-    const outcomeId = String(outcome.outcomeId);
-    const marketName = safeDecode(getMarketName, { outcomeId });
-    const selectionName = safeDecode(getSelectionName, { outcomeId });
+    const outcomeId = String(outcome.outcomeId ?? outcome.id);
+    const marketName = callDictionary(dictionaries.getMarketName, outcomeId);
+    const selectionName = callDictionary(dictionaries.getSelectionName, outcomeId);
 
     return {
       outcomeId,
@@ -144,31 +256,30 @@ function decodeCondition(condition) {
 
   return {
     rawConditionId: condition.conditionId ?? condition.id,
-    conditionStatus: condition.status,
+    conditionStatus: condition.status ?? condition.state ?? null,
     marketName,
     outcomes: decodedOutcomes,
   };
 }
 
-function extractTargetMarkets(game) {
-  const decodedConditions = (game.conditions ?? []).map(decodeCondition);
+function extractTargetMarkets(game, dictionaries) {
+  const decodedConditions = (game.conditions ?? []).map((condition) => decodeCondition(condition, dictionaries));
+
+  const allMarkets = decodedConditions
+    .filter((condition) => condition.marketName)
+    .map((condition) => ({
+      gameId: game.gameId ?? game.id,
+      title: game.title,
+      conditionId: condition.rawConditionId,
+      marketName: condition.marketName,
+      selections: condition.outcomes.map((o) => o.selectionName).filter(Boolean),
+    }));
 
   if (PRINT_ALL_TENNIS_MARKETS) {
-    for (const condition of decodedConditions) {
-      if (!condition.marketName) continue;
-      console.error(
-        JSON.stringify({
-          gameId: game.gameId ?? game.id,
-          title: game.title,
-          conditionId: condition.rawConditionId,
-          marketName: condition.marketName,
-          selections: condition.outcomes.map((o) => o.selectionName).filter(Boolean),
-        }),
-      );
-    }
+    for (const market of allMarkets) console.error(JSON.stringify(market));
   }
 
-  return decodedConditions
+  const matches = decodedConditions
     .filter((condition) => isTargetMarket(condition.marketName))
     .map((condition) => ({
       rawConditionId: condition.rawConditionId,
@@ -181,31 +292,48 @@ function extractTargetMarkets(game) {
         rawCurrentOdds: outcome.rawCurrentOdds,
       })),
     }));
+
+  return { matches, allMarkets };
 }
 
 async function main() {
-  const games = await fetchLiveTennisGames();
+  const dictionaries = await loadDictionaries();
+  const { variant, games, errors } = await fetchLiveTennisGames();
   const matches = [];
+  const decodedMarketSamples = [];
 
   for (const game of games) {
-    const markets = extractTargetMarkets(game);
-    if (!markets.length) continue;
+    const { matches: targetMarkets, allMarkets } = extractTargetMarkets(game, dictionaries);
+    decodedMarketSamples.push(...allMarkets.slice(0, 5));
+
+    if (!targetMarkets.length) continue;
 
     matches.push({
       gameId: game.gameId ?? game.id,
       title: game.title,
       startsAt: game.startsAt,
-      status: game.status,
-      markets,
+      status: game.status ?? game.state ?? null,
+      markets: targetMarkets,
     });
   }
 
   console.log(
     JSON.stringify(
       {
+        ok: true,
         subgraph: SUBGRAPH_URL,
+        queryVariantUsed: variant,
+        queryErrors: errors,
+        dictionaries: {
+          ok: dictionaries.ok,
+          exports: dictionaries.exports,
+          error: dictionaries.error ?? null,
+          hasGetMarketName: Boolean(dictionaries.getMarketName),
+          hasGetSelectionName: Boolean(dictionaries.getSelectionName),
+        },
         targetMarket: TARGET_MARKET,
         gamesChecked: games.length,
+        decodedMarketSamples: decodedMarketSamples.slice(0, 50),
         matchesFound: matches.length,
         matches,
       },
@@ -216,6 +344,18 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exit(1);
+  console.log(
+    JSON.stringify(
+      {
+        ok: false,
+        subgraph: SUBGRAPH_URL,
+        targetMarket: TARGET_MARKET,
+        error: error.message,
+        stack: error.stack,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
 });
