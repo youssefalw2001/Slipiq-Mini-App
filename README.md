@@ -2,127 +2,102 @@
 
 **First Set Lab** is a private tennis first-set price-intelligence system powered by **SlipIQ**.
 
-It is not a traditional tipster project. The product is built around:
+It is not a traditional tipster project. It is a live market-scanning, proof-tracked, research-backed system for tennis first-set derivative markets.
 
 ```txt
-- Live market scanning
-- Tennis first-set edge detection
-- Timestamped signal receipts
-- Supabase proof tracking
-- Automatic settlement
-- Telegram signal delivery
-- Duplicate suppression
-- Long-term ROI tracking
-- Research shadow lanes
+Core niche:
+Tennis first-set exact-score clusters
+
+Main source book:
+Bet365
+
+Product engine:
+Live scanner + Supabase proof vault + Telegram delivery + historical warehouse backtests
 ```
 
 ---
 
-# Identity
+# Current Locked Strategy State
+
+This is the current operating structure as of the latest live/historical research cycle.
+
+## Public Main
 
 ```txt
-Brand: First Set Lab
-Engine: SlipIQ
-Positioning: The hedge fund of tennis markets
-Core niche: tennis first-set derivative markets
+PUBLIC MAIN = Core + Reverse only
+
+Lanes:
+- CORE_P1_ATP_GS_BET365
+- CORE_P2_GS_REVERSE_STRETCH_BET365
+
+Use:
+- Public proof
+- Clean main model reporting
+- Conservative external performance claims
 ```
 
-Main live focus:
+Do **not** mix VIP, research, Mirror, V3, Comfort, Over/Under, or receipt-only units into Public Main ROI.
+
+## Optimized VIP / Personal Staking Model
 
 ```txt
-- Tennis first-set exact-score clusters
-- Bet365 executable grouped odds
-- Market inefficiency detection
-- Historical edge tracking
-- Confidence-layer signal delivery
+OPTIMIZED VIP = Protected 3-score Core + Reverse + Research P2 + V3
+
+Lanes:
+- CORE_P1_ATP_GS_BET365
+- CORE_P2_GS_REVERSE_STRETCH_BET365
+- RESEARCH_P2_GS_26_46_BET365
+- VIP_P2_V3_SHAPE
+
+Current live use:
+- Primary private/VIP model
+- Current personal staking model
+- Tracked separately from Public Main
 ```
 
-Secondary / research focus:
+## Watchlist Only
 
 ```txt
-- First-set winner comfort signals
-- First-set over/under games research
-- Bookmaker portability research
-- Experimental VIP lanes
+WATCHLIST = Mirror
+
+Lane:
+- CORE_P1_MIRROR_WTA_OTHER
+
+Status:
+Tracked, but not used as main staking proof.
+```
+
+Mirror can have short hot runs, but historical parity showed it added a lot of volume with very little edge. Keep it separate until it passes a new forward test.
+
+## Removed
+
+```txt
+REMOVED = Core Cluster Plus
+
+Lane:
+- VIP_P1_ATP_GS_MULTI
+
+Status:
+Removed from active staking model.
+```
+
+Do not re-promote Core Cluster Plus without a fresh historical backtest and a live-forward test.
+
+## Silent Tracker
+
+```txt
+SILENT TRACKER = Gate-2 version
+
+Meaning:
+Original 2-score groups only.
+
+Status:
+Historically strong, but not promoted live yet because current live rows favor Protected 3-score.
 ```
 
 ---
 
-# Current Live Production Strategy
-
-## LIVE TELEGRAM DELIVERY
-
-```txt
-Primary production bookmaker:
-- Bet365
-```
-
-## SHADOW / RESEARCH MODE
-
-```txt
-Tracked internally only:
-- 1xBet
-- 10Bet
-- Betano / other books when available in warehouse research
-- Betfair checker for automation research only
-```
-
-Reason:
-
-```txt
-Bet365 currently shows the strongest live execution quality.
-Research books remain active internally for historical comparison, line shopping, and future validation.
-```
-
-Current production philosophy:
-
-```txt
-- Lower volume
-- Higher signal quality
-- Exact-score focus
-- Cleaner Telegram experience
-- Reduced market noise
-- Long-term edge over hype
-```
-
----
-
-# AI Operator Handoff — Read This First
-
-This section is the canonical handoff for another AI/operator continuing the project.
-
-## Current Frozen Strategy State
-
-```txt
-Main model:
-- Core Cluster
-- Reverse Stretch Cluster
-
-Watchlist / booster:
-- Mirror Cluster
-
-Paused / removed from active scanner:
-- Core Cluster Plus
-
-Research / VIP only:
-- V3 Cluster
-- Comfort
-- First Set Over/Under research
-```
-
-Do **not** mix research lanes into the public main-model ROI.
-
-The clean public proof model is:
-
-```txt
-Core + Reverse only
-```
-
-Mirror, V3, Comfort, and Over/Under must be tracked separately unless a future backtest + live forward test proves they should be promoted.
-
----
-
-# Exact Lane Definitions
+# Score Group Definitions
 
 ## Core Cluster
 
@@ -130,26 +105,17 @@ Mirror, V3, Comfort, and Over/Under must be tracked separately unless a future b
 Lane key:
 CORE_P1_ATP_GS_BET365
 
-Public name:
-Core Cluster
-
 Bookmaker:
 Bet365
 
-Access:
-CORE_AND_VIP
-
-Target:
-Player 1 wins first set 6:2, 6:3, or 6:4
-
-Protected score group:
-6:2 / 6:3 / 6:4
-
-Original gate preserved:
+Original Gate-2:
 6:3 / 6:4
 
+Protected 3-score live group:
+6:2 / 6:3 / 6:4
+
 Role:
-Main model volume lane
+Public Main + Optimized VIP
 ```
 
 ## Reverse Stretch Cluster
@@ -158,29 +124,58 @@ Main model volume lane
 Lane key:
 CORE_P2_GS_REVERSE_STRETCH_BET365
 
-Public name:
-Reverse Stretch Cluster
-
 Bookmaker:
 Bet365
 
-Access:
-CORE_AND_VIP
-
-Target:
-Player 2 wins first set 2:6, 4:6, or 5:7
-
-Protected score group:
-2:6 / 4:6 / 5:7
-
-Original gate preserved:
+Original Gate-2:
 2:6 / 4:6
+
+Protected 3-score live group:
+2:6 / 4:6 / 5:7
 
 Important filter:
 market_skew_bucket = EXTREME
 
 Role:
-Main model promoted lane
+Public Main + Optimized VIP
+```
+
+## Research P2
+
+```txt
+Lane key:
+RESEARCH_P2_GS_26_46_BET365
+
+Bookmaker:
+Bet365
+
+Original Gate-2:
+2:6 / 4:6
+
+Protected 3-score live group:
+2:6 / 4:6 / 5:7
+
+Role:
+Optimized VIP only
+```
+
+## V3 Cluster
+
+```txt
+Lane key:
+VIP_P2_V3_SHAPE
+
+Bookmaker:
+Bet365 / 1xBet / 10Bet depending on scanner availability
+
+Gate-2 tracker:
+4:6 / 5:7
+
+Protected 3-score live group:
+3:6 / 4:6 / 5:7
+
+Role:
+Optimized VIP only
 ```
 
 ## Mirror Cluster
@@ -189,117 +184,11 @@ Main model promoted lane
 Lane key:
 CORE_P1_MIRROR_WTA_OTHER
 
-Public name:
-Mirror Cluster
-
-Target:
-Player 1 wins first set 6:3, 6:4, or 7:5
-
-Protected score group:
+Protected group:
 6:3 / 6:4 / 7:5
 
 Role:
-Watchlist / booster only
-```
-
-Mirror can still trigger signals, but it is **not** counted inside the main Core + Reverse proof model.
-
-## Core Cluster Plus
-
-```txt
-Lane key:
-VIP_P1_ATP_GS_MULTI
-
-Public name:
-Core Cluster Plus
-
-Role:
-Paused / removed from active scanner strategy
-```
-
-Do not re-promote Core Cluster Plus without a fresh backtest and live forward test.
-
-## V3 Cluster
-
-```txt
-Lane key:
-VIP_P2_V3_SHAPE
-
-Public name:
-V3 Cluster
-
-Access:
-VIP_ONLY
-
-Protected score group:
-3:6 / 4:6 / 5:7
-
-Role:
-Research / VIP only
-```
-
-V3 did **not** replace Core or Reverse. It is separate and should not be counted in main-model ROI.
-
-## Comfort
-
-```txt
-Lane key:
-COMFORT_FIRST_SET_FAVORITE_GS_1XBET
-
-Public name:
-Grand Slam Comfort
-
-Market:
-First-set winner
-
-Bookmaker:
-1xBet
-
-Role:
-Research / paused unless future results improve
-```
-
-Comfort is not part of the exact-score grouped model.
-
----
-
-# Signal Architecture
-
-## Signal Types
-
-```txt
-S-Tier:
-Highest model edge + strongest pricing inefficiency.
-
-A-Tier:
-Strong edge with lower volatility.
-
-Comfort:
-Directional first-set winner style positions. Currently research only.
-
-Research:
-Shadow-tracked experimental lanes.
-```
-
-## Main Markets
-
-```txt
-- 1st Set Correct Score
-- Grand Slam exact-score clusters
-- First-set winner comfort signals, research only
-- First-set over/under games, research only
-```
-
-## Exact-Score Philosophy
-
-SlipIQ focuses heavily on exact-score clustering because tennis first-set markets are often mispriced during:
-
-```txt
-- Serve dominance mismatches
-- Surface-adjusted hold-rate gaps
-- Slam environments
-- Fatigue/travel asymmetry
-- Lower-liquidity derivatives
+Watchlist only
 ```
 
 ---
@@ -308,12 +197,10 @@ SlipIQ focuses heavily on exact-score clustering because tennis first-set market
 
 ## Grouped Odds
 
-Grouped odds are the executable strategy odds for a protected score group.
-
-Formula:
+Grouped odds are the executable strategy odds for a score cluster.
 
 ```txt
-grouped_decimal_odds = 1 / ((1 / score_1_odds) + (1 / score_2_odds) + (1 / score_3_odds))
+grouped_decimal_odds = 1 / ((1 / score_1_odds) + (1 / score_2_odds) + ...)
 ```
 
 Example:
@@ -328,7 +215,7 @@ Grouped odds:
 1 / ((1/10.00) + (1/6.50) + (1/6.00))
 ```
 
-Grouped odds are the odds to use for:
+Grouped odds are used for:
 
 ```txt
 - Real signal posting
@@ -352,49 +239,16 @@ Receipt odds are useful for:
 
 Receipt odds are **not** the main proof model.
 
-Never mix up:
+Never mix:
 
 ```txt
-Green model = V2 grouped executable strategy odds
+Green model = grouped executable strategy odds
 Gold receipt lens = exact landed score recap odds
 ```
 
-## Decimal to American Odds
-
-```txt
-If decimal odds >= 2.00:
-American = +(decimal - 1) * 100
-
-If decimal odds < 2.00:
-American = -100 / (decimal - 1)
-```
-
-## American to Decimal Odds
-
-```txt
-If American odds are positive:
-Decimal = 1 + (American / 100)
-
-If American odds are negative:
-Decimal = 1 + (100 / absolute value of American)
-```
-
-## Parlay Odds
-
-```txt
-1. Convert each leg to decimal odds.
-2. Multiply decimal odds together.
-3. Convert final decimal odds back to American odds.
-4. Implied probability = 1 / parlay_decimal_odds.
-5. Profit on stake = stake * (parlay_decimal_odds - 1).
-6. Total return = stake * parlay_decimal_odds.
-```
-
-For parlays, use the **executable grouped odds**, not the receipt odds after the result.
-
 ---
 
-# Supabase Source of Truth
+# Current Supabase Proof Views
 
 Project:
 
@@ -402,13 +256,23 @@ Project:
 qjvpkkcbscsypymxyker
 ```
 
-Base signal/result table:
+Locked model comparison views:
 
 ```txt
-public.live_signal_unique_results
+public.proof_vault_locked_model_rows_v1
+public.proof_vault_locked_model_summary_v1
+public.proof_vault_locked_model_5pct_compound_v1
 ```
 
-Proof page reads these views:
+VIP booster views:
+
+```txt
+public.proof_vault_vip_pocket_booster_rows_v1
+public.proof_vault_vip_pocket_booster_summary_v1
+public.proof_vault_vip_pocket_booster_5pct_compound_v1
+```
+
+Legacy protected proof views:
 
 ```txt
 public.proof_vault_live_summary_v2_protected
@@ -416,171 +280,29 @@ public.proof_vault_daily_summary_v2_protected
 public.proof_vault_recent_receipts_v2_protected
 ```
 
-Important columns:
-
-```txt
-live_signal_unique_results.grouped_odds
-live_signal_unique_results.selected_side_odds
-live_signal_unique_results.trigger_odds
-live_signal_unique_results.score_odds_json
-live_signal_unique_results.score_cluster
-live_signal_unique_results.strategy_lane
-live_signal_unique_results.public_signal_name
-live_signal_unique_results.status
-live_signal_unique_results.first_set_score
-live_signal_unique_results.settled_win
-
-proof_vault_recent_receipts_v2_protected.official_decimal_odds
-proof_vault_recent_receipts_v2_protected.receipt_decimal_odds
-proof_vault_recent_receipts_v2_protected.official_american_odds
-proof_vault_recent_receipts_v2_protected.receipt_american_odds
-proof_vault_recent_receipts_v2_protected.official_profit_units
-proof_vault_recent_receipts_v2_protected.receipt_profit_units
-```
-
-Interpretation:
-
-```txt
-official/grouped odds = executable strategy odds
-receipt odds = exact landed score recap lens
-```
-
 ---
 
-# Live Workflow (A → Z)
+# Website Proof Page
 
-## 1. Market Scan
-
-The engine scans tennis first-set derivative markets.
-
-Main inputs:
+Current proof page:
 
 ```txt
-- Match environment
-- Surface context
-- Player profile
-- Market pricing
-- Historical score behavior
-- Odds inefficiencies
+docs/proof.html
 ```
 
----
-
-## 2. Signal Generation
-
-Signals are generated when:
+The proof page now separates:
 
 ```txt
-- Lane rule is passed
-- Edge threshold is passed
-- Odds are acceptable
-- Required score group is present
-- Confidence layer validates the setup
+- Public Main
+- Optimized VIP
+- Mirror Watchlist
+- Removed Core Plus
+- Broad Live audit
+- 5% compounding replay
+- Optimized VIP signal ledger
 ```
 
-Signals include:
-
-```txt
-- Match
-- Score cluster
-- Bookmaker
-- Decimal odds
-- American odds
-- Grouped odds
-- Historical edge
-- Break-even percentage
-- Sample size
-- Confidence language
-```
-
----
-
-## 3. Duplicate Guard
-
-Before sending:
-
-```txt
-- Duplicate signals are checked
-- Similar score clusters are filtered
-- Telegram spam is reduced
-```
-
-This keeps the channels:
-
-```txt
-- Cleaner
-- More premium
-- Easier to trust
-```
-
----
-
-## 4. Telegram Delivery
-
-Current routing:
-
-```txt
-Bet365 Core + Reverse → Telegram / public proof
-Research books → internal only
-Research lanes → separate from main ROI
-```
-
-Delivery lanes:
-
-```txt
-- Core
-- Quant/VIP
-- Proof Vault
-```
-
-Telegram messages contain:
-
-```txt
-- Signal
-- Odds
-- Historical edge
-- Sample size
-- Confidence layer
-- Timestamped receipt
-```
-
----
-
-## 5. Settlement Engine
-
-After matches finish:
-
-```txt
-- Signals auto-settle
-- Wins/losses update
-- ROI recalculates
-- Proof Vault refreshes
-```
-
-Tracked metrics:
-
-```txt
-- ROI
-- Profit units
-- Hit rate
-- Average odds
-- Historical edge
-- Bookmaker performance
-```
-
-Settlement examples:
-
-```txt
-Core target = Player 1 wins first set 6:2 / 6:3 / 6:4
-6:4 = WIN
-4:6 = LOSS
-3:6 = LOSS
-
-Reverse target = Player 2 wins first set 2:6 / 4:6 / 5:7
-4:6 = WIN
-6:4 = LOSS
-7:5 = LOSS
-```
+Do not show one mixed number as the main proof number.
 
 ---
 
@@ -598,227 +320,161 @@ Purpose:
 Pulls historical API-Tennis fixture and odds data into warehouse artifacts.
 ```
 
-## Upgraded Bet365 Backtest From Warehouse Artifact
+## Live Scanner Parity Backtest
 
 ```txt
-.github/workflows/api-tennis-upgraded-bet365-backtest-from-warehouse-artifact.yml
-scripts/backtest-upgraded-bet365-from-warehouse.mjs
+.github/workflows/live-scanner-parity-backtest.yml
+scripts/backtest-live-scanner-parity-from-warehouse.mjs
 ```
 
 Purpose:
 
 ```txt
-Uses existing warehouse artifact.
-Does not pull API-Tennis again.
-Backtests upgraded Core + Reverse model.
-Keeps Mirror as watchlist.
-Excludes Core Cluster Plus.
+Rebuilds broad live scanner lanes from warehouse data to compare live density vs historical density.
 ```
 
-## Coverage Audit
+Key finding:
 
 ```txt
-.github/workflows/api-tennis-warehouse-coverage-audit.yml
-scripts/audit-api-tennis-warehouse-coverage.mjs
+Broad scanner volume is real, but not all volume is valuable.
+Mirror added many rows historically with nearly flat profit.
+Core Cluster Plus was negative historically.
 ```
 
-Purpose:
+## Optimized Profitable Lanes Backtest
 
 ```txt
-Checks whether low historical signal count is caused by missing Bet365 data or strict filters.
+.github/workflows/optimized-profitable-lanes-backtest.yml
+scripts/optimize-live-scanner-profitable-lanes.mjs
 ```
 
-Important finding:
+Best historical lane combo:
 
 ```txt
-Historical Bet365 first-set correct-score coverage was strong.
-Lower historical count is mainly strict filters + Grand Slam seasonality.
+Core + Reverse + Research P2 + V3
+Exclude Mirror
+Exclude Core Cluster Plus
 ```
 
-## Bookmaker Portability Audit
+Result:
 
 ```txt
-.github/workflows/bookmaker-portability-audit.yml
-scripts/audit-bookmaker-portability-from-warehouse.mjs
+511 rows
+214W / 297L
+41.88% hit rate
++86.45u
+16.92% ROI
 ```
 
-Purpose:
+Compounding from $3,000:
 
 ```txt
-Checks whether Bet365 signals can be copied on other books at equal or better grouped odds.
+5% risk: about $64,181
+7% risk: about $111,459
 ```
-
-Important logic:
-
-```txt
-Only take another book if it has all required target scores and grouped odds >= Bet365 grouped odds.
-```
-
-## Live Betfair Checker
-
-```txt
-.github/workflows/live-betfair-checker.yml
-scripts/live-betfair-checker.mjs
-```
-
-Purpose:
-
-```txt
-Checks open Supabase signals against API-Tennis Betfair odds.
-Does not place bets.
-```
-
-Current interpretation:
-
-```txt
-Betfair may be clean for automation in theory, but first-set correct-score market coverage can be weak.
-```
-
-## First Set Over/Under Backtest
-
-```txt
-.github/workflows/first-set-ou-backtest.yml
-scripts/backtest-first-set-ou-from-warehouse.mjs
-```
-
-Purpose:
-
-```txt
-Research lane for first-set total games Over/Under.
-Tests Over and Under together and separately.
-Do not mix into Core + Reverse proof yet.
-```
-
-## Daily Stop Rule Simulator
-
-```txt
-.github/workflows/daily-stop-rule-simulator.yml
-scripts/simulate-daily-stop-rules.mjs
-```
-
-Purpose:
-
-```txt
-Tests whether daily stop-loss, stop-win, losing-streak stops, max-signal caps, and green protection improve profit/drawdown.
-```
-
-Current interpretation:
-
-```txt
-Stop rules can help, but main profit comes from sticking to Core + Reverse through variance.
-Do not overfit daily guard rules from one historical test.
-```
-
----
-
-# Latest Validated Strategy Results
-
-Main upgraded Bet365 historical backtest:
-
-```txt
-Model:
-Core Cluster + Reverse Stretch only
-
-Graded signals:
-337
-
-Record:
-150W / 187L
-
-Hit rate:
-44.51%
-
-Grouped profit units:
-+47.90u
-
-Grouped ROI:
-+14.21%
-
-Average grouped odds:
-2.661 decimal
-
-Worst losing streak:
-8 losses
-```
-
-Compounding simulation:
-
-```txt
-Starting bankroll:
-$3,000
-
-Risk:
-5% compounded per signal
-
-Historical finish:
-About $16,090
 
 Important warning:
-Max drawdown was large. This strategy can have painful losing runs.
-```
-
-Daily stop-rule simulator baseline:
 
 ```txt
-No stop rule:
-337 bets
-+47.90u
-$3,000 → about $16,090 at 5% compounding
+7% had very large drawdown and is not the default recommendation.
 ```
 
-Best historical stop rule by profit:
+## Protected Score Expansion Backtest
 
 ```txt
-Stop after 4 straight losses:
-303 bets
-+54.30u
-$3,000 → about $23,638 at 5% compounding
+.github/workflows/protected-score-expansion-backtest.yml
+scripts/backtest-protected-score-expansion-from-warehouse.mjs
 ```
 
-Operator warning:
+Purpose:
 
 ```txt
-The stop rule improved the historical result but did not remove drawdown.
-Do not treat it as magic.
-The edge still depends on taking the full Core + Reverse sequence over time.
+Compares Gate-2, Protected 3-score, and Wide 4-score groups.
+```
+
+Key finding:
+
+```txt
+Historical high-upside winner:
+Gate-2 Core + Reverse + Research P2 + V3
+
+610 bets
+35.08% hit rate
++142.87u
+23.42% ROI
+```
+
+But current live rows favored Protected 3-score, so Gate-2 remains a silent tracker, not the active live staking model yet.
+
+## Reality Check 100-300 Signals
+
+```txt
+.github/workflows/reality-check-100-300-signals.yml
+scripts/reality-check-100-300-signals.mjs
+```
+
+Purpose:
+
+```txt
+Runs rolling 100 / 200 / 300 settled-signal windows and Monte Carlo simulations.
+This is the closest-to-reality test before waiting for actual future live signals.
+```
+
+Protected 3 Optimized VIP rolling windows:
+
+```txt
+100 signals: 94.91% profitable, median +16.83u, worst -10.58u
+200 signals: 100% profitable, median +35.65u, worst +3.33u
+300 signals: 100% profitable, median +52.52u, worst +16.51u
+```
+
+Gate-2 Optimized VIP rolling windows:
+
+```txt
+100 signals: 99.22% profitable, median +22.98u, worst -2.10u
+200 signals: 100% profitable, median +55.09u, worst +12.86u
+300 signals: 100% profitable, median +82.15u, worst +37.46u
+```
+
+Monte Carlo at 5% risk from $3,000:
+
+```txt
+Protected 3 Optimized VIP:
+100 signals median: about $4,937
+200 signals median: about $8,035
+300 signals median: about $13,158
+
+Gate-2 tracker:
+100 signals median: about $6,760
+200 signals median: about $14,829
+300 signals median: about $33,378
 ```
 
 ---
 
-# Interpreting Bad Days
+# Current Live Interpretation
 
-A bad day does not automatically mean the scanner is wrong.
+Current live data has favored the Protected 3-score live model more than Gate-2 so far.
 
-Scanner accuracy means:
-
-```txt
-- The correct lane fired
-- The correct score group was used
-- The odds were captured correctly
-- Grouped odds math was correct
-- Settlement graded the side correctly
-```
-
-A normal loss means:
+Operating decision:
 
 ```txt
-Signal was valid, but the match landed outside the protected group.
+Stake / post live:
+Optimized VIP Protected 3-score
+
+Track silently:
+Optimized VIP Gate-2
+
+Promote Gate-2 only if it beats Protected 3 after 100-200 additional live settled rows.
 ```
 
-Do not change the model because of:
+Current live optimized VIP has already reached roughly:
 
 ```txt
-- One bad day
-- One losing streak
-- One painful Slam slate
-- Receipt units looking better/worse than grouped units
++33u live settled range
 ```
 
-Judge only after:
-
-```txt
-100+ new live Core + Reverse signals
-```
+Do not treat that as a guarantee. Treat it as a strong early live-forward sample.
 
 ---
 
@@ -826,64 +482,72 @@ Judge only after:
 
 Research only. Not financial advice.
 
-Safer live forward test:
+## Suggested personal start
 
 ```txt
-1% to 2% per signal for first 25-50 new live signals
+Start with small real stakes until at least 100 more live settled signals.
 ```
 
-Aggressive but tested historically:
+Recommended risk tiers:
 
 ```txt
-5% compounded per signal
+1% = safer live validation
+2% = serious but controlled
+3% = aggressive
+5% = maximum aggressive
+7% = too aggressive for normal use
 ```
 
-Very aggressive:
+For a $3,000 bankroll:
 
 ```txt
-7% compounded per signal
+1% unit = $30
+2% unit = $60
+3% unit = $90
+5% unit = $150
 ```
 
-Warning:
+Personal-use recommendation:
 
 ```txt
-7% can look powerful in projections but becomes emotionally dangerous during losing streaks.
+Start at 1%-2% until the next 100 live settled signals.
+Move toward 3% only if the model stays positive.
+Use 5% only after you fully accept large drawdowns.
 ```
 
-The system can be profitable historically and still have:
-
-```txt
-- Losing days
-- Multi-loss runs
-- Drawdowns
-- Missed score clusters
-- Slam-week volatility
-```
+Never risk funds needed for basic life expenses.
 
 ---
 
-# Research Layer
+# Promotion Rules
 
-Experimental systems remain active internally.
-
-Rules:
+A lane can be promoted only if it passes:
 
 ```txt
-- Research lanes do not count toward main ROI.
-- Research lanes must have their own backtest and live ledger.
-- Promote a lane only after historical proof + forward-test proof.
-- Never promote because of one good receipt.
+1. Historical warehouse backtest positive
+2. Reality check positive over 100 / 200 / 300 windows
+3. Live-forward sample of 100+ settled rows positive
+4. ROI beats the current live model or improves drawdown
+5. No hidden mixing of receipt units into grouped units
 ```
 
-Current research candidates:
+Current status:
 
 ```txt
-- Mirror watchlist
-- V3 Cluster
-- Comfort
-- First Set Over/Under Games
-- Bookmaker routing / line shopping
-- Betfair automation feasibility
+Public Main:
+Core + Reverse
+
+Optimized VIP:
+Protected 3-score Core + Reverse + Research P2 + V3
+
+Silent tracker:
+Gate-2 Core + Reverse + Research P2 + V3
+
+Watchlist:
+Mirror
+
+Removed:
+Core Cluster Plus
 ```
 
 ---
@@ -893,24 +557,24 @@ Current research candidates:
 ## Do
 
 ```txt
-- Keep Core + Reverse as the main proof model.
-- Keep receipt odds separate from grouped odds.
+- Keep Public Main separate from Optimized VIP.
+- Keep grouped odds separate from receipt odds.
 - Use Bet365 as the baseline source book.
-- Verify grouped odds math when debugging.
-- Use warehouse artifacts before making strategy claims.
 - Track red rows publicly.
-- Be honest about variance and drawdowns.
+- Judge strategy only after meaningful sample sizes.
+- Use warehouse artifacts before making strategy claims.
+- Be honest about drawdowns and variance.
 ```
 
 ## Do Not
 
 ```txt
-- Do not mix V3 into Core + Reverse ROI.
-- Do not mix Comfort into exact-score grouped proof.
-- Do not use receipt profit as the main proof metric.
+- Do not mix receipt profit into grouped model proof.
+- Do not promote Mirror because of one hot week.
 - Do not re-enable Core Cluster Plus without testing.
-- Do not change strategy after one bad day.
+- Do not switch live staking to Gate-2 until it proves itself forward.
 - Do not claim guaranteed wins.
+- Do not call it free money.
 - Do not build automated betting against sportsbook terms.
 ```
 
@@ -923,7 +587,7 @@ Use language like:
 ```txt
 First Set Lab tracks tennis first-set exact-score clusters using live market pricing and public proof receipts.
 Signals are not guaranteed. The model is forward-tested with red rows included.
-The main proof model is Core + Reverse using executable grouped odds, not cherry-picked receipt odds.
+The public proof model is Core + Reverse using executable grouped odds, not cherry-picked receipt odds.
 ```
 
 Avoid language like:
@@ -934,4 +598,5 @@ Lock
 Can't lose
 Quit your job
 Free money
+Cheat code
 ```
