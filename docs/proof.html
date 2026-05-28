@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>First Set Lab // Locked Proof Vault</title>
-  <meta name="description" content="First Set Lab locked proof dashboard separating Public Main, Optimized VIP, Watchlist, Removed, and broad live ledgers." />
+  <title>First Set Lab // Optimized VIP Proof</title>
+  <meta name="description" content="First Set Lab optimized VIP proof dashboard for the protected 3-score live model." />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif'],mono:['JetBrains Mono','ui-monospace','monospace']},colors:{ink:'#06090F',panel:'#0D111A',panel2:'#111827',lime:'#C6EF00',cyan:'#00F0FF',red:'#EF4444',gold:'#F59E0B',violet:'#A78BFA'},boxShadow:{terminal:'0 0 0 1px rgba(255,255,255,.06),0 22px 55px rgba(0,0,0,.55)',neon:'0 0 30px rgba(198,239,0,.15)',goldGlow:'0 0 38px rgba(245,158,11,.18)',cyanGlow:'0 0 30px rgba(0,240,255,.14)'}}}}
+    tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif'],mono:['JetBrains Mono','ui-monospace','monospace']},colors:{ink:'#06090F',panel:'#0D111A',panel2:'#111827',lime:'#C6EF00',cyan:'#00F0FF',red:'#EF4444',gold:'#F59E0B'},boxShadow:{terminal:'0 0 0 1px rgba(255,255,255,.06),0 22px 55px rgba(0,0,0,.55)',goldGlow:'0 0 38px rgba(245,158,11,.18)',cyanGlow:'0 0 30px rgba(0,240,255,.14)'}}}}
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,74 +19,85 @@
     .grid-bg{background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:24px 24px}
     .number-glow{text-shadow:0 0 28px rgba(198,239,0,.26)}
     .gold-glow{text-shadow:0 0 32px rgba(245,158,11,.35)}
+    details>summary{list-style:none}
+    details>summary::-webkit-details-marker{display:none}
+    details[open] .chevron{transform:rotate(90deg)}
   </style>
 </head>
 <body class="font-sans antialiased">
   <div class="fixed inset-0 -z-10 pointer-events-none">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,240,255,.08),transparent_42%),radial-gradient(circle_at_0%_45%,rgba(198,239,0,.055),transparent_35%),radial-gradient(circle_at_100%_90%,rgba(245,158,11,.08),transparent_30%)]"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(245,158,11,.13),transparent_42%),radial-gradient(circle_at_0%_45%,rgba(198,239,0,.06),transparent_35%),radial-gradient(circle_at_100%_90%,rgba(0,240,255,.08),transparent_30%)]"></div>
     <div class="absolute inset-0 grid-bg opacity-70"></div>
   </div>
 
   <header class="sticky top-0 z-50 border-b border-white/5 bg-ink/85 backdrop-blur-xl">
     <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
       <div class="flex items-center gap-3">
-        <span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime"></span></span>
-        <span class="font-mono text-[10px] font-bold uppercase tracking-[.2em] text-white/90">FSL // Locked Proof Vault</span>
+        <span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-gold"></span></span>
+        <span class="font-mono text-[10px] font-bold uppercase tracking-[.2em] text-white/90">FSL // Optimized VIP</span>
       </div>
-      <div class="hidden gap-2 font-mono text-[10px] uppercase tracking-widest sm:flex">
-        <a href="#models" class="border border-lime/25 bg-lime/5 px-3 py-1.5 text-lime">Models</a>
-        <a href="#ledger" class="border border-gold/30 bg-gold/5 px-3 py-1.5 text-gold">Ledger</a>
-      </div>
+      <a href="#settled" class="hidden border border-gold/30 bg-gold/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-gold sm:block">Settled Ledger</a>
     </nav>
   </header>
 
-  <main class="mx-auto max-w-7xl px-4 py-8 space-y-12">
-    <section class="grid gap-6 lg:grid-cols-[1.1fr_.9fr] lg:items-end">
+  <main class="mx-auto max-w-7xl px-4 py-8 space-y-10">
+    <section class="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
       <div class="space-y-5">
         <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40">
           <span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span>
           <span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span>
-          <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Public main separated</span>
-          <span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">Protected 3 live model</span>
+          <span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">Best live model only</span>
+          <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Protected 3-score</span>
         </div>
-        <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-7xl">FIRST SET<br><span class="text-lime number-glow">LAB.</span></h1>
-        <p class="max-w-2xl font-mono text-xs uppercase leading-5 text-white/55">Locked operating structure. Public Main is Core + Reverse only. Optimized VIP is protected 3-score Core + Reverse + Research P2 + V3. Mirror is watchlist only. Core Cluster Plus is removed. Broad Live is shown for audit, not as the main proof model.</p>
+        <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-7xl">OPTIMIZED<br><span class="text-gold gold-glow">VIP.</span></h1>
+        <p class="max-w-2xl font-mono text-xs uppercase leading-5 text-white/55">The proof page now shows only the active best live version: Protected 3-score Core + Reverse + Research P2 + V3. Watchlist, removed, broad-live, and silent tracker models are not shown here to keep the page clean.</p>
       </div>
+
+      <div class="rounded-2xl border border-gold/25 bg-gold/5 p-5 font-mono shadow-terminal">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-[9px] uppercase tracking-widest text-gold">Current model</div>
+            <div class="mt-1 text-2xl font-black uppercase text-white">Optimized VIP Protected 3</div>
+          </div>
+          <div id="status" class="rounded border border-lime/30 bg-lime/5 px-2 py-1 text-[9px] font-black uppercase text-lime">Loading</div>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Lanes</div><div class="mt-1 font-bold text-white">Core / Reverse / Research P2 / V3</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Score logic</div><div class="mt-1 font-bold text-white">Protected 3</div></div>
+        </div>
+        <div id="lastUpdated" class="mt-4 text-[10px] uppercase text-white/40">Last update --</div>
+      </div>
+    </section>
+
+    <section id="summary" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4 font-mono">
+      <div class="rounded-xl border border-white/5 bg-panel p-4 text-xs uppercase text-white/40">Loading summary...</div>
+    </section>
+
+    <section class="grid gap-3 lg:grid-cols-[.9fr_1.1fr]">
+      <div class="rounded-2xl border border-lime/20 bg-lime/5 p-5 font-mono shadow-terminal">
+        <div class="text-[9px] uppercase tracking-widest text-lime">5% compound replay</div>
+        <div id="compoundFinal" class="mt-2 text-5xl font-black text-lime number-glow">$--</div>
+        <div id="compoundNet" class="mt-1 text-[11px] uppercase text-white/50">Net --</div>
+        <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Settled rows</div><div id="compoundRows" class="mt-1 font-black text-white">--</div></div>
+          <div class="rounded border border-red/20 bg-ink/70 p-3"><div class="text-white/30">Max DD</div><div id="compoundDrawdown" class="mt-1 font-black text-red">--</div></div>
+        </div>
+      </div>
+
       <div class="rounded-2xl border border-white/10 bg-panel/80 p-5 font-mono shadow-terminal">
-        <div class="text-[9px] uppercase tracking-widest text-white/35">Current status</div>
-        <div id="status" class="mt-2 text-2xl font-black uppercase text-lime">Loading...</div>
-        <div id="lastUpdated" class="mt-2 text-[10px] uppercase text-white/45">Last update --</div>
+        <div class="text-[9px] uppercase tracking-widest text-white/35">How to read this page</div>
+        <div class="mt-2 text-xl font-black uppercase text-white">One clean number, then daily proof.</div>
+        <p class="mt-3 text-[11px] uppercase leading-5 text-white/45">The headline units are from the active optimized VIP model only. The settled ledger is grouped by date to avoid clutter. Open a date row to see every signal from that day, including match, score group, actual first-set score, unit result, cash risk, and replay balance.</p>
       </div>
     </section>
 
-    <section id="models" class="space-y-4">
-      <div class="border-l-2 border-lime pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-lime">Locked ledgers</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Model buckets</h2>
-      </div>
-      <div id="bucketCards" class="grid gap-3 md:grid-cols-2 xl:grid-cols-5 font-mono">
-        <div class="rounded-xl border border-white/5 bg-panel p-4 text-xs uppercase text-white/40">Loading buckets...</div>
-      </div>
-    </section>
-
-    <section class="space-y-4">
-      <div class="border-l-2 border-cyan pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-cyan">5% compound replay</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">$3,000 settled-history replay</h2>
-      </div>
-      <div id="compoundCards" class="grid gap-3 md:grid-cols-3 font-mono">
-        <div class="rounded-xl border border-white/5 bg-panel p-4 text-xs uppercase text-white/40">Loading compound replay...</div>
-      </div>
-      <p class="font-mono text-[10px] uppercase leading-5 text-white/45">Method: 5% of current bankroll is the base unit. Unit result uses protected 3-score grouped result plus VIP Pocket Booster overlay where present. This is a replay of already-settled rows only.</p>
-    </section>
-
-    <section id="ledger" class="space-y-4">
+    <section id="settled" class="space-y-4">
       <div class="border-l-2 border-gold pl-4">
-        <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Optimized VIP ledger</div>
-        <h2 class="text-2xl font-black uppercase tracking-tight">Current settled signals</h2>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-gold">Settled bets by date</div>
+        <h2 class="text-2xl font-black uppercase tracking-tight">Daily accordion ledger</h2>
       </div>
-      <div id="ledgerList" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <div class="rounded-xl border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading settled ledger...</div>
+      <div id="dailyLedger" class="space-y-3">
+        <div class="rounded-xl border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">Loading settled dates...</div>
       </div>
     </section>
 
@@ -106,69 +117,109 @@
     const signedMoney=v=>{const n=number(v);if(n===null)return'$--';return `${n>=0?'+':'-'}${Math.abs(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0})}`};
     const pct=v=>{const n=number(v);return n===null?'--':`${n.toFixed(2)}%`};
     const dateShort=v=>{if(!v)return'--';const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
-    const bucketStyles={
-      PUBLIC_MAIN:['border-lime/25','bg-lime/5','text-lime','Public proof only'],
-      OPTIMIZED_VIP:['border-gold/30','bg-gold/5','text-gold','Personal/VIP staking'],
-      WATCHLIST_MIRROR:['border-violet/30','bg-violet/5','text-violet','Watchlist only'],
-      REMOVED_CORE_PLUS:['border-red/30','bg-red/5','text-red','Removed'],
-      BROAD_LIVE_ALL:['border-cyan/25','bg-cyan/5','text-cyan','Audit only']
-    };
-    function bucketCard(s){
-      const st=bucketStyles[s.model_bucket]||['border-white/10','bg-white/5','text-white',''];
-      return `<article class="rounded-xl border ${st[0]} ${st[1]} p-4 shadow-terminal">
-        <div class="flex items-start justify-between gap-3"><div><div class="text-[9px] uppercase tracking-widest ${st[2]}">${st[3]}</div><div class="mt-1 text-lg font-black uppercase text-white">${s.display_name}</div></div><div class="text-[10px] uppercase text-white/35">${s.settled_rows||0} rows</div></div>
-        <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
-          <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">W/L</div><div class="mt-1 font-black text-white">${s.wins||0}/${s.losses||0}</div></div>
-          <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Hit</div><div class="mt-1 font-black text-white">${pct(s.hit_rate_pct)}</div></div>
-          <div class="rounded border border-lime/15 bg-ink/70 p-2"><div class="text-white/30">Grouped</div><div class="mt-1 font-black text-lime">${signedUnits(s.grouped_units)}</div></div>
-          <div class="rounded border border-gold/20 bg-ink/70 p-2"><div class="text-white/30">Booster</div><div class="mt-1 font-black text-gold">${signedUnits(s.booster_units)}</div></div>
-        </div>
-        <div class="mt-3 rounded border border-white/5 bg-panel2 p-3 text-center"><div class="text-[9px] uppercase text-white/35">VIP total units</div><div class="mt-1 text-3xl font-black ${st[2]}">${signedUnits(s.vip_total_units)}</div><div class="mt-1 text-[10px] uppercase text-white/40">ROI ${pct(s.vip_roi_on_staked_pct)}</div></div>
-      </article>`;
+    const dateLabel=v=>{if(!v)return'Unknown date';const d=new Date(`${v}T00:00:00`);return Number.isNaN(d.getTime())?v:d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})};
+    const sum=(arr,fn)=>arr.reduce((a,x)=>a+(Number(fn(x))||0),0);
+
+    function metricCard(label,value,accent='text-white',sub=''){
+      return `<article class="rounded-xl border border-white/10 bg-panel/80 p-4 font-mono shadow-terminal"><div class="text-[9px] uppercase tracking-widest text-white/35">${label}</div><div class="mt-2 text-3xl font-black ${accent}">${value}</div>${sub?`<div class="mt-1 text-[10px] uppercase text-white/40">${sub}</div>`:''}</article>`;
     }
-    function compoundCard(model, rows){
-      const last=rows[rows.length-1]||{};
-      const maxDd=Math.max(0,...rows.map(r=>Number(r.drawdown_pct)||0));
-      const label={PUBLIC_MAIN:'Public Main',OPTIMIZED_VIP:'Optimized VIP',BROAD_LIVE_ALL:'Broad Live'}[model]||model;
-      const st=model==='OPTIMIZED_VIP'?['border-gold/30','bg-gold/5','text-gold']:model==='PUBLIC_MAIN'?['border-lime/25','bg-lime/5','text-lime']:['border-cyan/25','bg-cyan/5','text-cyan'];
-      return `<article class="rounded-xl border ${st[0]} ${st[1]} p-4 font-mono shadow-terminal"><div class="text-[9px] uppercase tracking-widest ${st[2]}">${label}</div><div class="mt-2 text-3xl font-black ${st[2]}">${money(last.balance_after)}</div><div class="mt-1 text-[10px] uppercase text-white/45">Net ${signedMoney((Number(last.balance_after)||3000)-3000)}</div><div class="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase"><div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Rows</div><div class="font-black text-white">${rows.length}</div></div><div class="rounded border border-red/20 bg-ink/70 p-2"><div class="text-white/30">Max DD</div><div class="font-black text-red">${pct(maxDd)}</div></div></div></article>`;
-    }
+
     function groupLabel(r){
       const lane=String(r.strategy_lane||'').toUpperCase();
-      if(lane.includes('P2')||lane.includes('REVERSE')) return '2:6 / 4:6 / 5:7';
       if(lane.includes('V3')) return '3:6 / 4:6 / 5:7';
+      if(lane.includes('P2')||lane.includes('REVERSE')) return '2:6 / 4:6 / 5:7';
       return '6:2 / 6:3 / 6:4';
     }
-    function rowCard(r){
-      const win=Number(r.unit_result)>=0;
-      const cls=win?'border-lime/20 bg-lime/5':'border-red/20 bg-red/5';
-      return `<article class="rounded-xl border ${cls} p-4 font-mono shadow-terminal">
-        <div class="flex items-start justify-between gap-3"><div><div class="text-[9px] uppercase tracking-widest text-white/35">#${r.rn} // ${r.event_date||''}</div><div class="mt-1 text-sm font-black uppercase leading-tight text-white">${r.match_name||'Unknown match'}</div><div class="mt-1 text-[9px] uppercase tracking-widest text-white/30">${r.public_signal_name||''}</div></div><div class="rounded border px-2 py-1 text-[9px] font-black uppercase ${win?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div></div>
-        <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Signal group</div><div class="mt-1 font-bold text-white">${groupLabel(r)}</div></div>
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Actual score</div><div class="mt-1 font-bold text-white">${r.first_set_score||'--'}</div></div>
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Units</div><div class="mt-1 font-black ${win?'text-lime':'text-red'}">${signedUnits(r.unit_result)}</div></div>
-          <div class="rounded border border-gold/20 bg-gold/5 p-3"><div class="text-gold/70">Risked</div><div class="mt-1 font-black text-gold">${money(r.total_cash_risked)}</div></div>
+
+    function dailyAccordion(date,rows,index){
+      const units=sum(rows,r=>r.unit_result);
+      const pnl=sum(rows,r=>r.pnl);
+      const risk=sum(rows,r=>r.total_cash_risked);
+      const wins=rows.filter(r=>Number(r.unit_result)>=0).length;
+      const losses=rows.length-wins;
+      const cls=units>=0?'text-lime':'text-red';
+      const border=units>=0?'border-lime/20 bg-lime/5':'border-red/20 bg-red/5';
+      const openAttr=index===0?' open':'';
+      return `<details class="rounded-2xl border ${border} font-mono shadow-terminal"${openAttr}>
+        <summary class="cursor-pointer select-none p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="chevron inline-block text-gold transition-transform">▶</span>
+              <div>
+                <div class="text-sm font-black uppercase text-white">${dateLabel(date)}</div>
+                <div class="mt-1 text-[10px] uppercase text-white/40">${rows.length} settled · ${wins}W / ${losses}L</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-black ${cls}">${signedUnits(units)}</div>
+              <div class="text-[10px] uppercase text-white/40">P/L ${signedMoney(pnl)}</div>
+            </div>
+          </div>
+          <div class="mt-3 grid grid-cols-3 gap-2 text-[10px] uppercase">
+            <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Risked</div><div class="font-bold text-white">${money(risk)}</div></div>
+            <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Units</div><div class="font-bold ${cls}">${signedUnits(units)}</div></div>
+            <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Last balance</div><div class="font-bold text-white">${money(rows[rows.length-1]?.balance_after)}</div></div>
+          </div>
+        </summary>
+        <div class="border-t border-white/10 p-3 space-y-2">
+          ${rows.map(rowCompact).join('')}
         </div>
-        <div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[10px] uppercase"><span class="text-white/35">P/L</span><span class="font-black ${win?'text-lime':'text-red'}">${signedMoney(r.pnl)}</span><span class="text-white/35">After</span><span class="font-black text-white">${money(r.balance_after)}</span></div>
+      </details>`;
+    }
+
+    function rowCompact(r){
+      const win=Number(r.unit_result)>=0;
+      const cls=win?'text-lime':'text-red';
+      return `<article class="rounded-xl border border-white/5 bg-ink/70 p-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="truncate text-[12px] font-black uppercase text-white">${r.match_name||'Unknown match'}</div>
+            <div class="mt-1 text-[9px] uppercase tracking-widest text-white/35">${r.public_signal_name||''} · Group ${groupLabel(r)} · Actual ${r.first_set_score||'--'}</div>
+          </div>
+          <div class="shrink-0 rounded border px-2 py-1 text-[9px] font-black uppercase ${win?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div>
+        </div>
+        <div class="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase">
+          <div><div class="text-white/30">Units</div><div class="font-black ${cls}">${signedUnits(r.unit_result)}</div></div>
+          <div><div class="text-white/30">Risk</div><div class="font-black text-gold">${money(r.total_cash_risked)}</div></div>
+          <div><div class="text-white/30">P/L</div><div class="font-black ${cls}">${signedMoney(r.pnl)}</div></div>
+          <div><div class="text-white/30">After</div><div class="font-black text-white">${money(r.balance_after)}</div></div>
+        </div>
       </article>`;
     }
+
+    function groupByDate(rows){
+      return rows.reduce((acc,r)=>{const k=r.event_date||'unknown';(acc[k] ||= []).push(r);return acc;},{});
+    }
+
     async function load(){
       $('status').textContent='Syncing';
-      const [summaryRes, compRes, ledgerRes]=await Promise.all([
-        db.from('proof_vault_locked_model_summary_v1').select('*').order('sort_order',{ascending:true}),
-        db.from('proof_vault_locked_model_5pct_compound_v1').select('*').in('model_bucket',['PUBLIC_MAIN','OPTIMIZED_VIP','BROAD_LIVE_ALL']).order('rn',{ascending:true}),
+      const [summaryRes, ledgerRes]=await Promise.all([
+        db.from('proof_vault_locked_model_summary_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').single(),
         db.from('proof_vault_locked_model_5pct_compound_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').order('rn',{ascending:true})
       ]);
-      if(summaryRes.error||compRes.error||ledgerRes.error){console.error(summaryRes.error||compRes.error||ledgerRes.error);$('status').textContent='Offline';return;}
-      const summaries=summaryRes.data||[];
+      if(summaryRes.error||ledgerRes.error){console.error(summaryRes.error||ledgerRes.error);$('status').textContent='Offline';return;}
+
+      const s=summaryRes.data||{};
+      const rows=ledgerRes.data||[];
+      const last=rows[rows.length-1]||{};
+      const maxDd=Math.max(0,...rows.map(r=>Number(r.drawdown_pct)||0));
+
       $('status').textContent='Live';
-      $('lastUpdated').textContent=`Last update ${dateShort((summaries[0]||{}).refreshed_at)}`;
-      $('bucketCards').innerHTML=summaries.map(bucketCard).join('');
-      const compRows=compRes.data||[];
-      const byModel={}; compRows.forEach(r=>{(byModel[r.model_bucket] ||= []).push(r)});
-      $('compoundCards').innerHTML=['PUBLIC_MAIN','OPTIMIZED_VIP','BROAD_LIVE_ALL'].map(m=>compoundCard(m,byModel[m]||[])).join('');
-      $('ledgerList').innerHTML=(ledgerRes.data||[]).slice().reverse().map(rowCard).join('')||'<div class="rounded-xl border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">No optimized VIP settled rows.</div>';
+      $('lastUpdated').textContent=`Last update ${dateShort(s.refreshed_at)}`;
+      $('summary').innerHTML=[
+        metricCard('Settled rows',s.settled_rows||0,'text-white',`${s.wins||0}W / ${s.losses||0}L`),
+        metricCard('Hit rate',pct(s.hit_rate_pct),'text-white','Protected 3-score model'),
+        metricCard('VIP total units',signedUnits(s.vip_total_units),'text-gold gold-glow',`Grouped ${signedUnits(s.grouped_units)} · Booster ${signedUnits(s.booster_units)}`),
+        metricCard('ROI on staked',pct(s.vip_roi_on_staked_pct),'text-lime','Executable model units')
+      ].join('');
+      $('compoundFinal').textContent=money(last.balance_after);
+      $('compoundNet').textContent=`Net ${signedMoney((Number(last.balance_after)||3000)-3000)} from $3,000`;
+      $('compoundRows').textContent=rows.length;
+      $('compoundDrawdown').textContent=pct(maxDd);
+
+      const grouped=groupByDate(rows);
+      const dates=Object.keys(grouped).sort((a,b)=>b.localeCompare(a));
+      $('dailyLedger').innerHTML=dates.map((date,i)=>dailyAccordion(date,grouped[date],i)).join('')||'<div class="rounded-xl border border-white/5 bg-panel p-4 font-mono text-xs uppercase text-white/40">No optimized VIP settled rows.</div>';
     }
     load();setInterval(load,60000);
   </script>
