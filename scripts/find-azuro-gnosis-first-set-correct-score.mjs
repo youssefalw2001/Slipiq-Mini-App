@@ -3,7 +3,7 @@
   Azuro Gnosis tennis 1st Set - Correct Score scanner.
 
   Safe read-only utility:
-  - Queries the Azuro Gnosis subgraph.
+  - Queries the Azuro Gnosis v3 API subgraph.
   - Dynamically loads @azuro-org/dictionaries so export mismatches do not crash import.
   - Attempts schema variants and always prints diagnostic JSON to stdout.
   - No wallet, no signing, no orders.
@@ -11,7 +11,7 @@
 
 import axios from 'axios';
 
-const SUBGRAPH_URL = process.env.AZURO_GNOSIS_SUBGRAPH_URL || 'https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis';
+const SUBGRAPH_URL = process.env.AZURO_GNOSIS_SUBGRAPH_URL || 'https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3';
 const TARGET_MARKET = process.env.TARGET_MARKET || '1st Set - Correct Score';
 const PAGE_SIZE = Number(process.env.PAGE_SIZE || '100');
 const MAX_PAGES = Number(process.env.MAX_PAGES || '20');
