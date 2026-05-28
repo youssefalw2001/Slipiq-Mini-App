@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       azuro_api_base:
-        description: Azuro/DGPredict API base URL
+        description: Azuro/Onchainfeed public REST API base URL. Do not use a Graph/blocks subgraph URL here.
         required: false
-        default: 'https://api.azuro.org'
+        default: 'https://api.onchainfeed.org/api/v1/public'
       app_id:
         description: Azuro app id / integration id
         required: false
@@ -74,6 +74,11 @@ jobs:
           fi
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
             echo "Missing SUPABASE_SERVICE_ROLE_KEY secret"
+            exit 1
+          fi
+          if echo "${AZURO_API_BASE}" | grep -qiE 'subgraph|thegraph|studio.thegraph|blocks'; then
+            echo "AZURO_API_BASE must be an Azuro/Onchainfeed REST API base, not a Graph/blocks subgraph URL."
+            echo "Use https://api.onchainfeed.org/api/v1/public for this workflow."
             exit 1
           fi
           node scripts/audit-azuro-dgpredict-first-set-score-coverage.mjs \
