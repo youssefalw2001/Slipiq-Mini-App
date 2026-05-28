@@ -17,9 +17,12 @@ const PAGE_SIZE = Number(process.env.PAGE_SIZE || '100');
 const MAX_PAGES = Number(process.env.MAX_PAGES || '20');
 const PRINT_ALL_TENNIS_MARKETS = String(process.env.PRINT_ALL_TENNIS_MARKETS || 'false') === 'true';
 
+const OUTCOME_FIELDS_WITH_ODDS = 'id outcomeId currentOdds';
+const OUTCOME_FIELDS_MINIMAL = 'id outcomeId';
+
 const QUERY_VARIANTS = [
   {
-    name: 'sport_name_status_created',
+    name: 'sport_name_status_created_current_odds',
     query: `
       query LiveTennisGames($first: Int!, $skip: Int!) {
         games(
@@ -39,41 +42,14 @@ const QUERY_VARIANTS = [
             id
             conditionId
             status
-            outcomes { id outcomeId currentOdds odds }
+            outcomes { ${OUTCOME_FIELDS_WITH_ODDS} }
           }
         }
       }
     `,
   },
   {
-    name: 'sport_name_state_created',
-    query: `
-      query LiveTennisGames($first: Int!, $skip: Int!) {
-        games(
-          first: $first
-          skip: $skip
-          where: { sport_: { name: "Tennis" }, state: Created }
-          orderBy: startsAt
-          orderDirection: asc
-        ) {
-          id
-          gameId
-          title
-          startsAt
-          state
-          sport { name }
-          conditions {
-            id
-            conditionId
-            state
-            outcomes { id outcomeId currentOdds odds }
-          }
-        }
-      }
-    `,
-  },
-  {
-    name: 'unfiltered_with_status',
+    name: 'unfiltered_with_status_current_odds',
     query: `
       query LiveTennisGames($first: Int!, $skip: Int!) {
         games(first: $first, skip: $skip, orderBy: startsAt, orderDirection: asc) {
@@ -87,7 +63,7 @@ const QUERY_VARIANTS = [
             id
             conditionId
             status
-            outcomes { id outcomeId currentOdds odds }
+            outcomes { ${OUTCOME_FIELDS_WITH_ODDS} }
           }
         }
       }
@@ -106,7 +82,7 @@ const QUERY_VARIANTS = [
           conditions {
             id
             conditionId
-            outcomes { id outcomeId }
+            outcomes { ${OUTCOME_FIELDS_MINIMAL} }
           }
         }
       }
@@ -128,11 +104,9 @@ function isTargetMarket(marketName) {
 
   return (
     name === target ||
-    (
-      (name.includes('1st set') || name.includes('first set') || name.includes('set 1')) &&
+    ((name.includes('1st set') || name.includes('first set') || name.includes('set 1')) &&
       name.includes('correct') &&
-      name.includes('score')
-    )
+      name.includes('score'))
   );
 }
 
@@ -178,7 +152,7 @@ function callDictionary(fn, outcomeId) {
       const value = attempt();
       if (value !== null && value !== undefined && String(value).trim() !== '') return value;
     } catch {
-      // try next form
+      // try next shape
     }
   }
 
@@ -202,7 +176,7 @@ function isTennisGame(game) {
 }
 
 function isCreatedGame(game) {
-  const value = normalize(game.status ?? game.state ?? 'created');
+  const value = normalize(game.status ?? 'created');
   return !value || value === 'created' || value === 'live' || value === 'prematch';
 }
 
@@ -236,9 +210,7 @@ async function fetchLiveTennisGames() {
 }
 
 function decodeCondition(condition, dictionaries) {
-  const outcomes = condition.outcomes ?? [];
-
-  const decodedOutcomes = outcomes.map((outcome) => {
+  const decodedOutcomes = (condition.outcomes ?? []).map((outcome) => {
     const outcomeId = String(outcome.outcomeId ?? outcome.id);
     const marketName = callDictionary(dictionaries.getMarketName, outcomeId);
     const selectionName = callDictionary(dictionaries.getSelectionName, outcomeId);
@@ -247,8 +219,8 @@ function decodeCondition(condition, dictionaries) {
       outcomeId,
       marketName,
       selectionName,
-      currentOdds: decimalOdds(outcome.currentOdds ?? outcome.odds),
-      rawCurrentOdds: outcome.currentOdds ?? outcome.odds ?? null,
+      currentOdds: decimalOdds(outcome.currentOdds),
+      rawCurrentOdds: outcome.currentOdds ?? null,
     };
   });
 
@@ -256,7 +228,7 @@ function decodeCondition(condition, dictionaries) {
 
   return {
     rawConditionId: condition.conditionId ?? condition.id,
-    conditionStatus: condition.status ?? condition.state ?? null,
+    conditionStatus: condition.status ?? null,
     marketName,
     outcomes: decodedOutcomes,
   };
@@ -312,7 +284,7 @@ async function main() {
       gameId: game.gameId ?? game.id,
       title: game.title,
       startsAt: game.startsAt,
-      status: game.status ?? game.state ?? null,
+      status: game.status ?? null,
       markets: targetMarkets,
     });
   }
