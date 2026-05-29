@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/azuro-historical-replay-dry-run.yml'
       - 'scripts/azuro-historical-replay-backtest.ts'
+      - 'scripts/azuro-v3-historical-replay-backtest.ts'
       - 'package.json'
   workflow_dispatch:
     inputs:
@@ -29,9 +30,9 @@ on:
         required: false
         default: ''
       subgraph_id:
-        description: Optional The Graph decentralized subgraph ID. Requires THE_GRAPH_API_KEY secret.
+        description: The Graph decentralized subgraph ID. Defaults to provided Polygon v3 ID.
         required: false
-        default: ''
+        default: '5xDMqPyP6P5X6f2o5B1uQunrYj91mXyT68L9wGgDskK'
       write_supabase:
         description: Keep false for dry runs
         required: false
@@ -48,7 +49,7 @@ env:
   LIMIT: ${{ github.event.inputs.limit || '10' }}
   CHAIN: ${{ github.event.inputs.chain || 'polygon' }}
   INPUT_SUBGRAPH_URL: ${{ github.event.inputs.subgraph_url || '' }}
-  INPUT_SUBGRAPH_ID: ${{ github.event.inputs.subgraph_id || '' }}
+  INPUT_SUBGRAPH_ID: ${{ github.event.inputs.subgraph_id || '5xDMqPyP6P5X6f2o5B1uQunrYj91mXyT68L9wGgDskK' }}
   WRITE_SUPABASE: ${{ github.event.inputs.write_supabase || 'false' }}
 
 jobs:
@@ -86,24 +87,16 @@ jobs:
           if [ -n "${INPUT_SUBGRAPH_URL}" ]; then
             RESOLVED_SUBGRAPH_URL="${INPUT_SUBGRAPH_URL}"
             echo "subgraph_mode=custom_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
-          elif [ -n "${INPUT_SUBGRAPH_ID}" ]; then
-            if [ -z "${THE_GRAPH_API_KEY:-}" ]; then
-              echo "subgraph_id was provided, but THE_GRAPH_API_KEY secret is missing." | tee artifacts/output/azuro-historical-replay-backtest/diagnostics/config_error.txt
-              RESOLVED_SUBGRAPH_URL=""
-              echo "subgraph_mode=missing_graph_api_key" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
-            else
-              RESOLVED_SUBGRAPH_URL="https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
-              echo "subgraph_mode=gateway_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
-            fi
+          elif [ -n "${INPUT_SUBGRAPH_ID}" ] && [ -n "${THE_GRAPH_API_KEY:-}" ]; then
+            RESOLVED_SUBGRAPH_URL="https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
+            echo "subgraph_mode=gateway_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+          elif [ -n "${INPUT_SUBGRAPH_ID}" ] && [ -z "${THE_GRAPH_API_KEY:-}" ]; then
+            RESOLVED_SUBGRAPH_URL=""
+            echo "subgraph_mode=missing_graph_api_key_for_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+            echo "THE_GRAPH_API_KEY secret is required to use subgraph_id=${INPUT_SUBGRAPH_ID}." > artifacts/output/azuro-historical-replay-backtest/diagnostics/config_error.txt
           else
-            case "${CHAIN}" in
-              polygon) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-polygon-v3" ;;
-              gnosis) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3" ;;
-              arbitrum) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-arbitrum-v3" ;;
-              base) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-base-v3" ;;
-              *) RESOLVED_SUBGRAPH_URL="" ;;
-            esac
-            echo "subgraph_mode=hosted_default_${CHAIN}" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+            RESOLVED_SUBGRAPH_URL=""
+            echo "subgraph_mode=no_subgraph_config" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           fi
 
           if [ -n "${RESOLVED_SUBGRAPH_URL}" ]; then
@@ -113,18 +106,19 @@ jobs:
             echo "resolved_subgraph_url_configured=no" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           fi
 
-      - name: Run Protected 3 historical replay safely
+      - name: Run Protected 3 V3 historical replay safely
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          THE_GRAPH_API_KEY: ${{ secrets.THE_GRAPH_API_KEY }}
         run: |
           set +e
           mkdir -p artifacts/output/azuro-historical-replay-backtest/protected3
-          EXTRA_ARGS=""
+          EXTRA_ARGS="--subgraph-id=${INPUT_SUBGRAPH_ID}"
           if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
-            EXTRA_ARGS="--subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
+            EXTRA_ARGS="${EXTRA_ARGS} --subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
           fi
-          npm run backtest:azuro:historical -- \
+          npm run backtest:azuro:v3 -- \
             --chain="${CHAIN}" \
             --score-mode=protected3 \
             --limit="${LIMIT}" \
@@ -138,18 +132,19 @@ jobs:
           cat artifacts/output/azuro-historical-replay-backtest/protected3/stderr.log || true
           exit 0
 
-      - name: Run Gate-2 historical replay safely
+      - name: Run Gate-2 V3 historical replay safely
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          THE_GRAPH_API_KEY: ${{ secrets.THE_GRAPH_API_KEY }}
         run: |
           set +e
           mkdir -p artifacts/output/azuro-historical-replay-backtest/gate2
-          EXTRA_ARGS=""
+          EXTRA_ARGS="--subgraph-id=${INPUT_SUBGRAPH_ID}"
           if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
-            EXTRA_ARGS="--subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
+            EXTRA_ARGS="${EXTRA_ARGS} --subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
           fi
-          npm run backtest:azuro:historical -- \
+          npm run backtest:azuro:v3 -- \
             --chain="${CHAIN}" \
             --score-mode=gate2 \
             --limit="${LIMIT}" \
