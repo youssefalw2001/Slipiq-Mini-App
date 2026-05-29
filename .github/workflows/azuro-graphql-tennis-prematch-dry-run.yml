@@ -1,0 +1,83 @@
+name: Azuro GraphQL Tennis Prematch Dry Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/azuro-graphql-tennis-prematch-dry-run.yml'
+      - 'scripts/azuro-graphql-tennis-prematch-audit.ts'
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      score_mode:
+        description: Score group to audit
+        required: false
+        default: 'protected3'
+        type: choice
+        options:
+          - protected3
+          - gate2
+      limit:
+        description: Max First Set Lab signals to audit
+        required: false
+        default: '50'
+      write_supabase:
+        description: Keep false unless a dry run has valid classifications
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+env:
+  SCORE_MODE: ${{ github.event.inputs.score_mode || 'protected3' }}
+  LIMIT: ${{ github.event.inputs.limit || '50' }}
+  WRITE_SUPABASE: ${{ github.event.inputs.write_supabase || 'false' }}
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run GraphQL tennis prematch audit safely
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL secret"
+            exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "Missing SUPABASE_SERVICE_ROLE_KEY secret"
+            exit 1
+          fi
+          npm run audit:azuro:graphql -- \
+            --limit="${LIMIT}" \
+            --score-mode="${SCORE_MODE}" \
+            --write-supabase="${WRITE_SUPABASE}" \
+            --out=artifacts/output/azuro-graphql-tennis-prematch-audit
+
+      - name: Upload dry-run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azuro-graphql-tennis-prematch-audit-${{ env.SCORE_MODE }}
+          path: artifacts/output/azuro-graphql-tennis-prematch-audit
+          if-no-files-found: error
