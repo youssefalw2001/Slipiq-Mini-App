@@ -88,7 +88,7 @@ jobs:
             RESOLVED_SUBGRAPH_URL="${INPUT_SUBGRAPH_URL}"
             echo "subgraph_mode=custom_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           elif [ -n "${INPUT_SUBGRAPH_ID}" ] && [ -n "${THE_GRAPH_API_KEY:-}" ]; then
-            RESOLVED_SUBGRAPH_URL="https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
+            RESOLVED_SUBGRAPH_URL="https://gateway.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
             echo "subgraph_mode=gateway_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           elif [ -n "${INPUT_SUBGRAPH_ID}" ] && [ -z "${THE_GRAPH_API_KEY:-}" ]; then
             RESOLVED_SUBGRAPH_URL=""
@@ -114,16 +114,12 @@ jobs:
         run: |
           set +e
           mkdir -p artifacts/output/azuro-historical-replay-backtest/protected3
-          EXTRA_ARGS="--subgraph-id=${INPUT_SUBGRAPH_ID}"
-          if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
-            EXTRA_ARGS="${EXTRA_ARGS} --subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
-          fi
           npm run backtest:azuro:v3 -- \
             --chain="${CHAIN}" \
             --score-mode=protected3 \
             --limit="${LIMIT}" \
             --write-supabase="${WRITE_SUPABASE}" \
-            ${EXTRA_ARGS} \
+            --subgraph-id="${INPUT_SUBGRAPH_ID}" \
             --out=artifacts/output/azuro-historical-replay-backtest/protected3 \
             > artifacts/output/azuro-historical-replay-backtest/protected3/stdout.log 2> artifacts/output/azuro-historical-replay-backtest/protected3/stderr.log
           status=$?
@@ -140,16 +136,12 @@ jobs:
         run: |
           set +e
           mkdir -p artifacts/output/azuro-historical-replay-backtest/gate2
-          EXTRA_ARGS="--subgraph-id=${INPUT_SUBGRAPH_ID}"
-          if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
-            EXTRA_ARGS="${EXTRA_ARGS} --subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
-          fi
           npm run backtest:azuro:v3 -- \
             --chain="${CHAIN}" \
             --score-mode=gate2 \
             --limit="${LIMIT}" \
             --write-supabase="${WRITE_SUPABASE}" \
-            ${EXTRA_ARGS} \
+            --subgraph-id="${INPUT_SUBGRAPH_ID}" \
             --out=artifacts/output/azuro-historical-replay-backtest/gate2 \
             > artifacts/output/azuro-historical-replay-backtest/gate2/stdout.log 2> artifacts/output/azuro-historical-replay-backtest/gate2/stderr.log
           status=$?
