@@ -1,0 +1,91 @@
+name: Azuro Historical Replay Dry Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/azuro-historical-replay-dry-run.yml'
+      - 'scripts/azuro-historical-replay-backtest.ts'
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Max settled rows per score mode
+        required: false
+        default: '10'
+      chain:
+        description: Azuro chain
+        required: false
+        default: 'polygon'
+        type: choice
+        options:
+          - polygon
+          - gnosis
+          - arbitrum
+          - base
+      write_supabase:
+        description: Keep false for dry runs
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+env:
+  LIMIT: ${{ github.event.inputs.limit || '10' }}
+  CHAIN: ${{ github.event.inputs.chain || 'polygon' }}
+  WRITE_SUPABASE: ${{ github.event.inputs.write_supabase || 'false' }}
+
+jobs:
+  historical-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Protected 3 historical replay safely
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          npm run backtest:azuro:historical -- \
+            --chain="${CHAIN}" \
+            --score-mode=protected3 \
+            --limit="${LIMIT}" \
+            --write-supabase="${WRITE_SUPABASE}" \
+            --out=artifacts/output/azuro-historical-replay-backtest/protected3
+
+      - name: Run Gate-2 historical replay safely
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          npm run backtest:azuro:historical -- \
+            --chain="${CHAIN}" \
+            --score-mode=gate2 \
+            --limit="${LIMIT}" \
+            --write-supabase="${WRITE_SUPABASE}" \
+            --out=artifacts/output/azuro-historical-replay-backtest/gate2
+
+      - name: Upload historical replay artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azuro-historical-replay-dry-run-${{ env.CHAIN }}-${{ env.LIMIT }}
+          path: artifacts/output/azuro-historical-replay-backtest
+          if-no-files-found: error
