@@ -84,20 +84,33 @@ jobs:
           } > artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
 
           if [ -n "${INPUT_SUBGRAPH_URL}" ]; then
-            echo "AZURO_HISTORICAL_SUBGRAPH_URL=${INPUT_SUBGRAPH_URL}" >> "$GITHUB_ENV"
+            RESOLVED_SUBGRAPH_URL="${INPUT_SUBGRAPH_URL}"
             echo "subgraph_mode=custom_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           elif [ -n "${INPUT_SUBGRAPH_ID}" ]; then
             if [ -z "${THE_GRAPH_API_KEY:-}" ]; then
               echo "subgraph_id was provided, but THE_GRAPH_API_KEY secret is missing." | tee artifacts/output/azuro-historical-replay-backtest/diagnostics/config_error.txt
-              echo "AZURO_HISTORICAL_SUBGRAPH_URL=" >> "$GITHUB_ENV"
+              RESOLVED_SUBGRAPH_URL=""
               echo "subgraph_mode=missing_graph_api_key" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
             else
-              echo "AZURO_HISTORICAL_SUBGRAPH_URL=https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}" >> "$GITHUB_ENV"
+              RESOLVED_SUBGRAPH_URL="https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
               echo "subgraph_mode=gateway_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
             fi
           else
-            echo "AZURO_HISTORICAL_SUBGRAPH_URL=" >> "$GITHUB_ENV"
-            echo "subgraph_mode=script_default_hosted_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+            case "${CHAIN}" in
+              polygon) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-polygon-v3" ;;
+              gnosis) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3" ;;
+              arbitrum) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-arbitrum-v3" ;;
+              base) RESOLVED_SUBGRAPH_URL="https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-api-base-v3" ;;
+              *) RESOLVED_SUBGRAPH_URL="" ;;
+            esac
+            echo "subgraph_mode=hosted_default_${CHAIN}" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+          fi
+
+          if [ -n "${RESOLVED_SUBGRAPH_URL}" ]; then
+            echo "AZURO_HISTORICAL_SUBGRAPH_URL=${RESOLVED_SUBGRAPH_URL}" >> "$GITHUB_ENV"
+            echo "resolved_subgraph_url_configured=yes" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+          else
+            echo "resolved_subgraph_url_configured=no" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           fi
 
       - name: Run Protected 3 historical replay safely
