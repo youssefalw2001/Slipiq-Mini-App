@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "audit:azuro:graphql": "tsx scripts/azuro-graphql-tennis-prematch-audit.ts"
   },
   "dependencies": {
     "@twa-dev/sdk": "^7.7.0",
@@ -18,12 +19,14 @@
     "zustand": "^5.0.4"
   },
   "devDependencies": {
+    "@types/node": "^22.15.30",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.4",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vitest": "^2.1.9"
