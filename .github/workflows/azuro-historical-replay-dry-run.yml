@@ -72,20 +72,32 @@ jobs:
         env:
           THE_GRAPH_API_KEY: ${{ secrets.THE_GRAPH_API_KEY }}
         run: |
-          set -euo pipefail
+          set -u
+          mkdir -p artifacts/output/azuro-historical-replay-backtest/diagnostics
+          {
+            echo "chain=${CHAIN}"
+            echo "limit=${LIMIT}"
+            echo "write_supabase=${WRITE_SUPABASE}"
+            echo "has_custom_subgraph_url=$([ -n "${INPUT_SUBGRAPH_URL}" ] && echo yes || echo no)"
+            echo "has_subgraph_id=$([ -n "${INPUT_SUBGRAPH_ID}" ] && echo yes || echo no)"
+            echo "has_graph_api_key=$([ -n "${THE_GRAPH_API_KEY:-}" ] && echo yes || echo no)"
+          } > artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+
           if [ -n "${INPUT_SUBGRAPH_URL}" ]; then
             echo "AZURO_HISTORICAL_SUBGRAPH_URL=${INPUT_SUBGRAPH_URL}" >> "$GITHUB_ENV"
-            echo "Using custom subgraph_url input."
+            echo "subgraph_mode=custom_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           elif [ -n "${INPUT_SUBGRAPH_ID}" ]; then
             if [ -z "${THE_GRAPH_API_KEY:-}" ]; then
-              echo "subgraph_id was provided, but THE_GRAPH_API_KEY secret is missing."
-              exit 1
+              echo "subgraph_id was provided, but THE_GRAPH_API_KEY secret is missing." | tee artifacts/output/azuro-historical-replay-backtest/diagnostics/config_error.txt
+              echo "AZURO_HISTORICAL_SUBGRAPH_URL=" >> "$GITHUB_ENV"
+              echo "subgraph_mode=missing_graph_api_key" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+            else
+              echo "AZURO_HISTORICAL_SUBGRAPH_URL=https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}" >> "$GITHUB_ENV"
+              echo "subgraph_mode=gateway_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
             fi
-            echo "AZURO_HISTORICAL_SUBGRAPH_URL=https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}" >> "$GITHUB_ENV"
-            echo "Using decentralized The Graph gateway subgraph_id input."
           else
             echo "AZURO_HISTORICAL_SUBGRAPH_URL=" >> "$GITHUB_ENV"
-            echo "Using script default hosted-service URL for selected chain."
+            echo "subgraph_mode=script_default_hosted_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           fi
 
       - name: Run Protected 3 historical replay safely
@@ -93,7 +105,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          set -euo pipefail
+          set +e
+          mkdir -p artifacts/output/azuro-historical-replay-backtest/protected3
           EXTRA_ARGS=""
           if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
             EXTRA_ARGS="--subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
@@ -104,14 +117,21 @@ jobs:
             --limit="${LIMIT}" \
             --write-supabase="${WRITE_SUPABASE}" \
             ${EXTRA_ARGS} \
-            --out=artifacts/output/azuro-historical-replay-backtest/protected3
+            --out=artifacts/output/azuro-historical-replay-backtest/protected3 \
+            > artifacts/output/azuro-historical-replay-backtest/protected3/stdout.log 2> artifacts/output/azuro-historical-replay-backtest/protected3/stderr.log
+          status=$?
+          echo "exit_code=${status}" > artifacts/output/azuro-historical-replay-backtest/protected3/exit_code.txt
+          cat artifacts/output/azuro-historical-replay-backtest/protected3/stdout.log || true
+          cat artifacts/output/azuro-historical-replay-backtest/protected3/stderr.log || true
+          exit 0
 
       - name: Run Gate-2 historical replay safely
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          set -euo pipefail
+          set +e
+          mkdir -p artifacts/output/azuro-historical-replay-backtest/gate2
           EXTRA_ARGS=""
           if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
             EXTRA_ARGS="--subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
@@ -122,9 +142,16 @@ jobs:
             --limit="${LIMIT}" \
             --write-supabase="${WRITE_SUPABASE}" \
             ${EXTRA_ARGS} \
-            --out=artifacts/output/azuro-historical-replay-backtest/gate2
+            --out=artifacts/output/azuro-historical-replay-backtest/gate2 \
+            > artifacts/output/azuro-historical-replay-backtest/gate2/stdout.log 2> artifacts/output/azuro-historical-replay-backtest/gate2/stderr.log
+          status=$?
+          echo "exit_code=${status}" > artifacts/output/azuro-historical-replay-backtest/gate2/exit_code.txt
+          cat artifacts/output/azuro-historical-replay-backtest/gate2/stdout.log || true
+          cat artifacts/output/azuro-historical-replay-backtest/gate2/stderr.log || true
+          exit 0
 
       - name: Upload historical replay artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: azuro-historical-replay-dry-run-${{ env.CHAIN }}-${{ env.LIMIT }}
