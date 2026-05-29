@@ -10,7 +10,7 @@
     "test": "vitest run",
     "audit:azuro:graphql": "tsx scripts/azuro-graphql-tennis-prematch-audit.ts",
     "backtest:azuro:historical": "tsx scripts/azuro-historical-replay-backtest.ts",
-    "backtest:azuro:v3": "tsx scripts/azuro-v3-historical-replay-backtest.ts"
+    "backtest:azuro:v3": "node scripts/run-azuro-v3-historical-replay.mjs"
   },
   "dependencies": {
     "@twa-dev/sdk": "^7.7.0",
