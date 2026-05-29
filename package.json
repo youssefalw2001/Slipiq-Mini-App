@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "audit:azuro:graphql": "tsx scripts/azuro-graphql-tennis-prematch-audit.ts"
+    "audit:azuro:graphql": "tsx scripts/azuro-graphql-tennis-prematch-audit.ts",
+    "backtest:azuro:historical": "tsx scripts/azuro-historical-replay-backtest.ts"
   },
   "dependencies": {
     "@twa-dev/sdk": "^7.7.0",
