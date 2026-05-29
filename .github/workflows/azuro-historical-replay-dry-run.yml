@@ -88,8 +88,9 @@ jobs:
             RESOLVED_SUBGRAPH_URL="${INPUT_SUBGRAPH_URL}"
             echo "subgraph_mode=custom_url" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           elif [ -n "${INPUT_SUBGRAPH_ID}" ] && [ -n "${THE_GRAPH_API_KEY:-}" ]; then
-            RESOLVED_SUBGRAPH_URL="https://gateway.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
-            echo "subgraph_mode=gateway_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
+            ENCODED_GRAPH_API_KEY=$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["THE_GRAPH_API_KEY"], safe=""))')
+            RESOLVED_SUBGRAPH_URL="https://gateway.thegraph.com/api/${ENCODED_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}"
+            echo "subgraph_mode=gateway_subgraph_id_encoded_key" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
           elif [ -n "${INPUT_SUBGRAPH_ID}" ] && [ -z "${THE_GRAPH_API_KEY:-}" ]; then
             RESOLVED_SUBGRAPH_URL=""
             echo "subgraph_mode=missing_graph_api_key_for_subgraph_id" >> artifacts/output/azuro-historical-replay-backtest/diagnostics/workflow_inputs.txt
