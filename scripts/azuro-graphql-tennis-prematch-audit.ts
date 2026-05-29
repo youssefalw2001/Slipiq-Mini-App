@@ -51,8 +51,6 @@ type AzuroGame = {
   league?: League | null;
   participants?: Participant[] | null;
   activeConditionsCount?: number;
-  activePrematchConditionsCount?: number;
-  activeLiveConditionsCount?: number;
 };
 
 type AzuroOutcome = {
@@ -132,8 +130,6 @@ query Games($first: Int, $skip: Int, $where: Game_filter) {
     league { name country { name } }
     participants { name image sortOrder }
     activeConditionsCount
-    activePrematchConditionsCount
-    activeLiveConditionsCount
   }
 }`;
 
