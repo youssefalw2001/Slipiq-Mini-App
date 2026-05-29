@@ -24,6 +24,14 @@ on:
           - gnosis
           - arbitrum
           - base
+      subgraph_url:
+        description: Optional full historical subgraph URL. Use this for The Graph gateway URLs.
+        required: false
+        default: ''
+      subgraph_id:
+        description: Optional The Graph decentralized subgraph ID. Requires THE_GRAPH_API_KEY secret.
+        required: false
+        default: ''
       write_supabase:
         description: Keep false for dry runs
         required: false
@@ -39,6 +47,8 @@ permissions:
 env:
   LIMIT: ${{ github.event.inputs.limit || '10' }}
   CHAIN: ${{ github.event.inputs.chain || 'polygon' }}
+  INPUT_SUBGRAPH_URL: ${{ github.event.inputs.subgraph_url || '' }}
+  INPUT_SUBGRAPH_ID: ${{ github.event.inputs.subgraph_id || '' }}
   WRITE_SUPABASE: ${{ github.event.inputs.write_supabase || 'false' }}
 
 jobs:
@@ -57,17 +67,43 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Resolve historical subgraph URL
+        shell: bash
+        env:
+          THE_GRAPH_API_KEY: ${{ secrets.THE_GRAPH_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_SUBGRAPH_URL}" ]; then
+            echo "AZURO_HISTORICAL_SUBGRAPH_URL=${INPUT_SUBGRAPH_URL}" >> "$GITHUB_ENV"
+            echo "Using custom subgraph_url input."
+          elif [ -n "${INPUT_SUBGRAPH_ID}" ]; then
+            if [ -z "${THE_GRAPH_API_KEY:-}" ]; then
+              echo "subgraph_id was provided, but THE_GRAPH_API_KEY secret is missing."
+              exit 1
+            fi
+            echo "AZURO_HISTORICAL_SUBGRAPH_URL=https://gateway-market.thegraph.com/api/${THE_GRAPH_API_KEY}/subgraphs/id/${INPUT_SUBGRAPH_ID}" >> "$GITHUB_ENV"
+            echo "Using decentralized The Graph gateway subgraph_id input."
+          else
+            echo "AZURO_HISTORICAL_SUBGRAPH_URL=" >> "$GITHUB_ENV"
+            echo "Using script default hosted-service URL for selected chain."
+          fi
+
       - name: Run Protected 3 historical replay safely
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
+          EXTRA_ARGS=""
+          if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
+            EXTRA_ARGS="--subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
+          fi
           npm run backtest:azuro:historical -- \
             --chain="${CHAIN}" \
             --score-mode=protected3 \
             --limit="${LIMIT}" \
             --write-supabase="${WRITE_SUPABASE}" \
+            ${EXTRA_ARGS} \
             --out=artifacts/output/azuro-historical-replay-backtest/protected3
 
       - name: Run Gate-2 historical replay safely
@@ -76,11 +112,16 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
+          EXTRA_ARGS=""
+          if [ -n "${AZURO_HISTORICAL_SUBGRAPH_URL:-}" ]; then
+            EXTRA_ARGS="--subgraph-url=${AZURO_HISTORICAL_SUBGRAPH_URL}"
+          fi
           npm run backtest:azuro:historical -- \
             --chain="${CHAIN}" \
             --score-mode=gate2 \
             --limit="${LIMIT}" \
             --write-supabase="${WRITE_SUPABASE}" \
+            ${EXTRA_ARGS} \
             --out=artifacts/output/azuro-historical-replay-backtest/gate2
 
       - name: Upload historical replay artifact
