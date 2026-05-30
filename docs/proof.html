@@ -37,7 +37,7 @@
         <span class="font-mono text-[10px] font-bold uppercase tracking-[.2em] text-white/90">FSL // Optimized VIP</span>
       </div>
       <div class="hidden items-center gap-2 sm:flex">
-        <a href="#riskOverlay" class="border border-lime/30 bg-lime/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-lime">Risk Overlay</a>
+        <a href="#stakingPlan" class="border border-lime/30 bg-lime/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-lime">Staking Plan</a>
         <a href="#settled" class="border border-gold/30 bg-gold/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-gold">Settled Ledger</a>
       </div>
     </nav>
@@ -49,24 +49,24 @@
         <div class="inline-flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-wider text-white/40">
           <span class="rounded border border-white/10 bg-white/5 px-2 py-0.5">18+ only</span>
           <span class="rounded border border-red/20 bg-red/5 px-2 py-0.5 text-red/80">No guarantees</span>
-          <span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">Best live model only</span>
+          <span class="rounded border border-gold/30 bg-gold/5 px-2 py-0.5 text-gold">Raw VIP Booster active</span>
           <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Protected 3-score</span>
         </div>
         <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-7xl">OPTIMIZED<br><span class="text-gold gold-glow">VIP.</span></h1>
-        <p class="max-w-2xl font-mono text-xs uppercase leading-5 text-white/55">The proof page shows only the active best live version: Protected 3-score Core + Reverse + Research P2 + V3. The new risk-filtered overlay is a staking replay on top of that same proof set; it does not rewrite or hide the raw results.</p>
+        <p class="max-w-2xl font-mono text-xs uppercase leading-5 text-white/55">Active version: Raw VIP Booster v1. This means 1u base grouped stake on every Optimized VIP Protected 3 signal, plus a 0.5u exact-score pocket booster only when the booster flag fires. The 0.75u booster is tracked only, not promoted yet.</p>
       </div>
 
       <div class="rounded-2xl border border-gold/25 bg-gold/5 p-5 font-mono shadow-terminal">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="text-[9px] uppercase tracking-widest text-gold">Current model</div>
-            <div class="mt-1 text-2xl font-black uppercase text-white">Optimized VIP Protected 3</div>
+            <div class="mt-1 text-2xl font-black uppercase text-white">Raw VIP Booster v1</div>
           </div>
           <div id="status" class="rounded border border-lime/30 bg-lime/5 px-2 py-1 text-[9px] font-black uppercase text-lime">Loading</div>
         </div>
         <div class="mt-4 grid grid-cols-2 gap-2 text-[10px] uppercase">
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Lanes</div><div class="mt-1 font-bold text-white">Core / Reverse / Research P2 / V3</div></div>
-          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Score logic</div><div class="mt-1 font-bold text-white">Protected 3</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Base</div><div class="mt-1 font-bold text-white">1u all signals</div></div>
+          <div class="rounded border border-white/5 bg-ink/70 p-3"><div class="text-white/30">Booster</div><div class="mt-1 font-bold text-white">+0.5u if fired</div></div>
         </div>
         <div id="lastUpdated" class="mt-4 text-[10px] uppercase text-white/40">Last update --</div>
       </div>
@@ -76,25 +76,22 @@
       <div class="rounded-xl border border-white/5 bg-panel p-4 text-xs uppercase text-white/40">Loading summary...</div>
     </section>
 
-    <section id="riskOverlay" class="space-y-4 rounded-3xl border border-lime/20 bg-lime/5 p-5 font-mono shadow-terminal">
+    <section id="stakingPlan" class="space-y-4 rounded-3xl border border-lime/20 bg-lime/5 p-5 font-mono shadow-terminal">
       <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <div class="text-[9px] uppercase tracking-widest text-lime">Risk-filtered staking overlay</div>
-          <h2 class="mt-1 text-2xl font-black uppercase tracking-tight text-white">Skip weak price zone. Size booster rows higher.</h2>
-          <p class="mt-2 max-w-3xl text-[10px] uppercase leading-5 text-white/45">Overlay rule: track only below 2.25 grouped odds, half-stake no-booster rows, normal base stake on booster rows, and keep the pocket add-on when it fires. This is a replay overlay, not a guarantee.</p>
+          <div class="text-[9px] uppercase tracking-widest text-lime">Active staking plan</div>
+          <h2 class="mt-1 text-2xl font-black uppercase tracking-tight text-white">Raw VIP Booster active. 0.75u booster tracker only.</h2>
+          <p class="mt-2 max-w-3xl text-[10px] uppercase leading-5 text-white/45">Warehouse blind and walk-forward tests favored Raw VIP Booster for profit units. The 0.75u booster version improved historical units but can worsen bad stretches, so it remains a silent tracker until another 50-100 live settled rows confirm it.</p>
         </div>
-        <div class="rounded border border-lime/30 bg-ink/70 px-3 py-2 text-[10px] uppercase text-lime">Forward rule candidate</div>
+        <div class="rounded border border-lime/30 bg-ink/70 px-3 py-2 text-[10px] uppercase text-lime">No skip under 2.25</div>
       </div>
-      <div id="riskSummary" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-xl border border-white/5 bg-ink/70 p-4 text-xs uppercase text-white/40">Loading overlay...</div>
+      <div id="boosterPlan" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl border border-white/5 bg-ink/70 p-4 text-xs uppercase text-white/40">Loading booster plan...</div>
       </div>
-      <div class="overflow-hidden rounded-2xl border border-white/10 bg-ink/60">
-        <div class="grid grid-cols-6 gap-2 border-b border-white/10 px-3 py-2 text-[9px] uppercase tracking-widest text-white/35">
-          <div class="col-span-2">Tier</div><div>Rows</div><div>W/L</div><div>Units</div><div>ROI</div>
-        </div>
-        <div id="riskTiers" class="divide-y divide-white/5">
-          <div class="px-3 py-3 text-[10px] uppercase text-white/40">Loading tiers...</div>
-        </div>
+      <div class="grid gap-3 md:grid-cols-3 text-[10px] uppercase">
+        <div class="rounded-xl border border-white/10 bg-ink/70 p-4"><div class="text-white/35">Base-only signal</div><div class="mt-1 text-xl font-black text-white">1u grouped</div><div class="mt-1 text-white/40">No pocket booster fired.</div></div>
+        <div class="rounded-xl border border-gold/20 bg-gold/5 p-4"><div class="text-white/35">Booster signal</div><div class="mt-1 text-xl font-black text-gold">1u + 0.5u</div><div class="mt-1 text-white/40">Active real-money rule.</div></div>
+        <div class="rounded-xl border border-cyan/20 bg-cyan/5 p-4"><div class="text-white/35">Aggressive tracker</div><div class="mt-1 text-xl font-black text-cyan">1u + 0.75u</div><div class="mt-1 text-white/40">Track only. Not active yet.</div></div>
       </div>
     </section>
 
@@ -111,8 +108,8 @@
 
       <div class="rounded-2xl border border-white/10 bg-panel/80 p-5 font-mono shadow-terminal">
         <div class="text-[9px] uppercase tracking-widest text-white/35">How to read this page</div>
-        <div class="mt-2 text-xl font-black uppercase text-white">Raw proof first. Overlay second.</div>
-        <p class="mt-3 text-[11px] uppercase leading-5 text-white/45">The headline units remain from the active optimized VIP model. The risk overlay shows how the same 67-row proof set performs when under-2.25 grouped odds are tracked only and no-booster rows are half-staked. The settled ledger remains the raw daily proof.</p>
+        <div class="mt-2 text-xl font-black uppercase text-white">Raw proof first. Tracker separate.</div>
+        <p class="mt-3 text-[11px] uppercase leading-5 text-white/45">Headline units use the active 0.5u booster proof. The 0.75u booster number is displayed as a tracker only and should not be mixed with the official active proof until promoted after live-forward validation.</p>
       </div>
     </section>
 
@@ -156,27 +153,6 @@
       return '6:2 / 6:3 / 6:4';
     }
 
-    function tierName(t){
-      return ({
-        TRACK_ONLY_UNDER_2_25:'Track only under 2.25',
-        SMALL_NO_BOOSTER_2_25_PLUS:'Small no-booster 2.25+',
-        STANDARD_BOOSTER_2_25_PLUS:'Standard booster 2.25+',
-        STRONG_BOOSTER_3_25_3_99:'Strong booster 3.25-3.99'
-      })[t]||t||'Unknown tier';
-    }
-
-    function riskTierRow(t){
-      const units=number(t.filtered_units);
-      const cls=units>=0?'text-lime':'text-red';
-      return `<div class="grid grid-cols-6 gap-2 px-3 py-3 text-[10px] uppercase">
-        <div class="col-span-2"><div class="font-black text-white">${tierName(t.risk_tier)}</div><div class="mt-1 text-white/35">${t.risk_tier_reason||''}</div></div>
-        <div class="font-black text-white">${t.rows||0}</div>
-        <div class="font-black text-white">${t.wins||0}W/${t.losses||0}L</div>
-        <div class="font-black ${cls}">${signedUnits(t.filtered_units)}</div>
-        <div class="font-black text-lime">${pct(t.filtered_roi_on_staked_pct)}</div>
-      </div>`;
-    }
-
     function dailyAccordion(date,rows,index){
       const units=sum(rows,r=>r.unit_result);
       const pnl=sum(rows,r=>r.pnl);
@@ -189,17 +165,8 @@
       return `<details class="rounded-2xl border ${border} font-mono shadow-terminal"${openAttr}>
         <summary class="cursor-pointer select-none p-4">
           <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="chevron inline-block text-gold transition-transform">▶</span>
-              <div>
-                <div class="text-sm font-black uppercase text-white">${dateLabel(date)}</div>
-                <div class="mt-1 text-[10px] uppercase text-white/40">${rows.length} settled · ${wins}W / ${losses}L</div>
-              </div>
-            </div>
-            <div class="text-right">
-              <div class="text-2xl font-black ${cls}">${signedUnits(units)}</div>
-              <div class="text-[10px] uppercase text-white/40">P/L ${signedMoney(pnl)}</div>
-            </div>
+            <div class="flex items-center gap-3"><span class="chevron inline-block text-gold transition-transform">▶</span><div><div class="text-sm font-black uppercase text-white">${dateLabel(date)}</div><div class="mt-1 text-[10px] uppercase text-white/40">${rows.length} settled · ${wins}W / ${losses}L</div></div></div>
+            <div class="text-right"><div class="text-2xl font-black ${cls}">${signedUnits(units)}</div><div class="text-[10px] uppercase text-white/40">P/L ${signedMoney(pnl)}</div></div>
           </div>
           <div class="mt-3 grid grid-cols-3 gap-2 text-[10px] uppercase">
             <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Risked</div><div class="font-bold text-white">${money(risk)}</div></div>
@@ -207,9 +174,7 @@
             <div class="rounded border border-white/5 bg-ink/70 p-2"><div class="text-white/30">Last balance</div><div class="font-bold text-white">${money(rows[rows.length-1]?.balance_after)}</div></div>
           </div>
         </summary>
-        <div class="border-t border-white/10 p-3 space-y-2">
-          ${rows.map(rowCompact).join('')}
-        </div>
+        <div class="border-t border-white/10 p-3 space-y-2">${rows.map(rowCompact).join('')}</div>
       </details>`;
     }
 
@@ -217,69 +182,43 @@
       const win=Number(r.unit_result)>=0;
       const cls=win?'text-lime':'text-red';
       return `<article class="rounded-xl border border-white/5 bg-ink/70 p-3">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <div class="truncate text-[12px] font-black uppercase text-white">${r.match_name||'Unknown match'}</div>
-            <div class="mt-1 text-[9px] uppercase tracking-widest text-white/35">${r.public_signal_name||''} · Group ${groupLabel(r)} · Actual ${r.first_set_score||'--'}</div>
-          </div>
-          <div class="shrink-0 rounded border px-2 py-1 text-[9px] font-black uppercase ${win?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div>
-        </div>
-        <div class="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase">
-          <div><div class="text-white/30">Units</div><div class="font-black ${cls}">${signedUnits(r.unit_result)}</div></div>
-          <div><div class="text-white/30">Risk</div><div class="font-black text-gold">${money(r.total_cash_risked)}</div></div>
-          <div><div class="text-white/30">P/L</div><div class="font-black ${cls}">${signedMoney(r.pnl)}</div></div>
-          <div><div class="text-white/30">After</div><div class="font-black text-white">${money(r.balance_after)}</div></div>
-        </div>
+        <div class="flex items-start justify-between gap-3"><div class="min-w-0"><div class="truncate text-[12px] font-black uppercase text-white">${r.match_name||'Unknown match'}</div><div class="mt-1 text-[9px] uppercase tracking-widest text-white/35">${r.public_signal_name||''} · Group ${groupLabel(r)} · Actual ${r.first_set_score||'--'}</div></div><div class="shrink-0 rounded border px-2 py-1 text-[9px] font-black uppercase ${win?'border-lime/30 text-lime':'border-red/30 text-red'}">${r.display_status}</div></div>
+        <div class="mt-3 grid grid-cols-4 gap-2 text-[10px] uppercase"><div><div class="text-white/30">Units</div><div class="font-black ${cls}">${signedUnits(r.unit_result)}</div></div><div><div class="text-white/30">Risk</div><div class="font-black text-gold">${money(r.total_cash_risked)}</div></div><div><div class="text-white/30">P/L</div><div class="font-black ${cls}">${signedMoney(r.pnl)}</div></div><div><div class="text-white/30">After</div><div class="font-black text-white">${money(r.balance_after)}</div></div></div>
       </article>`;
     }
 
-    function groupByDate(rows){
-      return rows.reduce((acc,r)=>{const k=r.event_date||'unknown';(acc[k] ||= []).push(r);return acc;},{});
-    }
+    function groupByDate(rows){return rows.reduce((acc,r)=>{const k=r.event_date||'unknown';(acc[k] ||= []).push(r);return acc;},{});}
 
     async function load(){
       $('status').textContent='Syncing';
-      const [summaryRes, ledgerRes, riskSummaryRes, riskTiersRes]=await Promise.all([
+      const [summaryRes, boosterRes, ledgerRes]=await Promise.all([
         db.from('proof_vault_locked_model_summary_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').single(),
-        db.from('proof_vault_locked_model_5pct_compound_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').order('rn',{ascending:true}),
-        db.from('proof_vault_optimized_vip_risk_filtered_summary_v1').select('*').single(),
-        db.from('proof_vault_optimized_vip_risk_filtered_tiers_v1').select('*')
+        db.from('proof_vault_optimized_vip_raw_booster_summary_v1').select('*').single(),
+        db.from('proof_vault_locked_model_5pct_compound_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').order('rn',{ascending:true})
       ]);
-      if(summaryRes.error||ledgerRes.error){console.error(summaryRes.error||ledgerRes.error);$('status').textContent='Offline';return;}
+      if(summaryRes.error||boosterRes.error||ledgerRes.error){console.error(summaryRes.error||boosterRes.error||ledgerRes.error);$('status').textContent='Offline';return;}
 
       const s=summaryRes.data||{};
+      const b=boosterRes.data||{};
       const rows=ledgerRes.data||[];
       const last=rows[rows.length-1]||{};
       const maxDd=Math.max(0,...rows.map(r=>Number(r.drawdown_pct)||0));
 
       $('status').textContent='Live';
-      $('lastUpdated').textContent=`Last update ${dateShort(s.refreshed_at)}`;
+      $('lastUpdated').textContent=`Last update ${dateShort(b.refreshed_at || s.refreshed_at)}`;
       $('summary').innerHTML=[
-        metricCard('Settled rows',s.settled_rows||0,'text-white',`${s.wins||0}W / ${s.losses||0}L`),
-        metricCard('Hit rate',pct(s.hit_rate_pct),'text-white','Protected 3-score model'),
-        metricCard('VIP total units',signedUnits(s.vip_total_units),'text-gold gold-glow',`Grouped ${signedUnits(s.grouped_units)} · Booster ${signedUnits(s.booster_units)}`),
-        metricCard('ROI on staked',pct(s.vip_roi_on_staked_pct),'text-lime','Raw executable model units')
+        metricCard('Settled rows',b.settled_rows||s.settled_rows||0,'text-white',`${b.wins||s.wins||0}W / ${b.losses||s.losses||0}L`),
+        metricCard('Hit rate',pct(b.hit_rate_pct||s.hit_rate_pct),'text-white','Optimized VIP Protected 3'),
+        metricCard('Active VIP units',signedUnits(b.active_raw_vip_05u_total_units),'text-gold gold-glow',`Grouped ${signedUnits(b.grouped_units)} · Booster ${signedUnits(b.active_booster_05u_units)}`),
+        metricCard('Active ROI',pct(b.active_raw_vip_05u_roi_on_staked_pct),'text-lime','0.5u booster active')
       ].join('');
 
-      if(riskSummaryRes.error){
-        console.error(riskSummaryRes.error);
-        $('riskSummary').innerHTML='<div class="rounded-xl border border-red/20 bg-red/5 p-4 text-xs uppercase text-red">Risk overlay unavailable.</div>';
-      }else{
-        const rs=riskSummaryRes.data||{};
-        $('riskSummary').innerHTML=[
-          metricCard('Staked / tracked',`${rs.staked_rows||0} / ${rs.track_only_rows||0}`,'text-white',`${rs.total_rows||0} total proof rows`),
-          metricCard('Filtered units',signedUnits(rs.filtered_total_units),'text-lime number-glow',`Original ${signedUnits(rs.original_total_units)}`),
-          metricCard('Unit improvement',signedUnits(rs.units_improvement),'text-gold gold-glow',`Stake reduced ${signedUnits(rs.stake_reduction_units)}`),
-          metricCard('Filtered ROI',pct(rs.filtered_roi_on_staked_pct),'text-lime',`Original ${pct(rs.original_roi_on_staked_pct)}`)
-        ].join('');
-      }
-
-      if(riskTiersRes.error){
-        console.error(riskTiersRes.error);
-        $('riskTiers').innerHTML='<div class="px-3 py-3 text-[10px] uppercase text-red">Risk tiers unavailable.</div>';
-      }else{
-        $('riskTiers').innerHTML=(riskTiersRes.data||[]).map(riskTierRow).join('')||'<div class="px-3 py-3 text-[10px] uppercase text-white/40">No risk tiers.</div>';
-      }
+      $('boosterPlan').innerHTML=[
+        metricCard('Active 0.5u total',signedUnits(b.active_raw_vip_05u_total_units),'text-gold gold-glow',`${b.active_raw_vip_05u_staked_units||'--'}u staked`),
+        metricCard('0.75u tracker',signedUnits(b.tracker_raw_vip_075u_total_units),'text-cyan',`${b.tracker_raw_vip_075u_staked_units||'--'}u tracker stake`),
+        metricCard('Tracker delta',signedUnits((Number(b.tracker_raw_vip_075u_total_units)||0)-(Number(b.active_raw_vip_05u_total_units)||0)),'text-white','Not promoted yet'),
+        metricCard('Booster rows',`${b.booster_rows||0}`,'text-lime',`${b.booster_hit_rows||0} pocket hits`)
+      ].join('');
 
       $('compoundFinal').textContent=money(last.balance_after);
       $('compoundNet').textContent=`Net ${signedMoney((Number(last.balance_after)||3000)-3000)} from $3,000`;
