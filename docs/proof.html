@@ -36,7 +36,10 @@
         <span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-gold"></span></span>
         <span class="font-mono text-[10px] font-bold uppercase tracking-[.2em] text-white/90">FSL // Optimized VIP</span>
       </div>
-      <a href="#settled" class="hidden border border-gold/30 bg-gold/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-gold sm:block">Settled Ledger</a>
+      <div class="hidden items-center gap-2 sm:flex">
+        <a href="#riskOverlay" class="border border-lime/30 bg-lime/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-lime">Risk Overlay</a>
+        <a href="#settled" class="border border-gold/30 bg-gold/5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-gold">Settled Ledger</a>
+      </div>
     </nav>
   </header>
 
@@ -50,7 +53,7 @@
           <span class="rounded border border-lime/20 bg-lime/5 px-2 py-0.5 text-lime">Protected 3-score</span>
         </div>
         <h1 class="text-5xl font-black uppercase leading-[.85] tracking-[-.06em] sm:text-7xl">OPTIMIZED<br><span class="text-gold gold-glow">VIP.</span></h1>
-        <p class="max-w-2xl font-mono text-xs uppercase leading-5 text-white/55">The proof page now shows only the active best live version: Protected 3-score Core + Reverse + Research P2 + V3. Watchlist, removed, broad-live, and silent tracker models are not shown here to keep the page clean.</p>
+        <p class="max-w-2xl font-mono text-xs uppercase leading-5 text-white/55">The proof page shows only the active best live version: Protected 3-score Core + Reverse + Research P2 + V3. The new risk-filtered overlay is a staking replay on top of that same proof set; it does not rewrite or hide the raw results.</p>
       </div>
 
       <div class="rounded-2xl border border-gold/25 bg-gold/5 p-5 font-mono shadow-terminal">
@@ -73,6 +76,28 @@
       <div class="rounded-xl border border-white/5 bg-panel p-4 text-xs uppercase text-white/40">Loading summary...</div>
     </section>
 
+    <section id="riskOverlay" class="space-y-4 rounded-3xl border border-lime/20 bg-lime/5 p-5 font-mono shadow-terminal">
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div class="text-[9px] uppercase tracking-widest text-lime">Risk-filtered staking overlay</div>
+          <h2 class="mt-1 text-2xl font-black uppercase tracking-tight text-white">Skip weak price zone. Size booster rows higher.</h2>
+          <p class="mt-2 max-w-3xl text-[10px] uppercase leading-5 text-white/45">Overlay rule: track only below 2.25 grouped odds, half-stake no-booster rows, normal base stake on booster rows, and keep the pocket add-on when it fires. This is a replay overlay, not a guarantee.</p>
+        </div>
+        <div class="rounded border border-lime/30 bg-ink/70 px-3 py-2 text-[10px] uppercase text-lime">Forward rule candidate</div>
+      </div>
+      <div id="riskSummary" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl border border-white/5 bg-ink/70 p-4 text-xs uppercase text-white/40">Loading overlay...</div>
+      </div>
+      <div class="overflow-hidden rounded-2xl border border-white/10 bg-ink/60">
+        <div class="grid grid-cols-6 gap-2 border-b border-white/10 px-3 py-2 text-[9px] uppercase tracking-widest text-white/35">
+          <div class="col-span-2">Tier</div><div>Rows</div><div>W/L</div><div>Units</div><div>ROI</div>
+        </div>
+        <div id="riskTiers" class="divide-y divide-white/5">
+          <div class="px-3 py-3 text-[10px] uppercase text-white/40">Loading tiers...</div>
+        </div>
+      </div>
+    </section>
+
     <section class="grid gap-3 lg:grid-cols-[.9fr_1.1fr]">
       <div class="rounded-2xl border border-lime/20 bg-lime/5 p-5 font-mono shadow-terminal">
         <div class="text-[9px] uppercase tracking-widest text-lime">5% compound replay</div>
@@ -86,8 +111,8 @@
 
       <div class="rounded-2xl border border-white/10 bg-panel/80 p-5 font-mono shadow-terminal">
         <div class="text-[9px] uppercase tracking-widest text-white/35">How to read this page</div>
-        <div class="mt-2 text-xl font-black uppercase text-white">One clean number, then daily proof.</div>
-        <p class="mt-3 text-[11px] uppercase leading-5 text-white/45">The headline units are from the active optimized VIP model only. The settled ledger is grouped by date to avoid clutter. Open a date row to see every signal from that day, including match, score group, actual first-set score, unit result, cash risk, and replay balance.</p>
+        <div class="mt-2 text-xl font-black uppercase text-white">Raw proof first. Overlay second.</div>
+        <p class="mt-3 text-[11px] uppercase leading-5 text-white/45">The headline units remain from the active optimized VIP model. The risk overlay shows how the same 67-row proof set performs when under-2.25 grouped odds are tracked only and no-booster rows are half-staked. The settled ledger remains the raw daily proof.</p>
       </div>
     </section>
 
@@ -129,6 +154,27 @@
       if(lane.includes('V3')) return '3:6 / 4:6 / 5:7';
       if(lane.includes('P2')||lane.includes('REVERSE')) return '2:6 / 4:6 / 5:7';
       return '6:2 / 6:3 / 6:4';
+    }
+
+    function tierName(t){
+      return ({
+        TRACK_ONLY_UNDER_2_25:'Track only under 2.25',
+        SMALL_NO_BOOSTER_2_25_PLUS:'Small no-booster 2.25+',
+        STANDARD_BOOSTER_2_25_PLUS:'Standard booster 2.25+',
+        STRONG_BOOSTER_3_25_3_99:'Strong booster 3.25-3.99'
+      })[t]||t||'Unknown tier';
+    }
+
+    function riskTierRow(t){
+      const units=number(t.filtered_units);
+      const cls=units>=0?'text-lime':'text-red';
+      return `<div class="grid grid-cols-6 gap-2 px-3 py-3 text-[10px] uppercase">
+        <div class="col-span-2"><div class="font-black text-white">${tierName(t.risk_tier)}</div><div class="mt-1 text-white/35">${t.risk_tier_reason||''}</div></div>
+        <div class="font-black text-white">${t.rows||0}</div>
+        <div class="font-black text-white">${t.wins||0}W/${t.losses||0}L</div>
+        <div class="font-black ${cls}">${signedUnits(t.filtered_units)}</div>
+        <div class="font-black text-lime">${pct(t.filtered_roi_on_staked_pct)}</div>
+      </div>`;
     }
 
     function dailyAccordion(date,rows,index){
@@ -193,9 +239,11 @@
 
     async function load(){
       $('status').textContent='Syncing';
-      const [summaryRes, ledgerRes]=await Promise.all([
+      const [summaryRes, ledgerRes, riskSummaryRes, riskTiersRes]=await Promise.all([
         db.from('proof_vault_locked_model_summary_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').single(),
-        db.from('proof_vault_locked_model_5pct_compound_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').order('rn',{ascending:true})
+        db.from('proof_vault_locked_model_5pct_compound_v1').select('*').eq('model_bucket','OPTIMIZED_VIP').order('rn',{ascending:true}),
+        db.from('proof_vault_optimized_vip_risk_filtered_summary_v1').select('*').single(),
+        db.from('proof_vault_optimized_vip_risk_filtered_tiers_v1').select('*')
       ]);
       if(summaryRes.error||ledgerRes.error){console.error(summaryRes.error||ledgerRes.error);$('status').textContent='Offline';return;}
 
@@ -210,8 +258,29 @@
         metricCard('Settled rows',s.settled_rows||0,'text-white',`${s.wins||0}W / ${s.losses||0}L`),
         metricCard('Hit rate',pct(s.hit_rate_pct),'text-white','Protected 3-score model'),
         metricCard('VIP total units',signedUnits(s.vip_total_units),'text-gold gold-glow',`Grouped ${signedUnits(s.grouped_units)} · Booster ${signedUnits(s.booster_units)}`),
-        metricCard('ROI on staked',pct(s.vip_roi_on_staked_pct),'text-lime','Executable model units')
+        metricCard('ROI on staked',pct(s.vip_roi_on_staked_pct),'text-lime','Raw executable model units')
       ].join('');
+
+      if(riskSummaryRes.error){
+        console.error(riskSummaryRes.error);
+        $('riskSummary').innerHTML='<div class="rounded-xl border border-red/20 bg-red/5 p-4 text-xs uppercase text-red">Risk overlay unavailable.</div>';
+      }else{
+        const rs=riskSummaryRes.data||{};
+        $('riskSummary').innerHTML=[
+          metricCard('Staked / tracked',`${rs.staked_rows||0} / ${rs.track_only_rows||0}`,'text-white',`${rs.total_rows||0} total proof rows`),
+          metricCard('Filtered units',signedUnits(rs.filtered_total_units),'text-lime number-glow',`Original ${signedUnits(rs.original_total_units)}`),
+          metricCard('Unit improvement',signedUnits(rs.units_improvement),'text-gold gold-glow',`Stake reduced ${signedUnits(rs.stake_reduction_units)}`),
+          metricCard('Filtered ROI',pct(rs.filtered_roi_on_staked_pct),'text-lime',`Original ${pct(rs.original_roi_on_staked_pct)}`)
+        ].join('');
+      }
+
+      if(riskTiersRes.error){
+        console.error(riskTiersRes.error);
+        $('riskTiers').innerHTML='<div class="px-3 py-3 text-[10px] uppercase text-red">Risk tiers unavailable.</div>';
+      }else{
+        $('riskTiers').innerHTML=(riskTiersRes.data||[]).map(riskTierRow).join('')||'<div class="px-3 py-3 text-[10px] uppercase text-white/40">No risk tiers.</div>';
+      }
+
       $('compoundFinal').textContent=money(last.balance_after);
       $('compoundNet').textContent=`Net ${signedMoney((Number(last.balance_after)||3000)-3000)} from $3,000`;
       $('compoundRows').textContent=rows.length;
