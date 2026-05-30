@@ -12,6 +12,8 @@ Current customer-facing rules:
 - RESEARCH_ONLY: Supabase only, no Telegram.
 - Paused books: Supabase only, no Telegram. Default paused book is 1xBet.
 - Same room + event + market type + book + target = one Telegram alert.
+- Raw VIP Booster v1 staking guidance is display-only: 1u grouped base, plus 0.5u pocket booster only when a pocket flag fires.
+- 0.75u booster is tracker-only and is not promoted in live signal copy.
 */
 
 import fs from 'node:fs';
@@ -111,6 +113,7 @@ function parseCsv(text) {
 
 function parseJsonField(value) {
   try {
+    if (value && typeof value === 'object') return value;
     const s = clean(value);
     return s ? JSON.parse(s) : null;
   } catch {
@@ -216,6 +219,75 @@ function scoreBandSide(scoreText) {
   return first[0] > first[1] ? 'Player 1 first-set score band' : 'Player 2 first-set score band';
 }
 
+function scoreOddsMap(row) {
+  return parseJsonField(row.score_odds_json) || {};
+}
+
+function exactScoreOdds(row, score) {
+  const scoreMap = scoreOddsMap(row);
+  const fromJson = Number(scoreMap[score]);
+  if (Number.isFinite(fromJson) && fromJson > 1) return fromJson;
+  const direct = Number(row[`odds_${score.replace(':', '_')}`]);
+  return Number.isFinite(direct) && direct > 1 ? direct : 0;
+}
+
+function marketSkewBucket(row) {
+  const scoreMap = scoreOddsMap(row);
+  return clean(scoreMap.market_skew_bucket || row.market_skew_bucket || 'UNKNOWN_OR_NONE') || 'UNKNOWN_OR_NONE';
+}
+
+function boosterBucket(row) {
+  const lane = clean(row.strategy_lane);
+  if (lane === 'RESEARCH_P2_GS_26_46_BET365') return 'RESEARCH_P2_SNIPER';
+  if (lane === 'VIP_P2_V3_SHAPE') return 'OTHER';
+  return 'MAIN';
+}
+
+function vipPocketHits(row) {
+  const bucket = boosterBucket(row);
+  const skew = marketSkewBucket(row);
+  const lane = clean(row.strategy_lane);
+  const o63 = exactScoreOdds(row, '6:3');
+  const o64 = exactScoreOdds(row, '6:4');
+  const o26 = exactScoreOdds(row, '2:6');
+  const o62 = exactScoreOdds(row, '6:2');
+  const pockets = [];
+
+  if (bucket === 'MAIN' && skew === 'MID' && o63 >= 4.0 && o63 <= 5.5) {
+    pockets.push({ key: 'A_63_MAIN_MID', score: '6:3', odds: o63 });
+  }
+  if (bucket === 'MAIN' && skew === 'UNKNOWN_OR_NONE' && o64 > 5.5 && o64 <= 7.5) {
+    pockets.push({ key: 'B_64_MAIN_NONE', score: '6:4', odds: o64 });
+  }
+  if (lane === 'RESEARCH_P2_GS_26_46_BET365' && skew === 'EXTREME' && o26 > 10.0) {
+    pockets.push({ key: 'C_26_P2_SNIPER', score: '2:6', odds: o26 });
+  }
+  if (bucket === 'MAIN' && skew === 'HIGH' && o64 >= 4.0 && o64 <= 5.5) {
+    pockets.push({ key: 'D_64_MAIN_HIGH', score: '6:4', odds: o64 });
+  }
+  if (bucket === 'MAIN' && skew === 'HIGH' && o62 > 7.5 && o62 <= 10.0) {
+    pockets.push({ key: 'E_62_MAIN_HIGH', score: '6:2', odds: o62 });
+  }
+  return pockets.filter((p) => p.odds && p.odds > 1);
+}
+
+function stakingPlanLines(row, oddsFormatter) {
+  const pockets = vipPocketHits(row);
+  const lines = [
+    'Execution plan:',
+    'Base grouped stake: 1.0u',
+  ];
+  if (!pockets.length) {
+    lines.push('Pocket booster: none fired');
+    lines.push('Aggressive tracker: n/a');
+    return lines;
+  }
+  const pocketText = pockets.map((p) => `${p.score} @ ${oddsFormatter(p.odds)}`).join(' / ');
+  lines.push(`Active pocket booster: +0.5u on ${pocketText}`);
+  lines.push('Aggressive tracker only: +0.75u on same pocket, not active yet');
+  return lines;
+}
+
 function telegramMessage(row) {
   const pct = (v) => (v === null || v === undefined || v === '' ? 'n/a' : `${(Number(v) * 100).toFixed(1)}%`);
   const odds = (v) => (v === null || v === undefined || v === '' ? 'n/a' : Number(v).toFixed(2));
@@ -266,6 +338,8 @@ function telegramMessage(row) {
     scores,
     '',
     `Grouped price: ${odds(row.grouped_odds)}`,
+    '',
+    ...stakingPlanLines(row, odds),
     '',
     'Model context:',
     `Break-even: ${pct(row.break_even_hit_rate)}`,
