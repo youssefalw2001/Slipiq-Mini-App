@@ -1,0 +1,172 @@
+name: Optimized VIP Walk Forward Optimization
+
+on:
+  workflow_dispatch:
+    inputs:
+      warehouse_run_id:
+        description: Optional GitHub Actions run ID from API Tennis Full Historical Odds Warehouse. Blank = latest successful run.
+        required: false
+        default: ''
+      bankroll:
+        description: Starting bankroll for compounding summaries.
+        required: false
+        default: '3000'
+      risk_pcts:
+        description: Comma-separated risk fractions for compounding summary.
+        required: false
+        default: '0.03,0.05'
+      booster_stake:
+        description: Fixed booster stake used in the raw rows generator.
+        required: false
+        default: '0.50'
+      train_pct:
+        description: Initial blind split for the row generator.
+        required: false
+        default: '0.70'
+      initial_train:
+        description: Initial walk-forward training rows.
+        required: false
+        default: '300'
+      test_size:
+        description: Walk-forward test rows per fold.
+        required: false
+        default: '100'
+      step_size:
+        description: Walk-forward step size.
+        required: false
+        default: '100'
+      objective:
+        description: Optimizer objective.
+        required: false
+        default: 'profit_then_drawdown'
+        type: choice
+        options:
+          - profit_then_drawdown
+          - risk_adjusted
+          - roi
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  walk-forward-optimization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve warehouse run id
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_RUN_ID: ${{ github.event.inputs.warehouse_run_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "${MANUAL_RUN_ID:-}" ]; then
+            RUN_ID="$MANUAL_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --workflow="api-tennis-full-historical-odds-warehouse.yml" \
+              --status=success \
+              --limit=1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+          fi
+          if [ -z "${RUN_ID:-}" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Could not resolve warehouse run id."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Using warehouse run id: $RUN_ID"
+
+      - name: Download combined warehouse artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p warehouse-artifact
+          gh run download "$RUN_ID" \
+            --name api-tennis-full-historical-odds-warehouse-combined \
+            --dir warehouse-artifact
+          echo "Downloaded artifact files:"
+          find warehouse-artifact -maxdepth 2 -type f -print
+
+      - name: Extract combined warehouse
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p combined-warehouse
+          ZIP_PATH="warehouse-artifact/api-tennis-full-historical-odds-warehouse-combined.zip"
+          if [ ! -f "$ZIP_PATH" ]; then
+            ZIP_PATH=$(find warehouse-artifact -name 'api-tennis-full-historical-odds-warehouse-combined.zip' -type f | head -n 1)
+          fi
+          if [ -z "${ZIP_PATH:-}" ] || [ ! -f "$ZIP_PATH" ]; then
+            echo "Combined warehouse zip not found."
+            find warehouse-artifact -type f -print
+            exit 1
+          fi
+          unzip -o "$ZIP_PATH" -d combined-warehouse
+          test -f combined-warehouse/first_set_correct_score_wide_combined.csv
+          echo "Combined warehouse extracted."
+          ls -lh combined-warehouse
+
+      - name: Generate Optimized VIP Protected 3 rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backtest-optimized-vip-risk-filter-from-warehouse.mjs \
+            --warehouse-dir=combined-warehouse \
+            --out=artifacts/output/optimized-vip-risk-filter-rowset \
+            --bookmaker=bet365 \
+            --bankroll='${{ github.event.inputs.bankroll }}' \
+            --risk-pcts='${{ github.event.inputs.risk_pcts }}' \
+            --booster-stake='${{ github.event.inputs.booster_stake }}' \
+            --train-pct='${{ github.event.inputs.train_pct }}'
+
+      - name: Run walk-forward optimizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/optimize-optimized-vip-risk-filter-walk-forward.mjs \
+            --rows=artifacts/output/optimized-vip-risk-filter-rowset/optimized_vip_risk_filter_all_rows.csv \
+            --out=artifacts/output/optimized-vip-walk-forward-optimization \
+            --bankroll='${{ github.event.inputs.bankroll }}' \
+            --risk-pcts='${{ github.event.inputs.risk_pcts }}' \
+            --initial-train='${{ github.event.inputs.initial_train }}' \
+            --test-size='${{ github.event.inputs.test_size }}' \
+            --step-size='${{ github.event.inputs.step_size }}' \
+            --objective='${{ github.event.inputs.objective }}'
+
+      - name: Compress walk-forward output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/optimized-vip-walk-forward-optimization
+          zip -9 ../../../optimized-vip-walk-forward-optimization.zip ./*
+
+      - name: Upload walk-forward optimization artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimized-vip-walk-forward-optimization
+          path: |
+            optimized-vip-walk-forward-optimization.zip
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_optimization_report.md
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_optimization_summary.json
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_selected_folds.csv
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_benchmark_aggregate.csv
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_benchmark_folds.csv
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_all_candidate_summary.csv
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_compounding.csv
+            artifacts/output/optimized-vip-walk-forward-optimization/walk_forward_top_train_candidates.csv
+          if-no-files-found: error
