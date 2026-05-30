@@ -1,0 +1,139 @@
+name: Optimized VIP Risk Filter Blind Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      warehouse_run_id:
+        description: Optional GitHub Actions run ID from API Tennis Full Historical Odds Warehouse. Blank = latest successful run.
+        required: false
+        default: ''
+      bankroll:
+        description: Starting bankroll for drawdown/compounding simulation.
+        required: false
+        default: '3000'
+      risk_pcts:
+        description: Comma-separated risk fractions for compounding simulation.
+        required: false
+        default: '0.03,0.05'
+      booster_stake:
+        description: Exact-score booster stake per fired pocket, in units.
+        required: false
+        default: '0.50'
+      train_pct:
+        description: Chronological training split. Remaining rows are blind holdout.
+        required: false
+        default: '0.70'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  optimized-vip-risk-filter-blind-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve warehouse run id
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_RUN_ID: ${{ github.event.inputs.warehouse_run_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "${MANUAL_RUN_ID:-}" ]; then
+            RUN_ID="$MANUAL_RUN_ID"
+          else
+            RUN_ID=$(gh run list \
+              --workflow="api-tennis-full-historical-odds-warehouse.yml" \
+              --status=success \
+              --limit=1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+          fi
+          if [ -z "${RUN_ID:-}" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Could not resolve warehouse run id."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Using warehouse run id: $RUN_ID"
+
+      - name: Download combined warehouse artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p warehouse-artifact
+          gh run download "$RUN_ID" \
+            --name api-tennis-full-historical-odds-warehouse-combined \
+            --dir warehouse-artifact
+          echo "Downloaded artifact files:"
+          find warehouse-artifact -maxdepth 2 -type f -print
+
+      - name: Extract combined warehouse
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p combined-warehouse
+          ZIP_PATH="warehouse-artifact/api-tennis-full-historical-odds-warehouse-combined.zip"
+          if [ ! -f "$ZIP_PATH" ]; then
+            ZIP_PATH=$(find warehouse-artifact -name 'api-tennis-full-historical-odds-warehouse-combined.zip' -type f | head -n 1)
+          fi
+          if [ -z "${ZIP_PATH:-}" ] || [ ! -f "$ZIP_PATH" ]; then
+            echo "Combined warehouse zip not found."
+            find warehouse-artifact -type f -print
+            exit 1
+          fi
+          unzip -o "$ZIP_PATH" -d combined-warehouse
+          test -f combined-warehouse/first_set_correct_score_wide_combined.csv
+          echo "Combined warehouse extracted."
+          ls -lh combined-warehouse
+
+      - name: Run Optimized VIP risk-filter blind backtest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backtest-optimized-vip-risk-filter-from-warehouse.mjs \
+            --warehouse-dir=combined-warehouse \
+            --out=artifacts/output/optimized-vip-risk-filter-blind-backtest \
+            --bookmaker=bet365 \
+            --bankroll='${{ github.event.inputs.bankroll }}' \
+            --risk-pcts='${{ github.event.inputs.risk_pcts }}' \
+            --booster-stake='${{ github.event.inputs.booster_stake }}' \
+            --train-pct='${{ github.event.inputs.train_pct }}'
+
+      - name: Compress Optimized VIP risk-filter output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts/output/optimized-vip-risk-filter-blind-backtest
+          zip -9 ../../../optimized-vip-risk-filter-blind-backtest.zip ./*
+
+      - name: Upload Optimized VIP risk-filter artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimized-vip-risk-filter-blind-backtest
+          path: |
+            optimized-vip-risk-filter-blind-backtest.zip
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_report.md
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_summary.json
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_split_summary.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_by_tier.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_blind_by_tier.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_by_lane.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_blind_by_lane.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_compounding.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_all_rows.csv
+            artifacts/output/optimized-vip-risk-filter-blind-backtest/optimized_vip_risk_filter_blind_rows.csv
+          if-no-files-found: error
