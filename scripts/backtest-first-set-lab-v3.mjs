@@ -256,15 +256,25 @@ function estimatedPlayerStats(side, firstSetEdge, surface, level) {
   };
 }
 
+// FIXED 2026-08: API-Tennis encodes a tiebreak set as games.tiebreakPoints, e.g.
+// "7.9"/"6.7" = 7-6 (breaker 9-7). The old version received 7.9/6.7, returned false,
+// and parseFirstSetScore then returned null - silently DROPPING every tiebreak first
+// set from the sample. Since 7:6 / 6:7 is a guaranteed loss for the exact-score
+// groups used here, that removed only losses and inflated ROI by ~28 points.
+// See docs/EDGE-AUDIT-2026-08.md section 6b.
+function setGames(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : NaN;
+}
 function looksLikeTennisSet(a, b) {
-  return (a === 6 && b <= 7) || (b === 6 && a <= 7) || (a === 7 && b >= 5 && b <= 6) || (b === 7 && a >= 5 && a <= 6);
+  return (a === 6 && b <= 4) || (b === 6 && a <= 4) || (a === 7 && (b === 5 || b === 6)) || (b === 7 && (a === 5 || a === 6));
 }
 
 function parseFirstSetScore(fixture) {
   if (Array.isArray(fixture.scores)) {
     const firstSet = fixture.scores.find((score) => String(score?.score_set) === '1') ?? fixture.scores[0];
-    const a = Number(firstSet?.score_first);
-    const b = Number(firstSet?.score_second);
+    const a = setGames(firstSet?.score_first);
+    const b = setGames(firstSet?.score_second);
     if (Number.isFinite(a) && Number.isFinite(b) && looksLikeTennisSet(a, b)) return `${a}-${b}`;
   }
   return null;

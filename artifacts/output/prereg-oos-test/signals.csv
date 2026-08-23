@@ -1,0 +1,234 @@
+lane,lane_label,event_date,match,tournament,tour,tournament_group,book,score_cluster,odds_json,grouped_odds,skew,trigger_odds,actual_first_set,first_set_was_tiebreak,won,profit_units
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,A. Pellegrino vs N. Moreno De Alboran,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.75,""6:4"":5.5}",2.54878,HIGH,5.5,6:2,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-18,R. Bertola vs S. Mochizuki,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":6}",3.882353,EXTREME,,2:6,false,true,2.8824
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,J. Clarke vs D. Sweeny,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":6}",2.727273,HIGH,6,6:2,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,D. Evans vs D. Jade,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":5.5}",3.08,HIGH,5.5,4:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,O. Virtanen vs A. Holmgren,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5}",2.826087,HIGH,5,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,F. Ferreira Silva vs F. A. Gomez,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":6}",3.230769,HIGH,6,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,J. C. Prado Angelo vs M. McDonald,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":6}",3,MID,6,6:4,false,true,2
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,D. Svrcina vs G. Den Ouden,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5.5}",2.979167,HIGH,5.5,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,A. Barrena vs A. Galarneau,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":5.5}",3.08,HIGH,5.5,6:2,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,N. Basilashvili vs P. Boscardin Dias,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5}",2.619048,MID,5,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,G. Bueno vs F. Bax,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":9,""6:4"":5.5}",3.413793,HIGH,5.5,6:0,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-18,F. Cina vs Y. Watanuki,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.75,""6:4"":5.5}",2.54878,HIGH,5.5,6:4,false,true,1.5488
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-19,J. Faria vs G. Dimitrov,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":8,""6:4"":5}",3.076923,HIGH,5,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-19,N. Fatic vs L. Mikrut,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":9,""6:4"":5.5}",3.413793,HIGH,5.5,6:4,false,true,2.4138
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-19,B. Gojo vs S. Gueymard Wayenburg,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":6}",2.869565,MID,6,6:3,false,true,1.8696
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-19,G. Heide vs D. Added,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5}",2.5,MID,5,6:3,false,true,1.5
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-19,F. Maestrelli vs R. Noguchi,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.75,""6:4"":6}",2.651163,HIGH,6,3:6,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-05-19,E. Nava vs Y. Bu,French Open,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":13,""4:6"":6.5,""5:7"":21}",3.592105,LOW,6.5,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-19,C. Rodesch vs L. Riedi,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":5.5}",3.771429,EXTREME,,2:6,false,true,2.7714
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-19,T. Seyboth Wild vs Y. H. Hsu,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5.5}",2.869565,MID,5.5,6:1,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,A. Pellegrino vs L. Harris,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.75,""6:4"":6}",2.651163,HIGH,6,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,A. Holmgren vs D. Jade,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5}",2.5,MID,5,6:3,false,true,1.5
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,D. Svrcina vs F. A. Gomez,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5.5}",2.869565,MID,5.5,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,P. Boscardin Dias vs A. Galarneau,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":6}",3.230769,HIGH,6,6:4,false,true,2.2308
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,G. Heide vs J. Rodionov,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5.5}",2.869565,MID,5.5,1:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,H. Rocha vs B. Gojo,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":8,""6:4"":5}",3.076923,HIGH,5,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,J. Faria vs C. Smith,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,6:1,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,N. Fatic vs K. Jacquet,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":13,""6:4"":6}",4.105263,EXTREME,6,6:2,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-20,N. Fatic vs K. Jacquet,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":11,""6:3"":13,""6:4"":6}",2.989547,HIGH,6,6:2,false,true,1.9895
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,E. Nava vs T. Seyboth Wild,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,6:2,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-20,T. Schoolkate vs Dar. Blanch,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8,""4:6"":4.5}",2.88,EXTREME,,4:6,false,true,1.88
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-20,N. Budkov Kjaer vs T. Gentzsch,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":6}",2.727273,HIGH,6,6:7,true,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-05-21,J. De Jong vs M. Zheng,French Open,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":17,""4:6"":6.5,""5:7"":19}",3.7693,LOW,6.5,5:7,false,true,2.7693
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-21,J. De Jong vs M. Zheng,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":6.5}",4.333333,EXTREME,,5:7,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-21,D. Svrcina vs T. Faurel,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":6}",2.869565,MID,6,2:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-21,J. Faria vs L. Neumayer,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":5.5}",3.548387,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-22,B. Gojo vs J. Rodionov,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":4.5}",3.103448,EXTREME,,5:7,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-22,F. Gill vs K. Jacquet,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":12,""6:4"":5.5}",3.771429,EXTREME,5.5,6:7,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-22,F. Gill vs K. Jacquet,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":11,""6:3"":12,""6:4"":5.5}",2.808511,HIGH,5.5,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-22,Dar. Blanch vs L. Pavlovic,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,2:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-24,G. Mpetshi Perricard vs N. Djokovic,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9,""4:6"":4.5}",3,EXTREME,,7:5,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-24,H. Medjedovic vs Y. Hanfmann,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":6}",2.869565,MID,6,6:3,false,true,1.8696
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-24,T. Machac vs Z. Bergs,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":6}",3.230769,HIGH,6,6:4,false,true,2.2308
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-24,Q. Halys vs M. Bellucci,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":5}",3.333333,EXTREME,,6:3,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-24,A. Davidovich Fokina vs D. Dzumhur,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5}",2.5,MID,5,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-24,L. Sonego vs P. Herbert,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5.5}",2.869565,MID,5.5,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-24,K. Jacquet vs M. Trungelliti,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":6}",3.882353,EXTREME,,4:6,false,true,2.8824
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-24,H. Dellien vs V. Royer,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":6}",3.12,MID,6,4:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-25,M. Navone vs J. Brooksby,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,6:4,false,true,1.75
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-25,J. Munar vs H. Hurkacz,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":9,""6:4"":6}",3.6,HIGH,6,3:6,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-25,J. Munar vs H. Hurkacz,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":12,""6:3"":9,""6:4"":6}",2.769231,MID,6,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-25,F. Cerundolo vs B. Van De Zandschulp,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,6:3,false,true,1.619
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-25,A. Rinderknech vs J. Rodionov,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-25,F. Cobolli vs A. Pellegrino,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,6:4,false,true,1.75
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-26,A. Tabilo vs K. Majchrzak,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,6:1,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-26,T. Griekspoor vs M. Arnaldi,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":9.5,""6:4"":5.5}",3.483333,HIGH,5.5,7:6,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-26,T. Griekspoor vs M. Arnaldi,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":11,""6:3"":9.5,""6:4"":5.5}",2.64557,HIGH,5.5,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-26,M. Cilic vs M. Kouame,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":6}",2.727273,HIGH,6,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-26,A. Bublik vs J-L. Struff,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.33,""6:4"":6}",2.515005,HIGH,6,5:7,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-26,M. Landaluce vs J. C. Prado Angelo,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":6}",2.727273,HIGH,6,6:3,false,true,1.7273
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-26,J. Faria vs D. Shapovalov,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":5.5}",3.08,HIGH,5.5,6:4,false,true,2.08
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-26,F. Diaz Acosta vs Z. Zhang,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":6}",4.105263,EXTREME,,6:1,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-25,V. Erjavec vs E. Rybakina,French Open,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":4.33,""4:6"":8}",2.809408,EXTREME,,2:6,false,true,1.8094
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-27,A. Davidovich Fokina vs T. A. Tirante,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":6}",4,EXTREME,,6:4,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-27,J. Fonseca vs D. Prizmic,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":9.5,""6:4"":5}",3.275862,EXTREME,5,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-27,N. Basavareddy vs A. Michelsen,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":13,""6:4"":6}",4.105263,EXTREME,6,6:7,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-27,N. Basavareddy vs A. Michelsen,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":13,""6:3"":13,""6:4"":6}",3.12,HIGH,6,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-27,M. Navone vs J. Mensik,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":10,""6:4"":5.5}",3.548387,EXTREME,5.5,3:6,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-27,M. Navone vs J. Mensik,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":9.5,""6:3"":10,""6:4"":5.5}",2.583436,HIGH,5.5,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-27,U. Humbert vs Q. Halys,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5.5}",2.979167,HIGH,5.5,4:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-27,F. Cina vs J. De Jong,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":13,""6:4"":5.5}",3.864865,EXTREME,5.5,3:6,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-27,F. Cina vs J. De Jong,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":11,""6:3"":13,""6:4"":5.5}",2.86,HIGH,5.5,3:6,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-05-27,C. Ruud vs H. Medjedovic,French Open,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":13,""4:6"":6.5,""5:7"":19}",3.528571,LOW,6.5,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-28,A. Rinderknech vs M. Berrettini,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":5.5}",4.02439,EXTREME,,4:6,false,true,3.0244
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-28,L. van Assche vs B. Nakashima,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":15,""6:4"":6}",4.285714,EXTREME,6,7:6,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-28,L. van Assche vs B. Nakashima,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":13,""6:3"":15,""6:4"":6}",3.22314,HIGH,6,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-28,H. Hurkacz vs F. Tiafoe,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":4.75}",3.607595,EXTREME,,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-28,R. Collignon vs B. Shelton,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":17,""6:4"":5}",3.863636,EXTREME,5,6:4,false,true,2.8636
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-05-28,R. Collignon vs B. Shelton,French Open,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":15,""6:3"":17,""6:4"":5}",3.072289,HIGH,5,6:4,false,true,2.0723
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-28,D. Vallejo vs M. Kouame,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-28,Z. Svajda vs A. Walton,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":5}",3.529412,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-28,M. Arnaldi vs S. Tsitsipas,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":5}",3.275862,EXTREME,,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-28,F. Auger-Aliassime vs R. A. Burruchaga,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,4:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-29,T. A. Tirante vs P. Carreno-Busta,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5.5}",2.869565,MID,5.5,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-30,J. Faria vs F. Tiafoe,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9,""4:6"":5}",3.214286,EXTREME,,6:4,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-30,F. Cobolli vs L. Tien,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5.5}",2.979167,HIGH,5.5,6:2,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-05-30,J. M. Cerundolo vs M. Landaluce,French Open,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":6}",3.230769,HIGH,6,6:4,false,true,2.2308
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-30,M. Arnaldi vs R. Collignon,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":7.5,""4:6"":3.75}",2.5,EXTREME,,6:4,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-31,J. Mensik vs A. Rublev,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":5}",3.275862,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-31,C. Ruud vs J. Fonseca,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":6}",4,EXTREME,,5:7,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-27,S. Bejlek vs I. Swiatek,French Open,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":4,""4:6"":7.5}",2.608696,EXTREME,,2:6,false,true,1.6087
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-05-29,M. Linette vs I. Swiatek,French Open,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":4,""4:6"":7}",2.545455,EXTREME,,4:6,false,true,1.5455
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-02,J. Mensik vs J. Fonseca,French Open,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8.5,""4:6"":4.33}",2.868667,EXTREME,,6:4,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-06,P. Herbert vs D. Glinka,Stuttgart,ATP,STRONG_500_250,bet365,3:6/4:6/5:7,"{""3:6"":15,""4:6"":6.5,""5:7"":23}",3.788007,LOW,6.5,7:6,true,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-09,Q. Halys vs S. Shimabukuro,Stuttgart,ATP,STRONG_500_250,10Bet,3:6/4:6/5:7,"{""3:6"":19,""4:6"":6.5,""5:7"":29}",4.150058,LOW,6.5,4:6,false,true,3.1501
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-10,H. Hurkacz vs M. Fucsovics,Hertogenbosch,ATP,OTHER_TOUR,bet365,3:6/4:6/5:7,"{""3:6"":21,""4:6"":6.5,""5:7"":23}",4.082575,LOW,6.5,6:3,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-11,U. Humbert vs B. Bonzi,Hertogenbosch,ATP,OTHER_TOUR,bet365,3:6/4:6/5:7,"{""3:6"":17,""4:6"":6.5,""5:7"":23}",3.903994,LOW,6.5,4:6,false,true,2.904
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-12,G. Mpetshi Perricard vs A. Bublik,Stuttgart,ATP,STRONG_500_250,10Bet,3:6/4:6/5:7,"{""3:6"":31,""4:6"":6.5,""5:7"":34}",4.640027,LOW,6.5,6:7,true,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-13,J. Duckworth vs A. Vukic,London,ATP,STRONG_500_250,bet365,3:6/4:6/5:7,"{""3:6"":13,""4:6"":6.5,""5:7"":21}",3.592105,LOW,6.5,3:6,false,true,2.5921
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-13,M. Pohankova vs T. Korpatsch,Berlin,WTA,STRONG_500_250,10Bet,3:6/4:6/5:7,"{""3:6"":15,""4:6"":6.25,""5:7"":21}",3.645833,LOW,6.25,6:2,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-16,B. Nakashima vs M. Fucsovics,London,ATP,STRONG_500_250,10Bet,3:6/4:6/5:7,"{""3:6"":19,""4:6"":6.25,""5:7"":29}",4.04671,LOW,6.25,6:3,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-16,J. Mensik vs A. Mannarino,London,ATP,STRONG_500_250,10Bet,3:6/4:6/5:7,"{""3:6"":21,""4:6"":6.5,""5:7"":31}",4.278564,LOW,6.5,7:5,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-17,B. Nakashima vs I. Buse,London,ATP,STRONG_500_250,bet365,3:6/4:6/5:7,"{""3:6"":19,""4:6"":6.5,""5:7"":23}",4.000704,LOW,6.5,6:2,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-19,U. Humbert vs R. Hijikata,London,ATP,STRONG_500_250,bet365,3:6/4:6/5:7,"{""3:6"":15,""4:6"":6.5,""5:7"":21}",3.729508,LOW,6.5,6:1,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-20,E. Nava vs H. Stewart,Eastbourne,ATP,STRONG_500_250,bet365,3:6/4:6/5:7,"{""3:6"":15,""4:6"":6.5,""5:7"":21}",3.729508,LOW,6.5,6:2,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-20,E. Navarro vs V. Golubic,Nottingham,WTA,OTHER_TOUR,bet365,3:6/4:6/5:7,"{""3:6"":15,""4:6"":6.5,""5:7"":19}",3.661067,LOW,6.5,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,C. Chidekh vs A. Dougaz,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.75,""6:4"":6}",2.651163,HIGH,6,4:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,D. Glinka vs K. Coppejans,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7.5,""6:4"":6}",3.333333,HIGH,6,4:6,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-22,D. Glinka vs K. Coppejans,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":10,""6:3"":7.5,""6:4"":6}",2.5,MID,6,4:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,A. Matusevich vs R. Sakamoto,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5}",3.4375,EXTREME,,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,Z. Piros vs I. Ivanov,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5}",2.727273,HIGH,5,6:2,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-22,F. Comesana vs A. Moro Canas,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":12,""4:6"":6.5,""5:7"":21}",3.511254,LOW,6.5,6:4,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,A. Guerrieri vs D. Goffin,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":5}",3.333333,EXTREME,,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,Y. H. Hsu vs S. Sakellaridis,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":5.5}",3.771429,EXTREME,,4:6,false,true,2.7714
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,J. Monday vs T. Schoolkate,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":21,""6:4"":5}",4.038462,EXTREME,5,5:7,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-22,J. Monday vs T. Schoolkate,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":19,""6:3"":21,""6:4"":5}",3.330551,EXTREME,5,5:7,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,K. Smith vs J. P. Ficovich,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":6}",2.869565,MID,6,6:1,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,L. Broady vs A. Holmgren,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":4.75}",3.31746,EXTREME,,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,J. Clarke vs A. Pellegrino,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,6:2,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,M. Dodig vs F. Ferreira Silva,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5.5}",3.666667,EXTREME,,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,L. Draxl vs R. Bertola,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":10,""6:4"":6}",3.75,HIGH,6,6:2,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-22,L. Draxl vs R. Bertola,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":15,""6:3"":10,""6:4"":6}",3,MID,6,6:2,false,true,2
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,V. Gaubas vs M. Mmoh,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8,""4:6"":4.5}",2.88,EXTREME,,4:6,false,true,1.88
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,P. Herbert vs P. Jubb,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5.5}",2.979167,HIGH,5.5,5:7,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-22,C. H. Tseng vs G. Heide,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":5.5}",3.864865,EXTREME,,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-22,Z. Zhang vs H. Searle,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":6}",3,MID,6,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,L. Djere vs M. Zheng,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":5.5}",3.771429,EXTREME,,5:7,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,A. Dougaz vs R. Sakamoto,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5}",3.4375,EXTREME,,4:6,false,true,2.4375
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-24,J. Faria vs L. Pavlovic,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,6:4,false,true,1.619
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,Z. Piros vs B. Harris,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":4.33}",2.974331,EXTREME,,4:6,false,true,1.9743
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,B. Gojo vs C. Smith,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":5}",3.75,EXTREME,,4:6,false,true,2.75
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-24,K. Smith vs M. Echargui,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":4.75,""6:4"":5.5}",2.54878,HIGH,5.5,4:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,C. Rodesch vs D. Lajovic,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":6}",4.285714,EXTREME,,2:6,false,true,3.2857
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,L. Nardi vs O. Virtanen,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":4.75}",3.166667,EXTREME,,4:6,false,true,2.1667
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,A. Moro Canas vs H. Mayot,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":4.75}",3.166667,EXTREME,,6:3,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-24,P. Llamas Ruiz vs P. Martin Tiffon,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5}",2.619048,MID,5,6:4,false,true,1.619
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,J. Kym vs A. Holmgren,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":19,""4:6"":5.5}",4.265306,EXTREME,,6:4,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,A. Galarneau vs O. Tarvet,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":5}",3.275862,EXTREME,,5:7,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-24,D. Evans vs T. Schoolkate,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":12,""6:4"":5.5}",3.771429,EXTREME,5.5,5:7,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-24,D. Evans vs T. Schoolkate,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":15,""6:3"":12,""6:4"":5.5}",3.013699,HIGH,5.5,5:7,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-24,T. Boyer vs A. Pellegrino,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":13,""4:6"":6.5,""5:7"":21}",3.592105,LOW,6.5,6:2,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,M. Basing vs T. Gentzsch,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":5}",3.275862,EXTREME,,7:5,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,R. Bertola vs J. Rodionov,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8.5,""4:6"":4.33}",2.868667,EXTREME,,4:6,false,true,1.8687
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,P. Jubb vs T. Barrios Vera,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":4.75}",3.402985,EXTREME,,4:6,false,true,2.403
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-24,N. Mejia vs G. Heide,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":3.75}",2.727273,EXTREME,,6:4,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-25,Y. Zhou vs B. Harris,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8.5,""4:6"":3.75}",2.602041,EXTREME,,6:1,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-25,D. Sweeny vs T. Barrios Vera,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":5.5}",3.771429,EXTREME,,4:6,false,true,2.7714
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-25,R. Safiullin vs J. Kym,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,4:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-25,M. McDonald vs C. O'Connell,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":6}",4.105263,EXTREME,,6:3,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-25,J. Faria vs R. Sakamoto,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":6}",2.869565,MID,6,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-25,V. Gaubas vs D. Lajovic,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":4.75}",3.220339,EXTREME,,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,R. Bautista-Agut vs J. Fonseca,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":7.5,""4:6"":3.75}",2.5,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,M. Cilic vs D. Medvedev,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9,""4:6"":4}",2.769231,EXTREME,,1:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,H. Gaston vs S. Tsitsipas,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":6.5}",4.216216,EXTREME,,1:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,A. Kovacevic vs B. Van De Zandschulp,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":4.5}",3.342857,EXTREME,,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,S. Kwon vs M. Landaluce,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":6}",3.882353,EXTREME,,6:4,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-29,H. Medjedovic vs S. Ofner,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":6}",2.727273,HIGH,6,6:1,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,E. Nava vs I. Buse,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":4.75}",3.31746,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,E. Quinn vs L. Darderi,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":17,""4:6"":6}",4.434783,EXTREME,,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-29,A. Rinderknech vs O. Tarvet,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6,""6:4"":5.5}",2.869565,MID,5.5,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,C. Ruud vs H. Hurkacz,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":5}",3.611111,EXTREME,,4:6,false,true,2.6111
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-29,J-L. Struff vs S. Baez,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5}",2.619048,MID,5,6:1,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-29,T. A. Tirante vs F. Marozsan,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":17,""6:4"":5.5}",4.155556,EXTREME,5.5,5:7,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-29,T. A. Tirante vs F. Marozsan,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":19,""6:3"":17,""6:4"":5.5}",3.409789,HIGH,5.5,5:7,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,M. Trungelliti vs M. Damm,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":5.5}",3.864865,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-29,A. Vukic vs J. Brooksby,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":5}",3.275862,EXTREME,,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-29,A. Walton vs D. Prizmic,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":11,""6:4"":5}",3.4375,EXTREME,5,6:4,false,true,2.4375
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-29,A. Walton vs D. Prizmic,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":15,""6:3"":11,""6:4"":5}",2.79661,MID,5,6:4,false,true,1.7966
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-29,M. Zheng vs C. Norrie,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":10,""6:4"":6}",3.75,HIGH,6,6:7,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-29,M. Zheng vs C. Norrie,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":15,""6:3"":10,""6:4"":6}",3,MID,6,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,M. Arnaldi vs Q. Halys,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":5.5}",4.02439,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,J. De Jong vs R. Hijikata,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8,""4:6"":4}",2.666667,EXTREME,,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,Y. Hanfmann vs G. Mpetshi Perricard,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":21,""6:4"":5.5}",4.358491,EXTREME,5.5,6:7,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-30,Y. Hanfmann vs G. Mpetshi Perricard,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":29,""6:3"":21,""6:4"":5.5}",3.789027,HIGH,5.5,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,U. Humbert vs Z. Bergs,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":17,""4:6"":5.5}",4.155556,EXTREME,,2:6,false,true,3.1556
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,K. Jacquet vs V. Gaubas,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,6:3,false,true,1.619
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,V. Kopriva vs J. Choinski,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":5.5}",3.08,HIGH,5.5,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,P. Kypson vs M. McDonald,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8,""4:6"":4}",2.666667,EXTREME,,3:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,K. Majchrzak vs A. Tabilo,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5}",2.619048,MID,5,6:3,false,true,1.619
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,J. Mensik vs T. Samuel,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5,""6:4"":5.5}",2.619048,MID,5.5,5:7,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,A. Michelsen vs J. Fearnley,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5.5}",3.666667,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,C. Moutet vs M. Giron,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":6}",4,EXTREME,,6:4,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-06-30,B. Nakashima vs J. Pinnington Jones,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":21,""4:6"":6.5,""5:7"":23}",4.082575,LOW,6.5,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,V. Royer vs H. Wendelken,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5}",3.4375,EXTREME,,4:6,false,true,2.4375
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,S. Shimabukuro vs J. Faria,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7,""6:4"":5.5}",3.08,HIGH,5.5,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,L. Sonego vs T. M. Etcheverry,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":5.5}",4.02439,EXTREME,,6:4,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,S. Wawrinka vs M. Berrettini,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":10,""4:6"":3.5}",2.592593,EXTREME,,7:6,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-06-30,P. Llamas Ruiz vs Z. Svajda,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":19,""6:4"":5.5}",4.265306,EXTREME,5.5,1:6,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-06-30,P. Llamas Ruiz vs Z. Svajda,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":17,""6:3"":19,""6:4"":5.5}",3.409789,HIGH,5.5,1:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-06-30,N. Podoroska vs M. Kostyuk,Wimbledon,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":4.33,""4:6"":8}",2.809408,EXTREME,,1:6,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-01,A. Molcan vs D. Altmaier,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":8.5,""6:4"":5.5}",3.339286,HIGH,5.5,6:4,false,true,2.3393
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-07-01,A. Molcan vs D. Altmaier,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":12,""6:3"":8.5,""6:4"":5.5}",2.61234,MID,5.5,6:4,false,true,1.6123
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-01,R. Safiullin vs B. Van De Zandschulp,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":5}",3.611111,EXTREME,,6:0,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-07-01,H. Hurkacz vs S. Ofner,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":26,""4:6"":6.5,""5:7"":26}",4.333333,LOW,6.5,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-01,J. Brooksby vs I. Buse,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":6}",4.285714,EXTREME,,6:2,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-01,S. Tsitsipas vs N. Djokovic,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":4.75}",3.166667,EXTREME,,3:6,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-07-02,B. Nakashima vs J-L. Struff,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":19,""4:6"":6.5,""5:7"":23}",4.000704,LOW,6.5,6:4,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-02,Z. Svajda vs K. Majchrzak,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5.5}",3.666667,EXTREME,,2:6,false,true,2.6667
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-02,K. Khachanov vs Y. Hanfmann,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5.5}",2.979167,HIGH,5.5,6:3,false,true,1.9792
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-02,K. Jacquet vs A. Bublik,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8,""4:6"":4}",2.666667,EXTREME,,3:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-02,A. Fery vs O. Virtanen,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":5}",3.529412,EXTREME,,5:7,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-02,J. Fearnley vs J. Munar,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":10,""6:4"":6}",3.75,HIGH,6,4:6,false,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-07-02,J. Fearnley vs J. Munar,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":13,""6:3"":10,""6:4"":6}",2.910448,MID,6,4:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-02,G. Diallo vs L. Sonego,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":15,""4:6"":5}",3.75,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-02,Q. Halys vs M. Giron,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":4.33}",3.248125,EXTREME,,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-02,J. Mensik vs G. Dimitrov,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":5}",2.826087,HIGH,5,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-02,M. Berrettini vs A. Fils,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":17,""6:4"":5.5}",4.155556,EXTREME,5.5,6:4,false,true,3.1556
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-07-02,M. Berrettini vs A. Fils,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":21,""6:3"":17,""6:4"":5.5}",3.469081,HIGH,5.5,6:4,false,true,2.4691
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-02,J. Duckworth vs F. Cobolli,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":9.5,""4:6"":3.75}",2.688679,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-03,H. Hurkacz vs T. Paul,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":4.5}",3.342857,EXTREME,,4:6,false,true,2.3429
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-03,R. Safiullin vs J. Fonseca,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8.5,""4:6"":4}",2.72,EXTREME,,6:3,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-07-03,R. Jodar vs S. Mochizuki,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":21,""4:6"":6.5,""5:7"":21}",4.014706,LOW,6.5,6:1,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-04,K. Khachanov vs F. Cobolli,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":7.5,""6:4"":5}",3,HIGH,5,6:0,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-04,M. Giron vs A. Zverev,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8.5,""4:6"":3.75}",2.602041,EXTREME,,2:6,false,true,1.602
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-04,Z. Bergs vs A. Fery,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":6.5,""6:4"":6}",3.12,MID,6,6:2,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-04,Z. Bergs vs A. Fery,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":6.5}",4.333333,EXTREME,,6:2,false,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-04,F. Tiafoe vs A. Bublik,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":10,""6:4"":5}",3.333333,EXTREME,5,6:4,false,true,2.3333
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-07-04,F. Tiafoe vs A. Bublik,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":15,""6:3"":10,""6:4"":5}",2.727273,MID,5,6:4,false,true,1.7273
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-04,G. Dimitrov vs M. Berrettini,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":13,""4:6"":4}",3.058824,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-05,R. Safiullin vs N. Djokovic,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":8,""4:6"":4.33}",2.809408,EXTREME,,6:7,true,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-07-06,T. Fritz vs A. Bublik,Wimbledon,ATP,GRAND_SLAM,bet365,3:6/4:6/5:7,"{""3:6"":13,""4:6"":6.5,""5:7"":21}",3.592105,LOW,6.5,7:6,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-07,J. Lehecka vs A. Zverev,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":4.5}",3.272727,EXTREME,,4:6,false,true,2.2727
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-07,F. Auger-Aliassime vs N. Djokovic,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":12,""6:4"":6}",4,EXTREME,6,6:7,true,false,-1
+CORE_P1_ATP_GS_PROTECTED3,"Core Cluster (Protected 3, README active)",2026-07-07,F. Auger-Aliassime vs N. Djokovic,Wimbledon,ATP,GRAND_SLAM,bet365,6:2/6:3/6:4,"{""6:2"":21,""6:3"":12,""6:4"":6}",3.36,MID,6,6:7,true,false,-1
+CORE_P1_ATP_GS_BET365,"Core Cluster (Gate-2, as coded)",2026-07-08,F. Cobolli vs A. Fery,Wimbledon,ATP,GRAND_SLAM,bet365,6:3/6:4,"{""6:3"":5.5,""6:4"":5.5}",2.75,MID,5.5,4:6,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-08,T. Fritz vs A. Zverev,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":23,""4:6"":4.75}",3.936937,EXTREME,,4:6,false,true,2.9369
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-10,A. Fery vs A. Zverev,Wimbledon,ATP,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":7,""4:6"":4}",2.545455,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-07,N. Osaka vs K. Muchova,Wimbledon,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":11,""4:6"":5.5}",3.666667,EXTREME,,6:7,true,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-08,L. Noskova vs E. Mertens,Wimbledon,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":6.5}",4.216216,EXTREME,,6:3,false,false,-1
+RESEARCH_P2_GS_26_46_BET365,Research P2 GS Sniper,2026-07-09,M. Kostyuk vs L. Noskova,Wimbledon,WTA,GRAND_SLAM,bet365,2:6/4:6,"{""2:6"":12,""4:6"":6.5}",4.216216,EXTREME,,4:6,false,true,3.2162
+VIP_P2_V3_SHAPE,V3 Cluster,2026-08-01,R. Jodar vs L. Musetti,Washington,ATP,STRONG_500_250,bet365,3:6/4:6/5:7,"{""3:6"":13,""4:6"":6.5,""5:7"":19}",3.528571,LOW,6.5,1:6,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-08-05,C. Ruud vs J. M. Cerundolo,Montreal,ATP,MASTERS_1000,bet365,3:6/4:6/5:7,"{""3:6"":19,""4:6"":6.5,""5:7"":21}",3.935508,LOW,6.5,6:1,false,false,-1
+VIP_P2_V3_SHAPE,V3 Cluster,2026-08-07,B. Nakashima vs T. Droguet,Montreal,ATP,MASTERS_1000,10Bet,3:6/4:6/5:7,"{""3:6"":26,""4:6"":6.5,""5:7"":21}",4.167939,LOW,6.5,4:6,false,true,3.1679
