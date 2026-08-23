@@ -1,0 +1,266 @@
+[
+  {
+    "market": "Home Team Total (1st Set)",
+    "n": 6672,
+    "median_vig_best": -0.33509003074220467,
+    "median_vig_single": 0.0796019900497511,
+    "arbs": 5113,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Away Team Total (1st Set)",
+    "n": 6674,
+    "median_vig_best": -0.3243955712886948,
+    "median_vig_single": 0.07961083795376078,
+    "arbs": 5127,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Not to Win at least one set",
+    "n": 117,
+    "median_vig_best": -0.2803030303030303,
+    "median_vig_single": -0.2803030303030303,
+    "arbs": 113,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home/Away",
+    "n": 7029,
+    "median_vig_best": 0.018607327834260445,
+    "median_vig_single": 0.057110742386126345,
+    "arbs": 865,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home/Away (1st Set)",
+    "n": 6979,
+    "median_vig_best": 0.025163094128611174,
+    "median_vig_single": 0.0702614379084967,
+    "arbs": 466,
+    "median_outcomes": 2
+  },
+  {
+    "market": "1x2 Aces",
+    "n": 45,
+    "median_vig_best": 0.03154733922955555,
+    "median_vig_single": 0.09390003200682817,
+    "arbs": 10,
+    "median_outcomes": 3
+  },
+  {
+    "market": "Win From behind (Player 1)",
+    "n": 206,
+    "median_vig_best": 0.05092592592592582,
+    "median_vig_single": 0.05092592592592582,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Win From behind (Player 2)",
+    "n": 205,
+    "median_vig_best": 0.05092592592592582,
+    "median_vig_single": 0.05092592592592582,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Set Betting",
+    "n": 6965,
+    "median_vig_best": 0.0523696165117431,
+    "median_vig_single": 0.12273564628973244,
+    "arbs": 527,
+    "median_outcomes": 4
+  },
+  {
+    "market": "Number of sets",
+    "n": 6751,
+    "median_vig_best": 0.052489177489177585,
+    "median_vig_single": 0.07551487414187652,
+    "arbs": 77,
+    "median_outcomes": 2
+  },
+  {
+    "market": "1x2 Double Faults",
+    "n": 45,
+    "median_vig_best": 0.05463587763074895,
+    "median_vig_single": 0.09343434343434343,
+    "arbs": 8,
+    "median_outcomes": 3
+  },
+  {
+    "market": "Odd/Even (1st Set)",
+    "n": 6834,
+    "median_vig_best": 0.06410074996462423,
+    "median_vig_single": 0.07638888888888884,
+    "arbs": 102,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home/Away (2nd Set)",
+    "n": 6797,
+    "median_vig_best": 0.06522717049032845,
+    "median_vig_single": 0.07482993197278898,
+    "arbs": 13,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Win In Straigh Sets (Player 2)",
+    "n": 241,
+    "median_vig_best": 0.06666666666666665,
+    "median_vig_single": 0.06666666666666665,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home First Service Game - Winners Winner",
+    "n": 255,
+    "median_vig_best": 0.06666666666666665,
+    "median_vig_single": 0.06666666666666665,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Win at least one set (Player 1)",
+    "n": 4196,
+    "median_vig_best": 0.06696428571428559,
+    "median_vig_single": 0.06696428571428559,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Win at least one set (Player 2)",
+    "n": 4197,
+    "median_vig_best": 0.06839622641509413,
+    "median_vig_single": 0.06862745098039214,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Away First Service Game - Winners Winner",
+    "n": 255,
+    "median_vig_best": 0.06862745098039214,
+    "median_vig_single": 0.06862745098039214,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Tie-break (1st Set)",
+    "n": 322,
+    "median_vig_best": 0.06894634417570189,
+    "median_vig_single": 0.0729847494553375,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Win In Straigh Sets (Player 1)",
+    "n": 244,
+    "median_vig_best": 0.069672131147541,
+    "median_vig_single": 0.069672131147541,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Odd/Even (2nd Set)",
+    "n": 6776,
+    "median_vig_best": 0.07062090287121059,
+    "median_vig_single": 0.07604639726938767,
+    "arbs": 6,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Odd/Even",
+    "n": 6915,
+    "median_vig_best": 0.07526881720430101,
+    "median_vig_single": 0.08108108108108092,
+    "arbs": 158,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Odd/Even (3rd Set)",
+    "n": 387,
+    "median_vig_best": 0.07529989882931032,
+    "median_vig_single": 0.07529989882931032,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home/Away (3rd Set)",
+    "n": 387,
+    "median_vig_best": 0.07547479612500685,
+    "median_vig_single": 0.07547479612500685,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home Team Total (2nd Set)",
+    "n": 6593,
+    "median_vig_best": 0.07612383375742149,
+    "median_vig_single": 0.07612383375742149,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Home First Service Game - Winners First Point",
+    "n": 247,
+    "median_vig_best": 0.07612383375742149,
+    "median_vig_single": 0.07612383375742149,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Away Team Total (2nd Set)",
+    "n": 6595,
+    "median_vig_best": 0.07613666935700825,
+    "median_vig_single": 0.07613666935700825,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Away First Service Game - Winners First Point",
+    "n": 250,
+    "median_vig_best": 0.07792207792207795,
+    "median_vig_single": 0.07792207792207795,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Tie-break",
+    "n": 1021,
+    "median_vig_best": 0.07984482658792191,
+    "median_vig_single": 0.07984482658792191,
+    "arbs": 0,
+    "median_outcomes": 2
+  },
+  {
+    "market": "Set / Match",
+    "n": 6859,
+    "median_vig_best": 0.09861873196721005,
+    "median_vig_single": 0.11085895633392417,
+    "arbs": 15,
+    "median_outcomes": 4
+  },
+  {
+    "market": "Correct Score 1st Half",
+    "n": 6991,
+    "median_vig_best": 0.1684681688280758,
+    "median_vig_single": 0.3008474670554202,
+    "arbs": 116,
+    "median_outcomes": 14
+  },
+  {
+    "market": "Correct Score 2nd Half",
+    "n": 6910,
+    "median_vig_best": 0.2518548992257621,
+    "median_vig_single": 0.33447534336406637,
+    "arbs": 1,
+    "median_outcomes": 14
+  },
+  {
+    "market": "Win at least one set",
+    "n": 43,
+    "median_vig_best": 0.40211640211640187,
+    "median_vig_single": 0.40211640211640187,
+    "arbs": 0,
+    "median_outcomes": 2
+  }
+]
